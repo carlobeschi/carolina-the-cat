@@ -16,6 +16,8 @@ In the morning, open the dress-up drawer in the bedroom and pick a crown, a top 
 
 On sunny days a little bird lands on the kitchen windowsill. The cat chatters "ek-ek-ek" and the bird sings a short tune, which shows up on the piano's music sheet so you can copy it. On day 3, and every five days after, it's your birthday: a cake waits on the sofa, meow to blow out the candles, and everyone gets a party hat (even the golden bunny). Past the city there is a park with a pond and two ducks. Say hello to the ducks and watch the fish jump for hearts; you can't catch them, and sometimes one splashes you.
 
+Carolina's real art hangs in the house: her painting of red flowers in a gold vase is on the bedroom wall, her cupcake painting is in the kitchen by the clock, and her sticker-dot picture is taped to the fridge. Tap one and the cat goes up close to look (that counts as a fun thing for the day). Three stickers come from her sticker-dot picture too: a smiley face with red cheeks, a green caterpillar and a love heart. Her paintings also set the colours: smiling hearts on the wallpaper, a mint rug with white stars, red and orange dots in the kitchen and a yellow floor with red crayon marks.
+
 Everyone who plays gets their own cat. Give it a name (tap one of the ideas or type your own) and the game saves as you play, on that device, so you can come back and continue from the "Who is playing?" screen. Tap your cat's name at the top any time to save, start again from day 1 (it asks first), see the top cats or change cat. You earn points as you play: one for every heart, 3 for each fun thing you do that day (milk, the box hat, the cup, the bath, the moon and so on) and 5 more for every nap. The Top Cats board ranks all the cats on the device by their best score.
 
 ## Play
@@ -28,7 +30,7 @@ https://claude.ai/artifact/1z3SQodhS5wFZKTUsx8c7k
 - One file: inline SVG drawings, CSS animations and plain JavaScript, no build step and no libraries.
 - Sounds are synthesized with the Web Audio API (there's a mute toggle).
 - Fonts are Gochi Hand and Patrick Hand from Google Fonts; offline it falls back to Comic Sans or Chalkboard.
-- To use Carolina's own drawings as stickers, swap a sticker's `svg` in the `STK` list for an `<image>` with the picture.
+- Carolina's paintings are photos, cropped flat and saved as small JPEGs inside a hidden `<svg>` at the top of the page (`#art-vase`, `#art-cupcake`, `#art-dots`). Scenes show them with `<use>`, so the photos are in the page only once. To add another, add an `<image>` there and an entry in `ART`.
 - Each scene has a `goal()` that returns the hotspot to highlight and the hint to show, so the glowing target and the hint always agree.
 
 The file holds the page body only (no `<!doctype>` wrapper), because the artifact host adds the document skeleton when it publishes.
