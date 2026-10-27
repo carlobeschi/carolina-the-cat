@@ -1,0 +1,543 @@
+<title>You Are a Cat</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Patrick+Hand&display=swap">
+<style>
+/* Layout: Carolina's crayon-blue dotted frame holds a tap-to-play stage; the story sits below in blue-pen capitals like her note */
+:root{
+  --sky:#2c8fd6; --sky-dot:#7cc6f0; --sky-soft:#d7ecfa; --paper:#fffaf6; --ink:#1d1a1f;
+  --pen:#1f5fa8; --pink:#f3a3c6; --hot:#e0508a; --gold:#d6ad45;
+  --display:"Gochi Hand","Comic Sans MS","Chalkboard SE",cursive;
+  --body:"Patrick Hand","Comic Sans MS","Chalkboard SE",cursive;
+  color-scheme:light;
+}
+html,body{background:var(--sky-soft);color:var(--ink)}
+body{font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:8px 16px}
+.wrap{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:1.8rem;margin:0;line-height:1;color:var(--hot);text-wrap:balance}
+.by{font-size:1rem;color:var(--pen);margin-top:2px}
+.hud{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{background:var(--paper);border:2.5px solid var(--ink);border-radius:999px;padding:2px 10px;font-size:1.05rem;display:flex;align-items:center;gap:5px;color:var(--ink);font-family:var(--body);line-height:1.4;font-variant-numeric:tabular-nums}
+button.chip{cursor:pointer}
+button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
+.frame{background:var(--sky);background-image:radial-gradient(circle,var(--sky-dot) 0 5px,transparent 6px);background-size:56px 56px;padding:8px;border-radius:6px;border:2.5px solid var(--ink)}
+#stage{display:block;width:100%;height:auto;background:var(--paper);border-radius:14px;border:2.5px solid var(--ink);touch-action:manipulation;transition:opacity .3s;-webkit-tap-highlight-color:transparent;user-select:none}
+#stage.fade{opacity:0}
+.story{background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;padding:10px 14px;color:var(--pen);min-height:4.4em}
+#story{font-size:1.35rem;letter-spacing:.06em;text-transform:uppercase;line-height:1.35;margin:0}
+#hint{font-size:1.1rem;letter-spacing:.05em;text-transform:uppercase;color:var(--hot);margin:6px 0 0}
+
+/* svg bits */
+.hot{cursor:pointer}
+.hot:focus{outline:none}
+.hot:focus-visible{outline:3px dashed var(--hot)}
+.lbl{font-family:var(--display);font-size:17px;fill:var(--pen);stroke:#fff;stroke-width:4px;paint-order:stroke;letter-spacing:.04em}
+.say{font-family:var(--display);font-size:27px;letter-spacing:.03em}
+.sign{font-family:var(--display);font-size:26px;fill:var(--pen)}
+#catAnim{transform-box:fill-box;transform-origin:50% 100%}
+.walk{animation:walk .32s ease-in-out infinite}
+@keyframes walk{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-5px) rotate(-3deg)}75%{transform:translateY(-5px) rotate(3deg)}}
+.jump{animation:jump .7s ease-out}
+@keyframes jump{0%{transform:none}30%{transform:translateY(-70px) scale(.9,1.12)}60%{transform:translateY(0) scale(1.1,.9)}100%{transform:none}}
+.wiggle{animation:wiggle .9s ease-in-out}
+@keyframes wiggle{0%,100%{transform:rotate(0)}20%{transform:rotate(-7deg)}40%{transform:rotate(7deg)}60%{transform:rotate(-5deg)}80%{transform:rotate(4deg)}}
+.stretch{animation:stretch .9s ease-in-out}
+@keyframes stretch{0%,100%{transform:none}40%{transform:scale(1.15,.85)}70%{transform:scale(.92,1.12)}}
+.breathe{animation:breathe 2.6s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.05,1)}}
+.zzz text{font-family:var(--display);fill:var(--sky);font-size:30px;animation:zz 2.4s ease-out infinite;transform-box:fill-box}
+.zzz text:nth-child(2){animation-delay:.6s;font-size:24px}
+.zzz text:nth-child(3){animation-delay:1.2s;font-size:20px}
+@keyframes zz{0%{opacity:0;transform:translate(0,10px)}30%{opacity:1}100%{opacity:0;transform:translate(12px,-22px)}}
+.pulse{animation:pulse 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{50%{transform:scale(1.07)}}
+.floaty{animation:floaty 1.5s ease-out both;transform-box:fill-box}
+@keyframes floaty{0%{transform:translateY(0);opacity:1}100%{transform:translateY(-80px);opacity:0}}
+.bubble{animation:pop .25s ease-out;transform-box:fill-box;transform-origin:center bottom}
+@keyframes pop{0%{transform:scale(.3)}80%{transform:scale(1.08)}100%{transform:scale(1)}}
+.shake{animation:shake .9s linear;transform-box:fill-box}
+@keyframes shake{0%,100%{transform:none}10%,30%,50%,70%,90%{transform:translate(-3px,1px)}20%,40%,60%,80%{transform:translate(3px,-1px)}}
+.drive{animation:drive 2.2s ease-in-out}
+@keyframes drive{0%{transform:translateX(0)}40%{transform:translateX(200px)}41%{transform:translateX(-420px)}100%{transform:translateX(0)}}
+.flap{animation:flap .35s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes flap{50%{transform:scaleX(.35)}}
+.bfly{transition:transform 1s ease-in-out}
+@media (prefers-reduced-motion:reduce){
+  .walk,.pulse,.breathe,.flap,.zzz text{animation:none}
+  .jump,.wiggle,.stretch,.shake,.drive{animation-duration:.01s}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>You Are a Cat</h1>
+      <div class="by">A game by Carolina</div>
+    </div>
+    <div class="hud">
+      <span class="chip" aria-label="Hearts"><svg width="18" height="18" viewBox="-14 -14 28 24" aria-hidden="true"><path d="M0,8 C-10,0 -14,-7 -7,-11 C-3,-13 0,-10 0,-7 C0,-10 3,-13 7,-11 C14,-7 10,0 0,8Z" fill="#e0508a" stroke="#1d1a1f" stroke-width="2"/></svg><span id="hearts">0</span></span>
+      <span class="chip" id="tummyChip" aria-label="Tummy">TUMMY <span id="tummy"></span></span>
+      <button class="chip" id="snd" type="button" aria-pressed="true">♪ ON</button>
+    </div>
+  </header>
+
+  <div class="frame">
+    <svg id="stage" viewBox="0 0 400 520" role="group" aria-label="The cat game"></svg>
+  </div>
+
+  <div class="story" aria-live="polite">
+    <p id="story">You are a cat. You are asleep.</p>
+    <p id="hint">Tap the cat to wake up!</p>
+  </div>
+</div>
+
+<script>
+const INK='#1d1a1f';
+const K=`stroke="${INK}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"`;
+const HEART="M0,8 C-10,0 -14,-7 -7,-11 C-3,-13 0,-10 0,-7 C0,-10 3,-13 7,-11 C14,-7 10,0 0,8Z";
+const BODY="M-19,-80 L-21,-8 Q-21,2 -12,2 Q-3,2 -3,-8 L-2,-18 L3,-18 L4,-7 Q4,2 13,2 Q21,2 21,-8 L18,-80 Z";
+const FLOOR=450;
+const stage=document.getElementById('stage');
+const $=s=>stage.querySelector(s);
+let uid=0, moodT=null;
+
+const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',fridge:false,bowl:0,fly:{x:300,y:200},busy:false,sound:true,fish:false};
+const FISH=5;
+let T=[];
+function later(fn,ms){T.push(setTimeout(fn,ms))}
+function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
+const homeward=()=>S.tummy>=3&&S.fish==='eaten';
+
+/* ---------- drawing helpers ---------- */
+function cloud(cx,cy,rx,ry,n){
+  let d='';
+  for(let i=0;i<=n;i++){
+    const a=i/n*Math.PI*2, x=cx+rx*Math.cos(a), y=cy+ry*Math.sin(a);
+    if(i===0){d+=`M${x.toFixed(1)},${y.toFixed(1)}`}
+    else{const m=(i-.5)/n*Math.PI*2;d+=`Q${(cx+rx*1.3*Math.cos(m)).toFixed(1)},${(cy+ry*1.3*Math.sin(m)).toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}`}
+  }
+  return d+'Z';
+}
+function heart(x,y,s,fill){return `<path transform="translate(${x},${y}) scale(${s})" d="${HEART}" fill="${fill}" stroke="${INK}" stroke-width="${(2/s).toFixed(2)}"/>`}
+
+function catSVG(m,carry){
+  let st='';for(let y=-74;y<=-6;y+=8) st+=`M-22,${y} q5.25,-5 10.5,0 t10.5,0 t10.5,0 t10.5,0 `;
+  let eyes;
+  if(m==='sleep') eyes=`<path d="M-15,-104 q5,5 10,0 M5,-104 q5,5 10,0" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`;
+  else if(m==='happy') eyes=`<path d="M-15,-102 q5,-7 10,0 M5,-102 q5,-7 10,0" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>`;
+  else if(m==='scared') eyes=`<circle cx="-10" cy="-105" r="6.5" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="10" cy="-105" r="6.5" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="-10" cy="-105" r="2.3" fill="${INK}"/><circle cx="10" cy="-105" r="2.3" fill="${INK}"/>`;
+  else eyes=`<circle cx="-10" cy="-104" r="3.3" fill="${INK}"/><circle cx="10" cy="-104" r="3.3" fill="${INK}"/><circle cx="-9" cy="-105.2" r="1" fill="#fff"/><circle cx="11" cy="-105.2" r="1" fill="#fff"/>`;
+  const mouth=m==='scared'
+    ?`<ellipse cx="0" cy="-89" rx="3.5" ry="4.5" fill="${INK}"/>`
+    :`<path d="M-5,-92 q2.5,3 5,0 q2.5,3 5,0" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
+  return `
+  <path d="M-18,-68 L-46,-58 M17,-68 L45,-61" stroke="${INK}" stroke-width="7.5" stroke-linecap="round"/>
+  <path d="M-18,-68 L-46,-58 M17,-68 L45,-61" stroke="#a8652f" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M-46,-58 l-6,-5 M-46,-58 l-7,1 M-46,-58 l-4,6 M45,-61 l6,-5 M45,-61 l7,1 M45,-61 l4,6" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="${BODY}" fill="#f3a3c6"/>
+  <path d="${st}" fill="none" stroke="${INK}" stroke-width="2" clip-path="url(#catClip)"/>
+  <path d="${BODY}" fill="none" ${K}/>
+  <path d="M-28,-88 L-29,-124 L-24,-142 L-9,-125 L13,-127 L28,-148 L31,-116 L30,-88 Q30,-79 21,-79 L-19,-79 Q-28,-79 -28,-88Z" fill="#a8652f" ${K}/>
+  <path d="M-24,-134 L-14,-126 L-25,-124Z M25,-139 L18,-128 L27,-125Z" fill="#f1e05a" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M-9,-115 l4,3 M-4,-117 l4,3 M-6,-120 l3,3" stroke="#e0508a" stroke-width="2" stroke-linecap="round"/>
+  ${eyes}
+  <path d="M-3,-98 L3,-98 L0,-95Z" fill="#e0508a" stroke="${INK}" stroke-width="1.2"/>
+  ${mouth}
+  <path d="M-12,-95 L-40,-99 M-12,-92 L-40,-88 M12,-95 L40,-99 M12,-92 L40,-88" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>
+  ${carry?`<path d="M-6,-88 q14,-12 28,0 q-14,12 -28,0Z M22,-88 l11,-8 v16Z" fill="#f9a03f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="0" cy="-90" r="1.8" fill="${INK}"/>`:''}`;
+}
+
+function arrow(side,label){
+  const x=side==='left'?40:360;
+  const d=side==='left'
+    ?`M${x+11},52 H${x-11} M${x-2},42 L${x-12},52 L${x-2},62`
+    :`M${x-11},52 H${x+11} M${x+2},42 L${x+12},52 L${x+2},62`;
+  return `<circle cx="${x}" cy="52" r="25" fill="#fffaf6" ${K}/><path d="${d}" fill="none" stroke="#2c8fd6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><text x="${side==='left'?14:386}" y="98" text-anchor="${side==='left'?'start':'end'}" class="lbl">${label}</text>`;
+}
+
+const DEFS=`<defs>
+<filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter>
+<clipPath id="catClip"><path d="${BODY}"/></clipPath>
+<pattern id="hearts" width="48" height="48" patternUnits="userSpaceOnUse"><path transform="translate(12,14) scale(.55)" d="${HEART}" fill="#f6b3cb"/><path transform="translate(36,38) scale(.55)" d="${HEART}" fill="#f6b3cb"/></pattern>
+<pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="3" fill="#f3c98a"/><circle cx="30" cy="30" r="3" fill="#9fd0ef"/></pattern>
+<pattern id="tiles" width="36" height="36" patternUnits="userSpaceOnUse"><rect width="36" height="36" fill="#fff"/><rect width="18" height="18" fill="#f7b9d0"/><rect x="18" y="18" width="18" height="18" fill="#f7b9d0"/></pattern>
+</defs>`;
+
+/* ---------- things in scenes ---------- */
+function bunnyBox(){
+  return `<rect x="186" y="232" width="128" height="9" fill="#a8652f" ${K}/>
+  <path d="M212,200 Q212,232 250,232 Q288,232 288,200 Z" fill="#e5558e" ${K}/>
+  <circle cx="232" cy="216" r="7" fill="none" stroke="#fbd0e0" stroke-width="3"/><circle cx="268" cy="216" r="7" fill="none" stroke="#fbd0e0" stroke-width="3"/>
+  <rect x="208" y="190" width="84" height="12" rx="5" fill="#f7b6cf" ${K}/>
+  <ellipse cx="250" cy="189" rx="38" ry="8" fill="#ee6aa0" ${K}/>
+  ${heart(228,189,.45,'#d9363e')}${heart(273,189,.45,'#d9363e')}
+  <ellipse cx="243" cy="132" rx="4.5" ry="12" fill="#d6ad45" ${K} stroke-width="2"/><ellipse cx="257" cy="132" rx="4.5" ry="12" fill="#d6ad45" ${K} stroke-width="2"/>
+  <ellipse cx="243" cy="132" rx="1.8" ry="7" fill="#c23a68"/><ellipse cx="257" cy="132" rx="1.8" ry="7" fill="#c23a68"/>
+  <ellipse cx="250" cy="170" rx="13" ry="16" fill="#d6ad45" ${K} stroke-width="2.5"/>
+  <circle cx="250" cy="149" r="12" fill="#d6ad45" ${K} stroke-width="2.5"/>
+  <circle cx="245" cy="147" r="2" fill="${INK}"/><circle cx="255" cy="147" r="2" fill="${INK}"/>
+  <path d="M248,152 L252,152 L250,155Z" fill="#d9363e"/>
+  ${heart(250,169,.55,'#d9363e')}`;
+}
+function picture(){
+  return `<rect x="46" y="118" width="104" height="122" rx="3" fill="#2c8fd6" ${K}/>
+  <rect x="58" y="130" width="80" height="98" fill="#bfe0f5" stroke="${INK}" stroke-width="2"/>
+  <path d="${cloud(98,180,26,34,9)}" fill="#fff" stroke="${INK}" stroke-width="2"/>
+  <g transform="translate(98,212) scale(.4)">${catSVG('normal')}</g>
+  <circle cx="52" cy="124" r="3" fill="#7cc6f0"/><circle cx="144" cy="124" r="3" fill="#7cc6f0"/><circle cx="52" cy="234" r="3" fill="#7cc6f0"/><circle cx="144" cy="234" r="3" fill="#7cc6f0"/>`;
+}
+function sofa(){
+  return `<rect x="120" y="330" width="160" height="64" rx="18" fill="#e5558e" ${K}/>
+  <rect x="104" y="382" width="192" height="50" rx="14" fill="#f38db5" ${K}/>
+  <rect x="96" y="358" width="30" height="76" rx="12" fill="#e5558e" ${K}/><rect x="274" y="358" width="30" height="76" rx="12" fill="#e5558e" ${K}/>
+  <path d="M112,434 v14 M288,434 v14" ${K}/>
+  ${heart(170,360,.9,'#fbd0e0')}${heart(230,360,.9,'#fbd0e0')}`;
+}
+function door(){
+  return `<rect x="318" y="268" width="72" height="182" rx="6" fill="#b9773f" ${K}/>
+  <circle cx="354" cy="310" r="15" fill="#bfe3fa" ${K}/>
+  <circle cx="330" cy="372" r="4.5" fill="#d6ad45" stroke="${INK}" stroke-width="2"/>
+  ${heart(354,410,.9,'#f3a3c6')}`;
+}
+function fridge(){
+  if(!S.fridge) return `<rect x="22" y="170" width="110" height="280" rx="14" fill="#fff" ${K}/>
+    <path d="M22,262 H132" ${K}/>
+    <rect x="112" y="200" width="7" height="40" rx="3" fill="#cfd3dc" stroke="${INK}" stroke-width="2"/>
+    <rect x="112" y="280" width="7" height="62" rx="3" fill="#cfd3dc" stroke="${INK}" stroke-width="2"/>
+    ${heart(60,320,1.1,'#e0508a')}<circle cx="86" cy="360" r="7" fill="#f1e05a" stroke="${INK}" stroke-width="2"/>`;
+  return `<rect x="22" y="170" width="110" height="280" rx="14" fill="#eaf7ff" ${K}/>
+    <path d="M28,262 H126 M28,330 H126 M28,392 H126" stroke="${INK}" stroke-width="2.5"/>
+    <path d="M44,330 V292 L50,282 H70 L76,292 V330Z" fill="#fff" ${K} stroke-width="2.5"/>
+    <path d="M44,292 H76" stroke="${INK}" stroke-width="2"/>
+    <text x="60" y="318" text-anchor="middle" style="font-family:var(--display);font-size:13px;fill:#2c8fd6">MILK</text>
+    <circle cx="100" cy="318" r="10" fill="#f9a03f" stroke="${INK}" stroke-width="2"/>
+    <rect x="86" y="356" width="28" height="36" rx="5" fill="#c9e6a8" stroke="${INK}" stroke-width="2"/>
+    <path d="M132,172 L160,160 L160,460 L132,448Z" fill="#fff" ${K}/>`;
+}
+function bowl(){
+  return `<rect x="276" y="392" width="88" height="66" fill="transparent"/>
+  <path d="M285,425 Q285,452 320,452 Q355,452 355,425 Z" fill="#e0508a" ${K}/>
+  <ellipse cx="320" cy="425" rx="35" ry="8" fill="${S.bowl>0?'#fff':'#b8335f'}" ${K}/>
+  ${S.bowl>0?`<ellipse cx="320" cy="425" rx="${12+S.bowl*7}" ry="${2.5+S.bowl}" fill="#f4f7ff"/>`:''}
+  ${heart(320,440,.6,'#fff')}`;
+}
+function blender(){
+  return `<rect x="186" y="228" width="78" height="104" fill="transparent"/><g class="bl"><path d="M208,300 L214,248 H236 L242,300Z" fill="#d7f0ff" ${K}/>
+  <path d="M210,290 L213,270 H237 L240,290Z" fill="#f38db5"/>
+  <rect x="211" y="240" width="28" height="10" rx="3" fill="#2c8fd6" ${K} stroke-width="2.5"/>
+  <rect x="203" y="300" width="44" height="24" rx="5" fill="#e0508a" ${K}/>
+  <circle cx="225" cy="312" r="4" fill="#fff" stroke="${INK}" stroke-width="2"/></g>`;
+}
+function fishShop(){
+  let aw='';for(let i=0;i<6;i++){aw+=`<path d="M${12+i*21.5},300 h21.5 v20 q-10.75,10 -21.5,0Z" fill="${i%2?'#fff':'#e0508a'}" stroke="${INK}" stroke-width="2"/>`}
+  return `<rect x="10" y="210" width="130" height="240" fill="#9fd0ef" ${K}/>
+  <rect x="24" y="228" width="102" height="44" rx="6" fill="#fff" ${K}/>
+  <text x="75" y="260" text-anchor="middle" class="sign">FISH</text>
+  ${aw}
+  <rect x="26" y="340" width="98" height="64" fill="#eaf7ff" ${K}/>
+  <path d="M44,372 q14,-14 28,0 q-14,14 -28,0Z M72,372 l10,-8 v16Z" fill="#f9a03f" stroke="${INK}" stroke-width="2"/>
+  <path d="M86,390 q10,-10 20,0 q-10,10 -20,0Z M106,390 l7,-6 v12Z" fill="#f3a3c6" stroke="${INK}" stroke-width="2"/>`;
+}
+function dog(){
+  return `<path d="M232,438 q22,-6 18,-30" fill="none" ${K} stroke-width="5"/>
+  <ellipse cx="216" cy="426" rx="22" ry="25" fill="#b07a4a" ${K}/>
+  <path d="M200,445 v8 M226,445 v8" ${K} stroke-width="5"/>
+  <rect x="190" y="402" width="24" height="7" rx="3" fill="#d9363e" stroke="${INK}" stroke-width="2"/>
+  <circle cx="200" cy="388" r="19" fill="#c08a58" ${K}/>
+  <path d="M184,378 q-12,6 -8,24 q8,0 12,-12Z M214,376 q12,6 8,24 q-8,0 -12,-12Z" fill="#7a4a26" ${K} stroke-width="2.5"/>
+  <circle cx="193" cy="384" r="2.6" fill="${INK}"/><circle cx="207" cy="384" r="2.6" fill="${INK}"/>
+  <ellipse cx="200" cy="395" rx="5" ry="3.5" fill="${INK}"/>`;
+}
+function car(){
+  return `<g class="car"><path d="M262,500 V486 Q262,478 272,476 L290,476 L305,460 H342 L357,476 H364 Q372,478 372,488 V500 Z" fill="#e0508a" ${K}/>
+  <path d="M296,476 L308,466 H322 V476Z M328,476 V466 H340 L350,476Z" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/>
+  <circle cx="286" cy="502" r="11" fill="${INK}"/><circle cx="286" cy="502" r="4" fill="#cfd3dc"/>
+  <circle cx="348" cy="502" r="11" fill="${INK}"/><circle cx="348" cy="502" r="4" fill="#cfd3dc"/>
+  <circle cx="368" cy="486" r="3" fill="#f1e05a"/></g>`;
+}
+function butterfly(){
+  return `<g class="bfly" style="transform:translate(${S.fly.x}px,${S.fly.y}px)"><g class="flap">
+  <ellipse cx="-11" cy="-6" rx="12" ry="9" fill="#f3a3c6" ${K} stroke-width="2"/><ellipse cx="11" cy="-6" rx="12" ry="9" fill="#f3a3c6" ${K} stroke-width="2"/>
+  <ellipse cx="-8" cy="7" rx="7" ry="6" fill="#f1e05a" ${K} stroke-width="2"/><ellipse cx="8" cy="7" rx="7" ry="6" fill="#f1e05a" ${K} stroke-width="2"/>
+  <path d="M0,-12 V14 M0,-12 l-5,-8 M0,-12 l5,-8" ${K} stroke-width="2.5" fill="none"/></g>
+  <circle r="30" fill="transparent"/></g>`;
+}
+
+/* ---------- scenes ---------- */
+const SC={
+  bed:{
+    draw:()=>`<rect width="400" height="520" fill="#fde6ee"/><rect width="400" height="450" fill="url(#hearts)"/>
+      <rect y="450" width="400" height="70" fill="#e8c09a"/>
+      <path d="M0,450 H400 M0,485 H400 M120,450 V485 M280,450 V485 M60,485 V520 M210,485 V520 M340,485 V520" stroke="${INK}" stroke-width="2.5" fill="none"/>
+      <rect x="34" y="120" width="130" height="120" rx="6" fill="#bfe3fa" ${K}/>
+      <circle cx="128" cy="154" r="16" fill="#ffd34d" ${K}/>
+      <path d="${cloud(76,192,26,11,7)}" fill="#fff" stroke="${INK}" stroke-width="2"/>
+      <path d="M99,120 V240 M34,180 H164" ${K} fill="none"/>
+      <rect x="326" y="380" width="62" height="70" rx="4" fill="#c9e6a8" ${K}/>
+      <path d="M326,414 H388" ${K}/><circle cx="357" cy="398" r="3" fill="${INK}"/>
+      <path d="M357,380 V350" ${K}/><path d="M338,350 L376,350 L368,322 L346,322Z" fill="#d6ad45" ${K}/>`,
+    hots:()=>{
+      const h=[{id:'bed',label:'Cloud bed',svg:`<path d="${cloud(190,414,116,32,11)}" fill="#fff" ${K}/><ellipse cx="96" cy="398" rx="30" ry="13" fill="#f3a3c6" ${K}/>`,
+        tap:()=>!S.awake?wake():S.tummy<3?hungry():nap()}];
+      if(S.awake) h.push({id:'go-kitchen',label:'Go to the kitchen',svg:arrow('right','KITCHEN'),tap:()=>leave(460,()=>go('kitchen','left'))});
+      return h;
+    },
+    goal:()=>!S.awake?{id:'cat',hint:'Tap the cat to wake up!'}
+      :S.tummy<3?{id:'go-kitchen',hint:'Go to the kitchen ↗'}
+      :homeward()?{id:'bed',hint:'Tap the bed for a nap'}
+      :{id:'go-kitchen',hint:'Go and explore ↗'},
+    enter:()=>say(S.tummy<3?'This is your bedroom. Your tummy rumbles!':'This is your bedroom. Your cloud bed is so soft.')
+  },
+  kitchen:{
+    draw:()=>`<rect width="400" height="520" fill="#dff1fb"/><rect width="400" height="450" fill="url(#dots)"/>
+      <rect y="450" width="400" height="70" fill="url(#tiles)"/><path d="M0,450 H400" ${K}/>
+      <rect x="160" y="112" width="140" height="66" rx="4" fill="#9fd0ef" ${K}/><path d="M230,112 V178" ${K}/>
+      <circle cx="222" cy="150" r="3" fill="${INK}"/><circle cx="238" cy="150" r="3" fill="${INK}"/>
+      <circle cx="345" cy="190" r="22" fill="#fff" ${K}/><path d="M345,178 V190 L354,196" ${K} fill="none"/>
+      <rect x="150" y="334" width="150" height="116" fill="#f6d38f" ${K}/>
+      <rect x="146" y="322" width="158" height="14" rx="3" fill="#fff" ${K}/>
+      <path d="M225,336 V450" ${K}/><circle cx="214" cy="392" r="3" fill="${INK}"/><circle cx="236" cy="392" r="3" fill="${INK}"/>`,
+    hots:()=>[
+      {id:'fridge',label:'Fridge',svg:fridge(),walk:170,tap:()=>{
+        if(!S.fridge){S.fridge=true;S.bowl=3;redraw();react('happy');say('You open the fridge. There is milk! You pour it in your bowl.','Tap the bowl')}
+        else if(S.bowl>0){say('The milk is in your bowl.','Tap the bowl')}
+        else if(S.tummy<3){S.bowl=3;redraw();react('happy');say('More milk! You pour it in your bowl.','Tap the bowl')}
+        else say('Your tummy is full. No more milk!')}},
+      {id:'blender',label:'Blender',svg:blender(),walk:190,tap:()=>{
+        const b=$('.bl');b&&restartClass(b,'shake',900);sfx.bzz();bubble(225,212,'BZZZZ!','#2c8fd6');
+        later(()=>react('scared'),450);say('Bzzzz! The blender is so loud! Miaawow!')}},
+      {id:'bowl',label:'Milk bowl',svg:bowl(),walk:262,tap:()=>{
+        S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
+        if(S.fish==='carry'){S.fish='eaten';S.tummy=3;sfx.slurp();react('happy');updateHud();say('Nom nom! A yummy fish! Poooourrr!')}
+        else if(S.bowl>0){S.bowl--;S.tummy=Math.min(3,S.tummy+1);sfx.slurp();redraw();react('happy');updateHud();
+          if(S.tummy<3) say('Slurp slurp! Yummy milk! Poooourrr!','Tap the bowl again for more');
+          else say('Your tummy is full! Poooourrr!');}
+        else if(S.tummy>=3) say('The bowl is empty. Your tummy is full!');
+        else {setMood('normal');say('Your bowl is empty.')}}},
+      {id:'go-bed',label:'Go to the bedroom',svg:arrow('left','BEDROOM'),tap:()=>leave(-60,()=>go('bed','right'))},
+      {id:'go-living',label:'Go around the house',svg:arrow('right','HOUSE'),tap:()=>leave(460,()=>go('living','left'))}
+    ],
+    goal:()=>S.fish==='carry'?{id:'bowl',hint:'Tap the bowl to eat your fish'}
+      :S.bowl>0?{id:'bowl',hint:'Tap the bowl'}
+      :S.tummy<3?{id:'fridge',hint:'Tap the fridge'}
+      :homeward()?{id:'go-bed',hint:'Time for a nap! Go to the bedroom ↖'}
+      :{id:'go-living',hint:'Go to the house ↗'},
+    enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. You can find some milk…':'This is the kitchen. Your tummy is full.')
+  },
+  living:{
+    draw:()=>`<rect width="400" height="520" fill="#fff1d9"/><rect width="400" height="450" fill="url(#hearts)" opacity=".7"/>
+      <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      <ellipse cx="200" cy="482" rx="150" ry="22" fill="#f7b9d0" ${K}/>
+      <path d="M30,410 q-14,-40 6,-60 q4,30 6,58 M44,408 q4,-50 30,-62 q-8,34 -20,62" fill="#7fc36b" ${K} stroke-width="2.5"/>
+      <path d="M20,408 H70 L64,450 H26Z" fill="#e0508a" ${K}/>`,
+    hots:()=>[
+      {id:'picture',label:'Picture of a cat on a cloud',svg:picture(),walk:110,tap:()=>{react('happy');say('A picture of a cat on a cloud. It looks like you! Poooourrr!')}},
+      {id:'bunny',label:'Golden bunny box',svg:bunnyBox(),walk:225,tap:()=>{react('happy');say('A golden bunny with a red heart. Poooourrr!')}},
+      {id:'sofa',label:'Sofa',svg:sofa(),walk:200,tap:()=>{react('happy');say('A soft pink sofa. You roll on it. Poooourrr!')}},
+      {id:'door',label:'Door to outside',svg:door(),walk:350,tap:()=>leave(460,()=>go('city','left'))},
+      {id:'go-kitchen',label:'Go to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>leave(-60,()=>go('kitchen','right'))}
+    ],
+    goal:()=>S.fish==='carry'?{id:'go-kitchen',hint:'Take your fish to the kitchen ↖'}
+      :S.tummy<3?{id:'go-kitchen',hint:'Your tummy rumbles! Go to the kitchen ↖'}
+      :homeward()?{id:'go-kitchen',hint:'Time for a nap! Go to the kitchen ↖'}
+      :{id:'door',hint:'Tap things! The door goes outside'},
+    enter:()=>say('You go around the house.')
+  },
+  city:{
+    draw:()=>`<rect width="400" height="520" fill="#bfe3fa"/>
+      <path d="${cloud(150,70,34,12,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <path d="${cloud(290,110,28,10,7)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="150" y="170" width="72" height="232" fill="#f7b9d0" ${K}/>
+      <rect x="226" y="132" width="80" height="270" fill="#ffd98a" ${K}/>
+      <rect x="310" y="192" width="88" height="210" fill="#c9e6a8" ${K}/>
+      ${[...Array(4)].map((_,r)=>`<rect x="164" y="${190+r*48}" width="16" height="20" fill="#fff" stroke="${INK}" stroke-width="2"/><rect x="192" y="${190+r*48}" width="16" height="20" fill="#fff" stroke="${INK}" stroke-width="2"/>`).join('')}
+      ${[...Array(5)].map((_,r)=>`<rect x="242" y="${150+r*48}" width="18" height="22" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/><rect x="272" y="${150+r*48}" width="18" height="22" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/>`).join('')}
+      ${[...Array(3)].map((_,r)=>`<rect x="326" y="${212+r*56}" width="20" height="24" fill="#fff" stroke="${INK}" stroke-width="2"/><rect x="360" y="${212+r*56}" width="20" height="24" fill="#fff" stroke="${INK}" stroke-width="2"/>`).join('')}
+      <rect y="400" width="400" height="70" fill="#eadfe6"/><path d="M0,400 H400 M0,470 H400" ${K}/>
+      <rect y="470" width="400" height="50" fill="#5d5866"/>
+      <path d="M10,496 H50 M90,496 H130 M170,496 H210 M250,496 H290 M330,496 H370" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
+    hots:()=>[
+      {id:'fish',label:'Fish shop',svg:fishShop(),walk:110,tap:()=>{
+        if(S.fish){react('happy');say('The fish shop smells so yummy. Poooourrr!')}
+        else if(S.hearts>=FISH){S.hearts-=FISH;S.fish='carry';updateHud();sfx.coin();react('happy',false);say(`You buy a fish for ${FISH} hearts! Take it home.`)}
+        else{react('happy',false);bubble(110,180,`${S.hearts} / ${FISH} ♥`,'#e0508a');say(`A fish costs ${FISH} hearts. You have ${S.hearts}.`)}}},
+      {id:'dog',label:'Dog',svg:dog(),walk:150,tap:()=>{S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');sfx.woof();bubble(200,330,'WOOF!','#7a4a26');
+        later(()=>react('scared'),500);say('Woof woof! A big dog! Miaawow!')}},
+      {id:'car',label:'Car',svg:car(),walk:250,tap:()=>{sfx.beep();bubble(318,430,'BEEP!','#e0508a');
+        const c=$('.car');c&&restartClass(c,'drive',2200);later(()=>react('scared'),350);say('Beep beep! A car! Miaawow!')}},
+      {id:'fly',label:'Butterfly',svg:butterfly(),walk:()=>S.fly.x,tap:()=>{react('happy');say('A butterfly! You try to catch it. Poooourrr!');
+        S.fly={x:170+Math.random()*190,y:130+Math.random()*170};const f=$('.bfly');if(f)f.style.transform=`translate(${S.fly.x}px,${S.fly.y}px)`}},
+      {id:'go-home',label:'Go home',svg:arrow('left','HOME'),tap:()=>leave(-60,()=>go('living','right'))}
+    ],
+    goal:()=>S.fish==='carry'?{id:'go-home',hint:'Take your fish home ↖'}
+      :S.fish==='eaten'?{id:'go-home',hint:'What a big day! Go home for a nap ↖'}
+      :S.hearts>=FISH?{id:'fish',hint:`You have ${FISH} hearts! Tap the fish shop`}
+      :{id:'fly',hint:`Catch the butterfly for hearts (${S.hearts} of ${FISH})`},
+    enter:()=>say(S.fish?'You go outside. You wander in the city.':'You go outside. You can buy a fish!')
+  }
+};
+
+/* ---------- render ---------- */
+function catLayer(){
+  if(S.scene==='bed'&&!S.awake){
+    return `<g class="hot${SC.bed.goal().id==='cat'?' pulse':''}" data-id="cat" role="button" tabindex="0" aria-label="Sleeping cat">
+      <g transform="translate(272,396) rotate(-84)"><g id="catAnim" class="breathe">${catSVG('sleep')}</g></g></g>
+      <g class="zzz" pointer-events="none"><text x="120" y="318">Z</text><text x="146" y="296">z</text><text x="166" y="278">z</text></g>`;
+  }
+  const pet=S.scene==='bed'?'class="hot" data-id="cat" role="button" tabindex="0" aria-label="Pet the cat"':'pointer-events="none"';
+  return `<g id="cat" ${pet} transform="translate(${S.x},${FLOOR})"><g id="catFlip" transform="scale(${S.face},1)"><g id="catAnim">${catSVG(S.mood,S.fish==='carry')}</g></g></g>`;
+}
+let HOTS={};
+function render(){
+  const sc=SC[S.scene], p=sc.goal().id, hs=sc.hots();
+  HOTS={};hs.forEach(h=>HOTS[h.id]=h);
+  if(S.scene==='bed') HOTS.cat={id:'cat',tap:S.awake?pet:wake};
+  const ae=document.activeElement, fid=stage.contains(ae)&&ae.dataset?ae.dataset.id:null;
+  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+
+    hs.map(h=>`<g class="hot${p===h.id?' pulse':''}" data-id="${h.id}" role="button" tabindex="0" aria-label="${h.label}">${h.svg}</g>`).join('')+
+    catLayer();
+  const f=fid&&$(`[data-id="${fid}"]`);f&&f.focus();
+}
+function refreshGoal(){const id=SC[S.scene].goal().id;stage.querySelectorAll('.hot').forEach(el=>el.classList.toggle('pulse',el.dataset.id===id&&el.id!=='cat'))}
+function redraw(){render()}
+
+/* ---------- cat actions ---------- */
+function setMood(m){S.mood=m;const a=$('#catAnim');if(a&&!(S.scene==='bed'&&!S.awake))a.innerHTML=catSVG(m,S.fish==='carry')}
+function restartClass(el,cls,ms){el.classList.remove(cls);el.getBoundingClientRect();el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),ms)}
+function walkTo(tx,cb){
+  const dist=tx-S.x;
+  if(Math.abs(dist)<4){cb&&cb();return}
+  S.busy=true;S.face=dist<0?-1:1;
+  const flip=$('#catFlip'),an=$('#catAnim'),cat=$('#cat');
+  if(!cat){S.busy=false;cb&&cb();return}
+  flip.setAttribute('transform',`scale(${S.face},1)`);an.classList.add('walk');
+  const sx=S.x,dur=Math.abs(dist)/.22,t0=performance.now();
+  (function step(t){
+    const p=Math.min(1,(t-t0)/dur);S.x=sx+dist*p;cat.setAttribute('transform',`translate(${S.x},${FLOOR})`);
+    if(p<1)requestAnimationFrame(step);else{an.classList.remove('walk');S.busy=false;cb&&cb()}
+  })(t0);
+}
+function leave(tx,cb){walkTo(tx,cb)}
+function go(name,from){
+  clearLater();S.busy=true;stage.classList.add('fade');
+  setTimeout(()=>{
+    S.scene=name;S.x=from==='left'?-50:450;S.mood='normal';render();updateHud();
+    stage.classList.remove('fade');SC[name].enter();
+    walkTo(from==='left'?80:320,()=>{});
+  },300);
+}
+function react(kind,earn=true){
+  clearTimeout(moodT);
+  const an=$('#catAnim');
+  if(kind==='scared'){setMood('scared');an&&restartClass(an,'jump',700);bubble(S.x,FLOOR-190,'MIAAWOW!','#d9363e');sfx.meow(true)}
+  else{setMood('happy');an&&restartClass(an,'wiggle',900);bubble(S.x,FLOOR-190,'POOOOURRR','#e0508a');sfx.purr();if(earn){hearts(S.x,FLOOR-150);S.hearts++;updateHud()}}
+  moodT=setTimeout(()=>setMood('normal'),1600);
+}
+function wake(){
+  S.awake=true;S.busy=true;S.x=200;S.face=1;S.mood='normal';render();updateHud();
+  const an=$('#catAnim');an&&restartClass(an,'stretch',900);
+  setTimeout(()=>S.busy=false,900);
+  sfx.rumble();later(()=>bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f'),250);
+  say('You wake up and you are hungry! Rumble rumble…');
+}
+function pet(){react('happy');say('You lick your paws. Poooourrr!')}
+function hungry(){
+  sfx.rumble();bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f');
+  say('Tummy rumble! Milk first.');
+}
+function nap(){
+  walkTo(200,()=>{
+    S.awake=false;S.tummy=0;S.fridge=false;S.bowl=0;S.fish=false;S.mood='sleep';render();updateHud();sfx.purr();
+    say('You curl up on your cloud. Zzz… Good night, cat!','Tap the cat to wake up again');
+  });
+}
+
+/* ---------- effects ---------- */
+function bubble(x,y,text,color){
+  x=Math.max(92,Math.min(308,x));const id='b'+(++uid),rx=Math.round(text.length*7.6+20);
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" class="bubble" pointer-events="none">
+    <ellipse cx="${x}" cy="${y}" rx="${rx}" ry="28" fill="#fff" ${K}/>
+    <path d="M${x-10},${y+24} L${x-20},${y+44} L${x+8},${y+25}" fill="#fff" ${K}/>
+    <path d="M${x-12},${y+23} L${x+10},${y+23}" stroke="#fff" stroke-width="5"/>
+    <text x="${x}" y="${y+9}" text-anchor="middle" class="say" fill="${color}">${text}</text></g>`);
+  setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1700);
+}
+function hearts(x,y){
+  for(let i=0;i<3;i++){
+    const id='h'+(++uid),hx=x+(i-1)*24;
+    stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g class="floaty" style="animation-delay:${i*.15}s">${heart(hx,y-i*6,1.1,'#e0508a')}</g></g>`);
+    setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1900);
+  }
+}
+function say(story,hint){
+  document.getElementById('story').textContent=story;
+  document.getElementById('hint').textContent=hint===undefined?SC[S.scene].goal().hint:hint;
+  refreshGoal();
+}
+function updateHud(){
+  document.getElementById('hearts').textContent=S.hearts;
+  document.getElementById('tummy').innerHTML=[0,1,2].map(i=>`<svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true"><path d="M7,1 C7,1 1,8 1,11 a6,5 0 0 0 12,0 C13,8 7,1 7,1Z" fill="${i<S.tummy?'#fff':'#d7ecfa'}" stroke="#1d1a1f" stroke-width="1.6"/></svg>`).join('');
+  document.getElementById('tummyChip').setAttribute('aria-label',`Tummy ${S.tummy} of 3`);
+}
+
+/* ---------- sound ---------- */
+let AC=null;
+function ac(){
+  if(!S.sound)return null;
+  try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){return null}
+  return AC;
+}
+function seq(type,notes){
+  const a=ac();if(!a)return;let t=a.currentTime;
+  notes.forEach(([f1,f2,d,v])=>{
+    const o=a.createOscillator(),g=a.createGain();o.type=type;
+    o.frequency.setValueAtTime(f1,t);o.frequency.linearRampToValueAtTime(f2,t+d);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.03);t+=d+.07;
+  });
+}
+const sfx={
+  meow(scared){
+    const a=ac();if(!a)return;const t=a.currentTime,d=scared?.8:.6,base=scared?650:480;
+    const o=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
+    o.type='sawtooth';f.type='bandpass';f.frequency.value=scared?1400:1000;f.Q.value=2;
+    o.frequency.setValueAtTime(base,t);o.frequency.linearRampToValueAtTime(base*1.6,t+d*.35);o.frequency.linearRampToValueAtTime(base*.8,t+d);
+    if(scared){const l=a.createOscillator(),lg=a.createGain();l.frequency.value=14;lg.gain.value=45;l.connect(lg).connect(o.frequency);l.start(t);l.stop(t+d)}
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(scared?.4:.28,t+.06);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(f).connect(g).connect(a.destination);o.start(t);o.stop(t+d+.05);
+  },
+  purr(){
+    const a=ac();if(!a)return;const t=a.currentTime,d=1.4,len=Math.floor(a.sampleRate*d);
+    const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+    const s=a.createBufferSource();s.buffer=b;
+    const f=a.createBiquadFilter();f.type='lowpass';f.frequency.value=260;
+    const g=a.createGain();g.gain.value=.5;const lfo=a.createOscillator(),lg=a.createGain();lfo.frequency.value=24;lg.gain.value=.5;lfo.connect(lg).connect(g.gain);
+    const env=a.createGain();env.gain.setValueAtTime(.0001,t);env.gain.exponentialRampToValueAtTime(1.2,t+.2);env.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f).connect(g).connect(env).connect(a.destination);s.start(t);lfo.start(t);s.stop(t+d);lfo.stop(t+d);
+  },
+  woof(){seq('square',[[260,140,.18,.15],[260,140,.18,.15]])},
+  beep(){seq('square',[[520,520,.15,.08],[520,520,.15,.08]])},
+  bzz(){seq('sawtooth',[[110,150,.9,.1]])},
+  rumble(){seq('sine',[[80,50,.4,.5],[70,45,.5,.5]])},
+  slurp(){seq('sine',[[300,700,.12,.15],[300,700,.12,.15]])},
+  coin(){seq('triangle',[[660,660,.1,.14],[990,990,.22,.14]])}
+};
+
+/* ---------- input ---------- */
+function activate(el){
+  if(!el||S.busy)return;
+  ac();
+  const h=HOTS[el.dataset.id];if(!h)return;
+  if(h.walk!==undefined&&$('#cat')){
+    let tx=typeof h.walk==='function'?h.walk():h.walk;tx=Math.max(40,Math.min(360,tx));
+    walkTo(tx,h.tap);
+  }else h.tap();
+}
+stage.addEventListener('click',e=>activate(e.target.closest('.hot')));
+stage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const el=e.target.closest&&e.target.closest('.hot');if(el){e.preventDefault();activate(el)}}});
+document.getElementById('snd').addEventListener('click',e=>{
+  S.sound=!S.sound;e.currentTarget.textContent=S.sound?'♪ ON':'♪ OFF';e.currentTarget.setAttribute('aria-label',S.sound?'Sound on':'Sound off');e.currentTarget.setAttribute('aria-pressed',S.sound);
+});
+
+render();updateHud();
+</script>
