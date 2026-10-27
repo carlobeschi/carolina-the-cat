@@ -78,9 +78,17 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 /* the cup wobbles from its bottom when the cat pushes it */
 .cupw{transform-box:fill-box;transform-origin:50% 100%}
 @keyframes duck{0%,100%{transform:none}25%,70%{transform:translateY(75px)}}
+/* snow and autumn leaves drift down slower than rain */
+.snowfall{animation:fall 9s linear infinite}
+.leaffall{animation:fall 11s linear infinite}
+/* a piano key dips when a paw lands on it; the cat dances when it plays the song */
+.press{animation:press .3s ease-out}
+@keyframes press{40%{transform:translateY(6px)}}
+.dance{animation:dance .45s ease-in-out 4}
+@keyframes dance{0%,100%{transform:none}25%{transform:translateY(-16px) rotate(-11deg)}50%{transform:scale(1.07,.93)}75%{transform:translateY(-16px) rotate(11deg)}}
 @media (prefers-reduced-motion:reduce){
-  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple{animation:none}
-  .jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck{animation-duration:.01s}
+  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall{animation:none}
+  .jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance{animation-duration:.01s}
 }
 </style>
 
@@ -120,8 +128,22 @@ let uid=0, moodT=null;
 const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',fridge:false,bowl:0,fly:{x:300,y:200},busy:false,sound:true,fish:false,
   day:1,rain:false,umbrella:false,dot:{x:300,y:478,n:0,hid:false},stars:[],wink:false,
   earned:0,stk:[],newStk:[],pal:false,palX:136,palFace:1,
-  box:'door',cup:0};
+  box:'door',cup:0,sDone:false,stamps:0,prints:[],
+  piano:false,song:0,songAt:0,danced:false,lastKey:-1,lastNote:-1,noteT:0};
 const FISH=5, UMB=2;
+// every nap moves the season on; day 1 is summer
+const SEASONS=['summer','autumn','winter','spring'];
+const season=()=>SEASONS[(S.day-1)%4];
+const snowy=()=>season()==='winter';
+// the toy piano: eight rainbow keys from do to do, and little songs to play from the music sheet
+const KEYC=['#e8473f','#f9a03f','#ffd34d','#7fc36b','#3cb8b0','#2c8fd6','#8a6bd1','#f38db5'];
+const NOTE=[262,294,330,349,392,440,494,523];
+const SOLFA=['DO','RE','MI','FA','SOL','LA','TI','DO'];
+const SONGS=[[0,2,4],[4,5,7],[7,4,0],[1,3,5],[6,4,2],[0,4,7]];
+const KEY0=20, KEYW=45;
+const keyAt=x=>x<KEY0||x>=KEY0+8*KEYW?-1:Math.floor((x-KEY0)/KEYW);
+// where paw prints go in the patch of fresh snow
+const PAWS=[[362,446],[374,452],[384,440],[392,450],[370,436],[386,456]];
 const STARS=[[60,84],[150,48],[222,146],[96,206],[364,214]];
 const WORDS=['One','Two','Three','Four','Five'];
 // the cup slides along the kitchen counter, one push at a time; the counter ends at x=304
@@ -330,6 +352,7 @@ function car(){
   <circle cx="368" cy="486" r="3" fill="#f1e05a"/></g>`;
 }
 function butterfly(){
+  if(snowy()) return `<g class="bfly" style="transform:translate(${S.fly.x}px,${S.fly.y}px)">${flake(0,0,15)}<circle r="30" fill="transparent"/></g>`;
   return `<g class="bfly" style="transform:translate(${S.fly.x}px,${S.fly.y}px)"><g class="flap">
   <ellipse cx="-11" cy="-6" rx="12" ry="9" fill="#f3a3c6" ${K} stroke-width="2"/><ellipse cx="11" cy="-6" rx="12" ry="9" fill="#f3a3c6" ${K} stroke-width="2"/>
   <ellipse cx="-8" cy="7" rx="7" ry="6" fill="#f1e05a" ${K} stroke-width="2"/><ellipse cx="8" cy="7" rx="7" ry="6" fill="#f1e05a" ${K} stroke-width="2"/>
@@ -444,16 +467,132 @@ function wallCat(){
   return `<rect x="236" y="240" width="72" height="100" fill="transparent"/><g clip-path="url(#wallClip)"><g class="palWall"><g transform="translate(272,337) scale(.55)">${catSVG('normal',false,false,GREY)}</g></g></g>`;
 }
 
+/* seasons: autumn leaves, winter snow, spring flowers */
+const leaf=(x,y,r,c)=>`<path transform="translate(${x},${y}) rotate(${r})" d="M0,-8 Q8,-2 0,8 Q-8,-2 0,-8Z M0,-6 V7" fill="${c}" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>`;
+const LEAFC=['#e8742a','#d9363e','#f1b13a','#a8652f'];
+function flake(x,y,r){
+  const d=`M0,${-r} V${r} M${-.87*r},${-.5*r} L${.87*r},${.5*r} M${-.87*r},${.5*r} L${.87*r},${-.5*r}`;
+  return `<g transform="translate(${x},${y})"><path d="${d}" stroke="#7cc6f0" stroke-width="4.5" stroke-linecap="round"/><path d="${d}" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></g>`;
+}
+const blossom=(x,y,c,s=1)=>`<g transform="translate(${x},${y}) scale(${s})">${[0,1,2,3,4].map(i=>{const a=i*Math.PI*2/5-Math.PI/2;return `<circle cx="${(5*Math.cos(a)).toFixed(1)}" cy="${(5*Math.sin(a)).toFixed(1)}" r="4" fill="${c}" stroke="${INK}" stroke-width="1.4"/>`}).join('')}<circle r="2.8" fill="#ffd34d" stroke="${INK}" stroke-width="1.2"/></g>`;
+const paneSky=()=>S.rain?'#a9bccc':snowy()?'#dce8f3':'#bfe3fa';
+// what you see through a window in the daytime
+function seasonPane(x,y,w,h){
+  const s=season();
+  if(s==='winter') return `<path d="M${x+2},${y+h-2} V${y+h-12} q${w/4},-9 ${w/2},0 t${w/2},0 V${y+h-2}Z" fill="#fff"/>${flake(x+w*.22,y+h*.3,5)}${flake(x+w*.62,y+h*.2,4)}${flake(x+w*.82,y+h*.55,5)}${flake(x+w*.4,y+h*.6,4)}`;
+  if(s==='autumn') return `${leaf(x+w*.25,y+h*.62,30,'#e8742a')}${leaf(x+w*.7,y+h*.35,-40,'#d9363e')}`;
+  if(s==='spring') return `${blossom(x+w*.2,y+h*.78,'#f38db5',.9)}${blossom(x+w*.82,y+h*.8,'#fff',.9)}`;
+  return '';
+}
+// snowflakes or leaves drifting over the whole stage, laid out like the rain so they loop seamlessly
+function fallers(n,art,cls){
+  let s='';for(let i=0;i<n;i++){const x=(i*73)%400+(i%3)*9,y=(i*131)%520;s+=art(x,y,i)+art(x,y-520,i)}
+  return `<g pointer-events="none"><g class="${cls}">${s}</g></g>`;
+}
+const snowfall=()=>fallers(20,(x,y,i)=>flake(x,y,3+i%3),'snowfall');
+const leaffall=()=>fallers(7,(x,y,i)=>leaf(x,y,i*47,LEAFC[i%4]),'leaffall');
+function pawSVG(x,y,f,c){
+  return `<g transform="translate(${Math.round(x)},${y}) rotate(${f*90})" fill="${c}"><ellipse rx="4.2" ry="3.4"/><circle cx="-4.4" cy="-5" r="1.8"/><circle cx="0" cy="-6.8" r="1.8"/><circle cx="4.4" cy="-5" r="1.8"/></g>`;
+}
+// the cat leaves paw prints when it walks through the snow
+function addPrint(){
+  const p={x:S.x,y:FLOOR+(S.prints.length%2?8:15),f:S.face};S.prints.push(p);
+  if(S.prints.length>40) S.prints.shift();
+  const g=$('#prints');g&&g.insertAdjacentHTML('beforeend',pawSVG(p.x,p.y,p.f,'#b9cde0'));
+}
+const SPOT={
+  autumn:{label:'Pile of leaves',hint:'A pile of leaves! Jump in it'},
+  winter:{label:'Fresh snow',hint:'Fresh snow! Make paw prints'},
+  spring:{label:'Flowers',hint:'Flowers! Sniff them'}
+};
+// the seasonal thing on the pavement, to the right of the puddle
+function seasonSpot(){
+  const s=season();
+  const hit=`<rect x="344" y="396" width="56" height="64" fill="transparent"/>`;
+  if(s==='autumn') return hit+`<path d="M346,458 Q350,424 374,422 Q398,424 402,458Z" fill="#e8742a" ${K}/>
+    ${[[356,446,20,1],[368,432,-30,2],[384,438,60,0],[394,450,-10,3],[376,450,15,1],[362,454,80,2],[390,428,-50,1]].map(([x,y,r,c])=>leaf(x,y,r,LEAFC[c])).join('')}`;
+  if(s==='winter') return hit+`<path d="M344,460 Q348,426 374,424 Q400,426 402,460Z" fill="#fff" ${K}/>
+    ${PAWS.slice(0,S.stamps).map(([x,y])=>pawSVG(x,y,0,'#8fb0cf')).join('')}
+    <path d="M356,414 l3,-7 l3,7 l7,3 l-7,3 l-3,7 l-3,-7 l-7,-3Z" fill="#fff" stroke="#7cc6f0" stroke-width="1.8" stroke-linejoin="round"/>`;
+  return hit+`<path d="M354,458 Q356,436 358,420 M374,458 V412 M392,458 Q390,438 388,424" fill="none" stroke="#4f9c45" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M366,446 q-8,-6 -12,0 q6,4 12,0Z M380,440 q8,-6 12,0 q-6,4 -12,0Z" fill="#7fc36b" stroke="${INK}" stroke-width="1.5"/>
+    ${blossom(358,418,'#f38db5',1.3)}${blossom(374,408,'#ffd34d',1.4)}${blossom(388,422,'#fff',1.3)}`;
+}
+function seasonTap(){
+  const s=season(),an=$('#catAnim');S.sDone=true;S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
+  if(s==='autumn'){
+    an&&restartClass(an,'jump',700);sfx.crunch();burst(374,430,(x,y,i)=>leaf(x,y,i*60,LEAFC[i%4]));
+    later(()=>react('happy'),450);say('Crunch crunch! You jump in the leaves!');
+  }else if(s==='winter'){
+    S.stamps=S.stamps>=PAWS.length?1:S.stamps+1;render();sfx.crunch(true);react('happy');
+    say(S.stamps>=PAWS.length?'Pat pat pat! Lots of paw prints in the snow!':'Pat! Your paw makes a print in the snow. Brrr!');
+  }else{
+    S.busy=true;bubble(S.x,headY(),'SNIFF SNIFF','#4f9c45');say('Sniff sniff… the flowers smell so nice…','');
+    later(()=>{const a=$('#catAnim');a&&restartClass(a,'jump',700);sfx.achoo();stage.querySelectorAll('.bubble').forEach(e=>e.remove());bubble(S.x,headY(),'ACHOO!','#e0508a');burst(374,410,(x,y,i)=>`<circle cx="${x}" cy="${y}" r="4" fill="${['#f38db5','#fff','#ffd34d'][i%3]}" stroke="${INK}" stroke-width="1.2"/>`)},1300);
+    later(()=>{S.busy=false;react('happy');say('Achoo! The flowers tickle your nose. Poooourrr!')},2700);
+  }
+}
+
+/* the toy piano: a little one in the living room, and a big one to walk across */
+function toyPiano(){
+  return `<rect x="4" y="350" width="92" height="104" fill="transparent"/>
+  <text x="50" y="364" text-anchor="middle" class="lbl">PIANO</text>
+  <path d="M22,418 V450 M80,418 V450" ${K} stroke-width="5"/>
+  <rect x="10" y="372" width="82" height="48" rx="8" fill="#e0508a" ${K}/>
+  ${KEYC.slice(0,6).map((c,i)=>`<rect x="${17+i*11.5}" y="398" width="11.5" height="18" fill="#fff" stroke="${INK}" stroke-width="1.8"/><rect x="${18+i*11.5}" y="399" width="9.5" height="5" fill="${c}"/>`).join('')}
+  ${heart(51,386,.55,'#fbd0e0')}`;
+}
+function pianoKey(i){
+  const x=KEY0+i*KEYW;
+  return `<g class="k${i}"><rect x="${x}" y="330" width="${KEYW}" height="140" rx="6" fill="#fff" ${K}/><rect x="${x+5}" y="335" width="${KEYW-10}" height="24" rx="4" fill="${KEYC[i]}" stroke="${INK}" stroke-width="2"/></g>`;
+}
+// the music sheet shows the song as colored notes; the ones already played get a star
+function sheet(){
+  const song=SONGS[S.song];
+  let l='';for(let y=192;y<=252;y+=15)l+=`M124,${y} H276 `;
+  return `<rect x="110" y="168" width="180" height="104" rx="6" fill="#fff" ${K}/><path d="${l}" stroke="#9fd0ef" stroke-width="2"/>
+  ${song.map((k,j)=>{const x=150+j*50,y=252-k*7.5;return `<path d="M${x+10},${y} V${y-34}" stroke="${INK}" stroke-width="2.5"/><circle cx="${x}" cy="${y}" r="11" fill="${KEYC[k]}" ${K} stroke-width="2.5"/>${j<S.songAt?`<path d="${starPath(x,y-22,8)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.6"/>`:''}`}).join('')}`;
+}
+function playKey(i){
+  sfx.note(i);S.lastNote=i;S.noteT=performance.now();
+  const k=$('.k'+i);k&&restartClass(k,'press',300);
+  const id='n'+(++uid),x=KEY0+i*KEYW+KEYW/2;
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g class="floaty"><text x="${x}" y="318" text-anchor="middle" class="say" fill="${KEYC[i]}" stroke="${INK}" stroke-width="1.2">♪</text></g></g>`);
+  setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1500);
+}
+function tapKey(i){
+  // walking onto the key already played it, so only play it again if that was a while ago
+  if(!(S.lastNote===i&&performance.now()-S.noteT<400)) playKey(i);
+  const song=SONGS[S.song];
+  bubble(KEY0+i*KEYW+KEYW/2,292,SOLFA[i]+'!',KEYC[i]);
+  if(i!==song[S.songAt]){say(`${SOLFA[i][0]+SOLFA[i].slice(1).toLowerCase()}! Your paw plays a note.`);return}
+  S.songAt++;const sh=$('#sheet');sh&&(sh.innerHTML=sheet());
+  if(S.songAt>=song.length) dance();
+  else say(S.songAt===1?'Plink! That is the first note!':'Plonk! One more…');
+}
+function dance(){
+  S.busy=true;S.danced=true;
+  SONGS[S.song].forEach((k,j)=>later(()=>playKey(k),300+j*240));
+  later(()=>sfx.chord(),300+SONGS[S.song].length*240);
+  setMood('happy');const an=$('#catAnim'),pa=$('#palAnim');an&&restartClass(an,'dance',1800);pa&&restartClass(pa,'dance',1800);
+  bubble(S.x,headY(),'LA LA LA!','#8a6bd1');
+  say(S.pal?'You play the song… and you and your friend dance! Cha cha cha!':'You play the song… and you dance! Cha cha cha!','');
+  later(()=>{
+    S.song=(S.song+1)%SONGS.length;S.songAt=0;const sh=$('#sheet');sh&&(sh.innerHTML=sheet());
+    S.busy=false;react('happy');say('What a dance! Poooourrr! Look, a new song.');
+  },2000);
+}
+
 /* ---------- scenes ---------- */
 const SC={
   bed:{
     draw:()=>`<rect width="400" height="520" fill="#fde6ee"/><rect width="400" height="450" fill="url(#hearts)"/>
       <rect y="450" width="400" height="70" fill="#e8c09a"/>
       <path d="M0,450 H400 M0,485 H400 M120,450 V485 M280,450 V485 M60,485 V520 M210,485 V520 M340,485 V520" stroke="${INK}" stroke-width="2.5" fill="none"/>
-      <rect x="34" y="120" width="130" height="120" rx="6" fill="${S.rain?'#a9bccc':'#bfe3fa'}" ${K}/>
+      <rect x="34" y="120" width="130" height="120" rx="6" fill="${paneSky()}" ${K}/>
       ${night()?nightPane(36,122,126,116)
         :S.rain?`<path d="${cloud(76,150,28,12,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/><path d="${cloud(128,170,24,10,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/>${windowDrops(34,180,130,60)}`
-        :`<circle cx="128" cy="154" r="16" fill="#ffd34d" ${K}/><path d="${cloud(76,192,26,11,7)}" fill="#fff" stroke="${INK}" stroke-width="2"/>`}
+        :`${snowy()?'':`<circle cx="128" cy="154" r="16" fill="#ffd34d" ${K}/>`}<path d="${cloud(76,192,26,11,7)}" fill="#fff" stroke="${INK}" stroke-width="2"/>${seasonPane(36,122,126,116)}`}
       <path d="M99,120 V240 M34,180 H164" ${K} fill="none"/>
       <rect x="326" y="380" width="62" height="70" rx="4" fill="#c9e6a8" ${K}/>
       <path d="M326,414 H388" ${K}/><circle cx="357" cy="398" r="3" fill="${INK}"/>
@@ -480,8 +619,8 @@ const SC={
   kitchen:{
     draw:()=>`<rect width="400" height="520" fill="#dff1fb"/><rect width="400" height="450" fill="url(#dots)"/>
       <rect y="450" width="400" height="70" fill="url(#tiles)"/><path d="M0,450 H400" ${K}/>
-      <rect x="160" y="112" width="140" height="66" rx="4" fill="${S.rain?'#a9bccc':'#9fd0ef'}" ${K}/>
-      ${night()?nightPane(162,114,136,62):S.rain?windowDrops(160,112,140,66):''}<path d="M230,112 V178" ${K}/>
+      <rect x="160" y="112" width="140" height="66" rx="4" fill="${S.rain?'#a9bccc':snowy()?'#dce8f3':'#9fd0ef'}" ${K}/>
+      ${night()?nightPane(162,114,136,62):S.rain?windowDrops(160,112,140,66):seasonPane(162,114,136,62)}<path d="M230,112 V178" ${K}/>
       <circle cx="222" cy="150" r="3" fill="${INK}"/><circle cx="238" cy="150" r="3" fill="${INK}"/>
       <circle cx="345" cy="190" r="22" fill="#fff" ${K}/><path d="M345,178 V190 L354,196" ${K} fill="none"/>
       <rect x="150" y="334" width="150" height="116" fill="#f6d38f" ${K}/>
@@ -523,9 +662,7 @@ const SC={
   living:{
     draw:()=>`<rect width="400" height="520" fill="#fff1d9"/><rect width="400" height="450" fill="url(#hearts)" opacity=".7"/>
       <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
-      <ellipse cx="200" cy="482" rx="150" ry="22" fill="#f7b9d0" ${K}/>
-      <path d="M30,410 q-14,-40 6,-60 q4,30 6,58 M44,408 q4,-50 30,-62 q-8,34 -20,62" fill="#7fc36b" ${K} stroke-width="2.5"/>
-      <path d="M20,408 H70 L64,450 H26Z" fill="#e0508a" ${K}/>`,
+      <ellipse cx="200" cy="482" rx="150" ry="22" fill="#f7b9d0" ${K}/>`,
     hots:()=>[
       {id:'picture',label:'Picture of a cat on a cloud',svg:picture(),walk:110,tap:()=>{react('happy');say('A picture of a cat on a cloud. It looks like you! Poooourrr!')}},
       {id:'bunny',label:'Golden bunny box',svg:bunnyBox(),walk:225,tap:()=>{react('happy');say('A golden bunny with a red heart. Poooourrr!')}},
@@ -534,6 +671,7 @@ const SC={
         else{react('happy');say('A soft pink sofa. You roll on it. Poooourrr!')}}},
       {id:'door',label:'Door to outside',svg:door(),walk:350,tap:()=>leave(460,()=>go('city','left'))},
       ...(S.box==='door'||S.box==='in'?[{id:'box',label:'Delivery box',svg:deliveryBox(),walk:300,tap:hopInBox}]:[]),
+      {id:'piano',label:'Little piano',svg:toyPiano(),walk:70,tap:()=>go('piano','left')},
       {id:'go-kitchen',label:'Go to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>leave(-60,()=>go('kitchen','right'))},
       {id:'dot',label:'Red dot',svg:redDot(),walk:()=>S.dot.x,tap:pounce}
     ],
@@ -541,12 +679,15 @@ const SC={
       :S.tummy<3?{id:'go-kitchen',hint:'Your tummy rumbles! Go to the kitchen ↖'}
       :homeward()?{id:'go-kitchen',hint:'It is night! Go to the kitchen ↖'}
       :S.box==='door'?{id:'box',hint:'A box! Tap it'}
+      :!S.piano?{id:'piano',hint:'A little piano! Tap it'}
       :{id:'door',hint:'Catch the red dot! The door goes outside'},
+    // walk in past the little piano so it stays in sight
+    landLeft:160,
     before:()=>{S.dot={x:300,y:478,n:0,hid:false}},
     enter:()=>say(S.box==='door'?'You go around the house. A box came! And a red dot!':'You go around the house. Look, a red dot!')
   },
   city:{
-    draw:()=>`<rect width="400" height="520" fill="${night()?'#22306a':S.rain?'#a9bccc':'#bfe3fa'}"/>
+    draw:()=>`<rect width="400" height="520" fill="${night()?'#22306a':paneSky()}"/>
       ${night()?`<circle cx="70" cy="80" r="22" fill="#fff3b0" ${K}/><circle cx="160" cy="50" r="2.5" fill="#fff"/><circle cx="350" cy="70" r="2.5" fill="#fff"/><circle cx="260" cy="40" r="2" fill="#fff"/>`:''}
       <path d="${cloud(150,70,34,12,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
       <path d="${cloud(290,110,28,10,7)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
@@ -560,7 +701,11 @@ const SC={
       <rect x="232" y="342" width="80" height="58" fill="#e09a78" ${K}/>
       <path d="M232,361 H312 M232,380 H312 M256,342 V361 M288,342 V361 M272,361 V380 M248,380 V400 M296,380 V400" stroke="${INK}" stroke-width="2" fill="none"/>
       <rect x="228" y="336" width="88" height="8" rx="3" fill="#c97a5a" ${K}/>
-      <rect y="400" width="400" height="70" fill="#eadfe6"/><path d="M0,400 H400 M0,470 H400" ${K}/>
+      ${snowy()?`<rect x="144" y="162" width="84" height="13" rx="6" fill="#fff" ${K} stroke-width="2.5"/><rect x="220" y="124" width="92" height="13" rx="6" fill="#fff" ${K} stroke-width="2.5"/>
+        <rect x="304" y="184" width="100" height="13" rx="6" fill="#fff" ${K} stroke-width="2.5"/><rect x="224" y="329" width="96" height="10" rx="5" fill="#fff" ${K} stroke-width="2.5"/>`:''}
+      <rect y="400" width="400" height="70" fill="${snowy()?'#fbfdff':'#eadfe6'}"/><path d="M0,400 H400 M0,470 H400" ${K}/>
+      ${season()==='autumn'?[[160,460,30,0],[176,416,-20,1],[236,462,70,2],[150,428,-60,3],[332,412,10,0]].map(([x,y,r,c])=>leaf(x,y,r,LEAFC[c])).join(''):''}
+      ${season()==='spring'?[160,178,196,212].map((x,i)=>`<path d="M${x},400 v-12" stroke="#4f9c45" stroke-width="2.5"/>${blossom(x,386,['#f38db5','#fff','#ffd34d','#f38db5'][i],.8)}`).join(''):''}
       <rect y="470" width="400" height="50" fill="#5d5866"/>
       <path d="M10,496 H50 M90,496 H130 M170,496 H210 M250,496 H290 M330,496 H370" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
     hots:()=>[
@@ -573,7 +718,7 @@ const SC={
         later(()=>react('scared'),500);say('Woof woof! A big dog! Miaawow!')}},
       {id:'car',label:'Car',svg:car(),walk:250,tap:()=>{sfx.beep();bubble(318,430,'BEEP!','#e0508a');
         const c=$('.car');c&&restartClass(c,'drive',2200);later(()=>react('scared'),350);say('Beep beep! A car! Miaawow!')}},
-      {id:'fly',label:'Butterfly',svg:butterfly(),walk:()=>S.fly.x,tap:()=>{react('happy');say('A butterfly! You try to catch it. Poooourrr!');
+      {id:'fly',label:snowy()?'Snowflake':'Butterfly',svg:butterfly(),walk:()=>S.fly.x,tap:()=>{react('happy');say(snowy()?'A big snowflake! It lands on your nose. Brrr… Poooourrr!':'A butterfly! You try to catch it. Poooourrr!');
         S.fly={x:170+Math.random()*190,y:120+Math.random()*120};const f=$('.bfly');if(f)f.style.transform=`translate(${S.fly.x}px,${S.fly.y}px)`}},
       ...(S.rain?[
         {id:'umbrella',label:'Umbrella shop',svg:umbrellaShop(),walk:350,tap:()=>{
@@ -585,6 +730,7 @@ const SC={
           if(S.umbrella){react('happy');say('Splish splash! Your umbrella keeps you dry. Poooourrr!')}
           else{later(()=>react('scared'),200);say('Splash! Wet paws! Miaawow!')}}}
       ]:[]),
+      ...(season()!=='summer'?[{id:'season',label:SPOT[season()].label,svg:seasonSpot(),walk:300,tap:seasonTap}]:[]),
       ...(S.pal?[]:[{id:'friend',label:'Grey cat on the wall',svg:wallCat(),walk:250,tap:meetFriend}]),
       {id:'go-home',label:'Go home',svg:arrow('left','HOME'),tap:()=>leave(-60,()=>go('living','right'))}
     ],
@@ -592,15 +738,18 @@ const SC={
       :S.fish==='carry'?{id:'go-home',hint:'Take your fish home ↖'}
       :S.fish==='eaten'?{id:'go-home',hint:'It is night! Go home ↖'}
       :S.rain&&!S.umbrella&&S.hearts>=UMB?{id:'umbrella',hint:`It is raining! Buy an umbrella for ${UMB} hearts`}
+      :season()!=='summer'&&!S.sDone?{id:'season',hint:SPOT[season()].hint}
       :S.hearts>=FISH?{id:'fish',hint:`You have ${FISH} hearts! Tap the fish shop`}
       :S.rain&&S.umbrella?{id:'puddle',hint:`Splash in the puddle for hearts (${S.hearts} of ${FISH})`}
-      :{id:'fly',hint:`Catch the butterfly for hearts (${S.hearts} of ${FISH})`},
-    over:()=>S.rain?rain():'',
-    enter:()=>say(S.rain&&!S.fish?'You go outside. It is raining! Pitter patter.'
+      :{id:'fly',hint:`Catch the ${snowy()?'snowflake':'butterfly'} for hearts (${S.hearts} of ${FISH})`},
+    over:()=>(S.rain?rain():'')+(snowy()?snowfall():season()==='autumn'?leaffall():''),
+    enter:()=>{
+      const out={summer:'You go outside.',autumn:'You go outside. Orange leaves everywhere!',winter:'You go outside. Snow everywhere! Brrr!',spring:'You go outside. Flowers everywhere!'}[season()];
+      say(S.rain&&!S.fish?(season()==='summer'?'You go outside. It is raining! Pitter patter.':out+' And it is raining!')
       :S.fish==='carry'&&!S.pal?'The grey cat on the wall looks at your fish…'
       :S.fish?'You go outside. You wander in the city.'
-      :!S.pal?'You go outside. A grey cat sits on the wall.'
-      :'You go outside. You can buy a fish!')
+      :!S.pal?out+' A grey cat sits on the wall.'
+      :out+' You can buy a fish!')}
   },
   roof:{
     draw:()=>`<rect width="400" height="520" fill="#22306a"/>
@@ -610,7 +759,9 @@ const SC={
       <rect x="318" y="392" width="44" height="58" fill="#c9563c" ${K}/><rect x="312" y="382" width="56" height="14" fill="#b04a33" ${K}/>
       <rect y="450" width="400" height="70" fill="#c9563c"/>
       <path d="${[...Array(10)].map((_,i)=>`M${i*40},470 q20,16 40,0 M${i*40-20},496 q20,16 40,0`).join(' ')}" fill="none" stroke="${INK}" stroke-width="2.5"/>
-      <path d="M0,450 H400" ${K}/>`,
+      <path d="M0,450 H400" ${K}/>
+      ${snowy()?`<rect x="-6" y="352" width="80" height="11" rx="5" fill="#fff" ${K} stroke-width="2.5"/><rect x="146" y="322" width="88" height="11" rx="5" fill="#fff" ${K} stroke-width="2.5"/><rect x="276" y="362" width="130" height="11" rx="5" fill="#fff" ${K} stroke-width="2.5"/><rect x="-6" y="444" width="412" height="12" rx="6" fill="#fff" ${K} stroke-width="2.5"/>`:''}`,
+    over:()=>snowy()?snowfall():'',
     hots:()=>[
       ...STARS.map((_,i)=>({id:'star'+i,label:'Star',svg:starHot(i),tap:()=>countStar(i)})),
       {id:'moon',label:'Moon',svg:moon(),walk:300,tap:meowMoon},
@@ -623,6 +774,27 @@ const SC={
         :{id:'hatch',hint:'Go down the ladder for a nap ↓'};
     },
     enter:()=>say(S.wink?'You are on the roof. The moon smiles at you.':'You climb up to the roof. Look at all the stars!')
+  },
+  piano:{
+    draw:()=>`<rect width="400" height="520" fill="#fff1d9"/><rect width="400" height="470" fill="url(#hearts)" opacity=".7"/>
+      <rect y="470" width="400" height="50" fill="#d8a878"/><path d="M0,470 H400 M130,470 V520 M290,470 V520" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="8" y="146" width="384" height="190" rx="24" fill="#e0508a" ${K}/>
+      <rect x="10" y="300" width="380" height="34" fill="#c23a68" stroke="${INK}" stroke-width="2.5"/>
+      ${heart(56,232,1.3,'#fbd0e0')}${heart(344,232,1.3,'#fbd0e0')}
+      <g id="sheet">${sheet()}</g>`,
+    hots:()=>[
+      ...KEYC.map((_,i)=>({id:'key'+i,label:SOLFA[i]+' key',svg:pianoKey(i),walk:KEY0+i*KEYW+KEYW/2,tap:()=>tapKey(i)})),
+      {id:'go-living',label:'Back to the house',svg:arrow('left','HOUSE'),tap:()=>leave(-60,()=>go('living',70))}
+    ],
+    goal:()=>{
+      const song=SONGS[S.song];
+      // after one dance the glow points home, so nobody gets stuck at the piano
+      if(S.danced&&!S.songAt) return {id:'go-living',hint:'Play another song, or go back ↖'};
+      if(S.songAt>=song.length) return {id:'',hint:''};
+      return {id:'key'+song[S.songAt],hint:`Play the colors on the music sheet (${S.songAt} of ${song.length})`};
+    },
+    before:()=>{S.piano=true;S.songAt=0},
+    enter:()=>say(S.danced?'The little piano! Walk on the keys.':'A piano! Each paw plays a note. Play the song on the music sheet!')
   },
   stickers:{
     noCat:true,
@@ -668,7 +840,8 @@ function render(){
   if(S.scene==='bed') HOTS.cat={id:'cat',tap:S.awake?pet:wake};
   if(S.pal) HOTS.pal={id:'pal',tap:petPal};
   const ae=document.activeElement, fid=stage.contains(ae)&&ae.dataset?ae.dataset.id:null;
-  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+palLayer()+
+  const prints=S.scene==='city'&&snowy()?`<g id="prints" pointer-events="none">${S.prints.map(p=>pawSVG(p.x,p.y,p.f,'#b9cde0')).join('')}</g>`:'';
+  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+prints+palLayer()+
     hs.map(h=>`<g class="hot${p===h.id?' pulse':''}" data-id="${h.id}" role="button" tabindex="0" aria-label="${h.label}">${h.svg}</g>`).join('')+
     catLayer()+(sc.over?sc.over():'');
   const f=fid&&$(`[data-id="${fid}"]`);f&&f.focus();
@@ -686,9 +859,12 @@ function walkTo(tx,cb){
   const flip=$('#catFlip'),an=$('#catAnim'),cat=$('#cat');
   if(!cat){S.busy=false;cb&&cb();return}
   flip.setAttribute('transform',`scale(${S.face},1)`);an.classList.add('walk');
-  const sx=S.x,dur=Math.abs(dist)/.22,t0=performance.now();
+  const sx=S.x,dur=Math.abs(dist)/.22,t0=performance.now();let px=sx;
   (function step(t){
     const p=Math.min(1,(t-t0)/dur);S.x=sx+dist*p;cat.setAttribute('transform',`translate(${S.x},${FLOOR})`);follow();
+    // each paw on the piano plays the key under it; in the snow, paws leave prints
+    if(S.scene==='piano'){const k=keyAt(S.x);if(k!==S.lastKey){S.lastKey=k;k>=0&&playKey(k)}}
+    if(S.scene==='city'&&snowy()&&Math.abs(S.x-px)>=18){px=S.x;addPrint()}
     if(p<1)requestAnimationFrame(step);else{an.classList.remove('walk');S.busy=false;cb&&cb()}
   })(t0);
 }
@@ -715,11 +891,11 @@ function go(name,from){
   setTimeout(()=>{
     const at=typeof from==='number';
     S.scene=name;S.x=at?from:from==='left'?-50:450;S.face=1;S.mood='normal';
-    S.palX=at?Math.max(30,from-62):from==='left'?-120:520;
+    S.palX=at?Math.max(30,from-62):from==='left'?-120:520;S.prints=[];S.lastKey=-1;
     SC[name].before&&SC[name].before();render();updateHud();
     stage.classList.remove('fade');SC[name].enter();
     if(at){const an=$('#catAnim');an&&restartClass(an,'stretch',900);S.busy=false}
-    else walkTo(from==='left'?80:320,()=>{});
+    else walkTo(from==='left'?SC[name].landLeft||80:320,()=>{});
     follow();
   },300);
 }
@@ -776,7 +952,9 @@ function wake(){
   const an=$('#catAnim');an&&restartClass(an,'stretch',900);
   setTimeout(()=>S.busy=false,900);
   sfx.rumble();later(()=>bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f'),250);
-  say(S.rain?'You wake up. It is raining! And you are hungry…':'You wake up and you are hungry! Rumble rumble…');
+  const sea={autumn:'The leaves are orange. It is autumn!',winter:'Look, snow! It is winter!',spring:'Flowers are growing. It is spring!'}[season()];
+  say(S.rain?(sea?`You wake up. ${sea} And it is raining!`:'You wake up. It is raining! And you are hungry…')
+    :sea?`You wake up. ${sea} And you are hungry…`:'You wake up and you are hungry! Rumble rumble…');
 }
 function pounce(){
   const d=S.dot,an=$('#catAnim'),el=$('.dot');if(d.hid||!el)return;
@@ -856,10 +1034,11 @@ function hungry(){
 function nap(){
   walkTo(200,()=>{
     S.awake=false;S.tummy=0;S.fridge=false;S.bowl=0;S.fish=false;S.mood='sleep';S.stars=[];S.wink=false;S.box='door';S.cup=0;
-    // a new day: the second one is always rainy so everyone gets to see it, then rain comes now and then
-    S.day++;S.rain=S.day===2||Math.random()<.4;
+    S.sDone=false;S.stamps=0;S.piano=false;S.danced=false;S.songAt=0;
+    // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
+    S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     render();updateHud();sfx.purr();
-    say(S.pal?'You and your friend curl up on your cloud. Zzz…':S.rain?'You curl up on your cloud. Zzz… Listen, rain!':'You curl up on your cloud. Zzz… Good night, cat!','Tap the cat to wake up again');
+    say(S.pal?'You and your friend curl up on your cloud. Zzz…':snowy()?'You curl up on your cloud. Zzz… Shh, it is snowing.':S.rain?'You curl up on your cloud. Zzz… Listen, rain!':'You curl up on your cloud. Zzz… Good night, cat!','Tap the cat to wake up again');
   });
 }
 
@@ -882,6 +1061,12 @@ function stickerPop(i){
 function splash(x,y){
   const id='s'+(++uid);
   stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g class="floaty">${[-30,-12,12,30].map((dx,i)=>`<circle cx="${x+dx}" cy="${y-8-(i%2)*10}" r="5" fill="#7cb6e6" stroke="${INK}" stroke-width="1.5"/>`).join('')}</g></g>`);
+  setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1600);
+}
+// leaves or petals that fly up and fade
+function burst(x,y,art){
+  const id='u'+(++uid);
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g class="floaty">${[-34,-20,-6,8,22,34].map((dx,i)=>art(x+dx,y-(i%3)*12,i)).join('')}</g></g>`);
   setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1600);
 }
 function hearts(x,y){
@@ -957,6 +1142,31 @@ const sfx={
   sticker(){seq('triangle',[[523,523,.1,.12],[659,659,.1,.12],[784,784,.22,.12]])},
   stick(){seq('sine',[[300,900,.08,.22]])},
   twinkle(n){const f=[523,587,659,784,880][Math.min(n,5)-1];seq('triangle',[[f,f,.12,.12],[f*2,f*2,.2,.08]])},
+  note(i){
+    const a=ac();if(!a)return;const t=a.currentTime,f=NOTE[i];
+    [[f,'triangle',.28],[f*2,'sine',.06]].forEach(([fr,ty,v])=>{
+      const o=a.createOscillator(),g=a.createGain();o.type=ty;o.frequency.value=fr;
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.7);
+      o.connect(g).connect(a.destination);o.start(t);o.stop(t+.75);
+    });
+  },
+  chord(){[0,2,4,7].forEach(i=>this.note(i))},
+  crunch(soft){
+    const a=ac();if(!a)return;const t=a.currentTime,len=Math.floor(a.sampleRate*.5);
+    const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);
+    // three little crackly bursts
+    for(let i=0;i<len;i++){const k=(i/len*3)%1;ch[i]=(Math.random()*2-1)*Math.max(0,1-k*2.2)}
+    const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='bandpass';f.frequency.value=soft?700:2200;f.Q.value=.8;
+    const g=a.createGain();g.gain.value=soft?.5:.35;s.connect(f).connect(g).connect(a.destination);s.start(t);
+  },
+  achoo(){
+    seq('sine',[[500,820,.32,.12]]);
+    const a=ac();if(!a)return;const t=a.currentTime+.42,d=.35,len=Math.floor(a.sampleRate*d);
+    const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+    const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=1500;
+    const g=a.createGain();g.gain.setValueAtTime(.55,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f).connect(g).connect(a.destination);s.start(t);s.stop(t+d);
+  },
   splash(){
     const a=ac();if(!a)return;const t=a.currentTime,d=.45,len=Math.floor(a.sampleRate*d);
     const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;

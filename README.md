@@ -8,6 +8,8 @@ After the fish it gets dark, and a ladder in the bedroom leads up to the roof: c
 
 Hearts also unlock stickers: every few hearts a new crayon sticker pops up (a fish, a cat, a sun, a rainbow and more). When your tummy is full, tap the fridge to see its door, then tap the door to stick the new sticker wherever you like. A shy grey cat sits on the city wall and hides when you come close; share your fish with it and it becomes your friend, follows you everywhere and naps next to you on the cloud bed. Stickers and the friend are remembered on that device.
 
+Every nap moves the season on. Day 1 is summer, then comes autumn, with orange leaves falling and a pile of leaves to jump in (crunch!). In winter it snows instead of raining: the cat leaves paw prints when it walks through the city, you can pat paw prints into a patch of fresh snow, and the butterfly becomes a big snowflake. In spring the flowers make the cat sniff… and ACHOO! In the living room there is a little toy piano. Tap it and the cat walks across eight rainbow keys, and each paw plays a note. The music sheet shows a short song in colors; play it and the cat (and its friend) dance.
+
 Every day a delivery box waits by the front door: tap it and the cat jumps in, peeks out, then pops up wearing the box as a hat until bedtime. In the kitchen a cup sits on the edge of the counter; push it with your paw, slowly, slowly… CRASH! It's scary, but so funny.
 
 ## Play
