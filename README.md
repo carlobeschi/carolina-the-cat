@@ -8,6 +8,8 @@ After the fish it gets dark, and a ladder in the bedroom leads up to the roof: c
 
 Hearts also unlock stickers: every few hearts a new crayon sticker pops up (a fish, a cat, a sun, a rainbow and more). When your tummy is full, tap the fridge to see its door, then tap the door to stick the new sticker wherever you like. A shy grey cat sits on the city wall and hides when you come close; share your fish with it and it becomes your friend, follows you everywhere and naps next to you on the cloud bed. Stickers and the friend are remembered on that device.
 
+Every day a delivery box waits by the front door: tap it and the cat jumps in, peeks out, then pops up wearing the box as a hat until bedtime. In the kitchen a cup sits on the edge of the counter; push it with your paw, slowly, slowly… CRASH! It's scary, but so funny.
+
 ## Play
 
 Open `you-are-a-cat.html` in a browser, or play the published version:

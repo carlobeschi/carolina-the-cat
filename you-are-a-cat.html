@@ -75,6 +75,8 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 @keyframes stkpop{0%{transform:scale(.2) rotate(-20deg);opacity:0}15%{transform:scale(1.15) rotate(4deg);opacity:1}25%{transform:scale(1) rotate(0)}80%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-30px)}}
 /* the shy grey cat ducks behind the wall */
 .duck{animation:duck 1.5s ease-in-out}
+/* the cup wobbles from its bottom when the cat pushes it */
+.cupw{transform-box:fill-box;transform-origin:50% 100%}
 @keyframes duck{0%,100%{transform:none}25%,70%{transform:translateY(75px)}}
 @media (prefers-reduced-motion:reduce){
   .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple{animation:none}
@@ -117,10 +119,13 @@ let uid=0, moodT=null;
 
 const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',fridge:false,bowl:0,fly:{x:300,y:200},busy:false,sound:true,fish:false,
   day:1,rain:false,umbrella:false,dot:{x:300,y:478,n:0,hid:false},stars:[],wink:false,
-  earned:0,stk:[],newStk:[],pal:false,palX:136,palFace:1};
+  earned:0,stk:[],newStk:[],pal:false,palX:136,palFace:1,
+  box:'door',cup:0};
 const FISH=5, UMB=2;
 const STARS=[[60,84],[150,48],[222,146],[96,206],[364,214]];
 const WORDS=['One','Two','Three','Four','Five'];
+// the cup slides along the kitchen counter, one push at a time; the counter ends at x=304
+const CUPX=[290,297,303];
 // every time the total of hearts ever earned reaches one of these, a new sticker unlocks
 const STK_AT=[3,6,10,15,21,28,36,45];
 // the big fridge door in the sticker scene, and the small closed fridge in the kitchen
@@ -132,6 +137,8 @@ function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
 const umbOn=()=>S.scene==='city'&&S.rain&&S.umbrella;
+// speech bubbles sit above the cat's head, or above its box hat or umbrella
+const headY=()=>FLOOR-(umbOn()?268:S.box==='hat'?226:190);
 const fridgeShut=()=>!S.fridge||(S.tummy>=3&&S.bowl===0);
 
 /* stickers and the friend cat are kept between visits on this device */
@@ -154,8 +161,8 @@ function cloud(cx,cy,rx,ry,n){
 }
 function heart(x,y,s,fill){return `<path transform="translate(${x},${y}) scale(${s})" d="${HEART}" fill="${fill}" stroke="${INK}" stroke-width="${(2/s).toFixed(2)}"/>`}
 
-function catSVG(m,carry,umb,p=PINK){
-  const ra=umb?'40,-102':'45,-61';
+function catSVG(m,carry,umb,p=PINK,hat=false){
+  const ra=umb?'40,-102':m==='push'?'46,-124':'45,-61';
   let st='';for(let y=-74;y<=-6;y+=8) st+=`M-22,${y} q5.25,-5 10.5,0 t10.5,0 t10.5,0 t10.5,0 `;
   let eyes;
   if(m==='sleep') eyes=`<path d="M-15,-104 q5,5 10,0 M5,-104 q5,5 10,0" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`;
@@ -182,7 +189,10 @@ function catSVG(m,carry,umb,p=PINK){
   <path d="M-3,-98 L3,-98 L0,-95Z" fill="#e0508a" stroke="${INK}" stroke-width="1.2"/>
   ${mouth}
   <path d="M-12,-95 L-40,-99 M-12,-92 L-40,-88 M12,-95 L40,-99 M12,-92 L40,-88" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>
-  ${carry?`<path d="M-6,-88 q14,-12 28,0 q-14,12 -28,0Z M22,-88 l11,-8 v16Z" fill="#f9a03f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="0" cy="-90" r="1.8" fill="${INK}"/>`:''}`;
+  ${carry?`<path d="M-6,-88 q14,-12 28,0 q-14,12 -28,0Z M22,-88 l11,-8 v16Z" fill="#f9a03f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="0" cy="-90" r="1.8" fill="${INK}"/>`:''}
+  ${hat?`<g transform="rotate(-6 0 -140)"><rect x="-31" y="-172" width="62" height="46" fill="#d9a066" ${K}/>
+  <path d="M-31,-126 L-42,-118 M31,-126 L42,-118" ${K}/><rect x="-4" y="-171" width="9" height="44" fill="#f1e05a" opacity=".85"/>
+  ${heart(-16,-150,.6,'#e0508a')}</g>`:''}`;
 }
 
 function arrow(side,label){
@@ -203,6 +213,30 @@ const DEFS=`<defs>
 </defs>`;
 
 /* ---------- things in scenes ---------- */
+/* the delivery box at the front door; while the cat is inside, its head pokes out between the flaps */
+function deliveryBox(){
+  const inside=S.box==='in';
+  return `<rect x="306" y="366" width="90" height="90" fill="transparent"/>
+  ${inside?`<path d="M326,402 L334,390 H392 L386,402Z" fill="#8a5a2b" ${K}/><g transform="translate(355,454) scale(.55)">${catSVG('happy')}</g>`:''}
+  <rect x="322" y="402" width="64" height="48" fill="#d9a066" ${K}/>
+  ${inside?`<path d="M322,402 L306,382 L338,386 L348,402Z M386,402 L398,378 L366,384 L360,402Z" fill="#e8b47a" ${K}/>`
+    :`<path d="M322,402 L332,390 H394 L386,402Z" fill="#e8b47a" ${K}/><path d="M355,401 L362,391" stroke="#f1e05a" stroke-width="8" opacity=".85"/>`}
+  <rect x="350" y="404" width="9" height="44" fill="#f1e05a" opacity=".85"/>
+  ${heart(337,428,.7,'#e0508a')}
+  <path d="M372,440 V418 M365,425 L372,417 L379,425" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+/* the cup on the kitchen counter, drawn with its bottom at 0,0 */
+const cupArt=()=>`<g transform="scale(1.35)"><path d="M-11,-25 H11 L9,-3 Q9,0 6,0 H-6 Q-9,0 -9,-3Z" fill="#fff" ${K} stroke-width="2.5"/>
+  <path d="M10,-20 q10,-1 9,8 q-1,6 -10,5" fill="none" stroke="${INK}" stroke-width="2.5"/>${heart(0,-12,.55,'#e0508a')}</g>`;
+function cupHot(){
+  const x=CUPX[S.cup];
+  return `<rect x="${x-28}" y="268" width="56" height="62" fill="transparent"/><g transform="translate(${x},322) rotate(${S.cup===2?9:0})"><g class="cupw">${cupArt()}</g></g>`;
+}
+function shards(){
+  return `<g transform="translate(325,495) scale(1.4) translate(-325,-495)"><path d="M296,496 l9,-11 l6,10Z M318,500 l4,-13 l9,9Z M338,492 l10,-6 l2,10Z" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M352,500 q9,-1 8,-9" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M322,494 l2,-4 l3,4Z" fill="#e0508a"/></g>`;
+}
 function bunnyBox(){
   return `<rect x="186" y="232" width="128" height="9" fill="#a8652f" ${K}/>
   <path d="M212,200 Q212,232 250,232 Q288,232 288,200 Z" fill="#e5558e" ${K}/>
@@ -452,7 +486,8 @@ const SC={
       <circle cx="345" cy="190" r="22" fill="#fff" ${K}/><path d="M345,178 V190 L354,196" ${K} fill="none"/>
       <rect x="150" y="334" width="150" height="116" fill="#f6d38f" ${K}/>
       <rect x="146" y="322" width="158" height="14" rx="3" fill="#fff" ${K}/>
-      <path d="M225,336 V450" ${K}/><circle cx="214" cy="392" r="3" fill="${INK}"/><circle cx="236" cy="392" r="3" fill="${INK}"/>`,
+      <path d="M225,336 V450" ${K}/><circle cx="214" cy="392" r="3" fill="${INK}"/><circle cx="236" cy="392" r="3" fill="${INK}"/>
+      ${S.cup==='broken'?shards():''}`,
     hots:()=>[
       {id:'fridge',label:'Fridge',svg:fridge(),walk:170,tap:()=>{
         if(fridgeShut()&&S.tummy>=3) go('stickers','left');
@@ -463,6 +498,7 @@ const SC={
       {id:'blender',label:'Blender',svg:blender(),walk:190,tap:()=>{
         const b=$('.bl');b&&restartClass(b,'shake',900);sfx.bzz();bubble(225,212,'BZZZZ!','#2c8fd6');
         later(()=>react('scared'),450);say('Bzzzz! The blender is so loud! Miaawow!')}},
+      ...(typeof S.cup==='number'?[{id:'cup',label:'Cup on the edge of the counter',svg:cupHot(),walk:240,tap:pushCup}]:[]),
       {id:'bowl',label:'Milk bowl',svg:bowl(),walk:262,tap:()=>{
         S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
         if(S.fish==='carry'){S.fish='eaten';S.tummy=3;S.rain=false;sfx.slurp();redraw();react('happy');updateHud();
@@ -479,6 +515,7 @@ const SC={
       :S.bowl>0?{id:'bowl',hint:'Tap the bowl'}
       :S.tummy<3?{id:'fridge',hint:'Tap the fridge'}
       :S.newStk.length?{id:'fridge',hint:'New sticker! Tap the fridge'}
+      :!homeward()&&typeof S.cup==='number'?{id:'cup',hint:'A cup on the edge… push it!'}
       :homeward()?{id:'go-bed',hint:'It is night! Go to the bedroom ↖'}
       :{id:'go-living',hint:'Go to the house ↗'},
     enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. You can find some milk…':'This is the kitchen. Your tummy is full.')
@@ -496,15 +533,17 @@ const SC={
         if(S.dot.hid){S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');react('happy',false);say('You peek under the sofa. Where did the dot go?')}
         else{react('happy');say('A soft pink sofa. You roll on it. Poooourrr!')}}},
       {id:'door',label:'Door to outside',svg:door(),walk:350,tap:()=>leave(460,()=>go('city','left'))},
+      ...(S.box==='door'||S.box==='in'?[{id:'box',label:'Delivery box',svg:deliveryBox(),walk:300,tap:hopInBox}]:[]),
       {id:'go-kitchen',label:'Go to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>leave(-60,()=>go('kitchen','right'))},
       {id:'dot',label:'Red dot',svg:redDot(),walk:()=>S.dot.x,tap:pounce}
     ],
     goal:()=>S.fish==='carry'?{id:'go-kitchen',hint:'Take your fish to the kitchen ↖'}
       :S.tummy<3?{id:'go-kitchen',hint:'Your tummy rumbles! Go to the kitchen ↖'}
       :homeward()?{id:'go-kitchen',hint:'It is night! Go to the kitchen ↖'}
+      :S.box==='door'?{id:'box',hint:'A box! Tap it'}
       :{id:'door',hint:'Catch the red dot! The door goes outside'},
     before:()=>{S.dot={x:300,y:478,n:0,hid:false}},
-    enter:()=>say('You go around the house. Look, a red dot!')
+    enter:()=>say(S.box==='door'?'You go around the house. A box came! And a red dot!':'You go around the house. Look, a red dot!')
   },
   city:{
     draw:()=>`<rect width="400" height="520" fill="${night()?'#22306a':S.rain?'#a9bccc':'#bfe3fa'}"/>
@@ -606,7 +645,7 @@ const SC={
 
 /* ---------- render ---------- */
 function catLayer(){
-  if(SC[S.scene].noCat) return '';
+  if(SC[S.scene].noCat||S.box==='in') return '';
   if(S.scene==='bed'&&!S.awake){
     return `${S.pal?`<g pointer-events="none" transform="translate(306,432) rotate(-84) scale(.62)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,GREY)}</g></g>`:''}
       <g class="hot${SC.bed.goal().id==='cat'?' pulse':''}" data-id="cat" role="button" tabindex="0" aria-label="Sleeping cat">
@@ -616,7 +655,7 @@ function catLayer(){
   const pet=S.scene==='bed'?'class="hot" data-id="cat" role="button" tabindex="0" aria-label="Pet the cat"':'pointer-events="none"';
   return `<g id="cat" ${pet} transform="translate(${S.x},${FLOOR})"><g id="catFlip" transform="scale(${S.face},1)"><g id="catAnim">${catArt(S.mood)}</g></g></g>`;
 }
-const catArt=m=>catSVG(m,S.fish==='carry',umbOn());
+const catArt=m=>catSVG(m,S.fish==='carry',umbOn(),PINK,S.box==='hat');
 // the friend walks behind the cat; it sits under the other hotspots so it never blocks them, and can be tapped for a cuddle
 function palLayer(){
   if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)) return '';
@@ -687,7 +726,7 @@ function go(name,from){
 function react(kind,earn=true){
   clearTimeout(moodT);
   const an=$('#catAnim');
-  const by=FLOOR-(umbOn()?268:190); // above the umbrella when the cat holds one
+  const by=headY();
   if(kind==='scared'){setMood('scared');an&&restartClass(an,'jump',700);bubble(S.x,by,'MIAAWOW!','#d9363e');sfx.meow(true)}
   else{setMood('happy');an&&restartClass(an,'wiggle',900);bubble(S.x,by,'POOOOURRR','#e0508a');sfx.purr();if(earn){hearts(S.x,FLOOR-150);earnHeart()}}
   moodT=setTimeout(()=>setMood('normal'),1600);
@@ -762,7 +801,7 @@ function countStar(i){
 }
 function meowMoon(){
   S.busy=true;S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
-  sfx.meow(false);bubble(S.x,FLOOR-190,'MEOW!','#2c8fd6');say('You meow at the moon…','');
+  sfx.meow(false);bubble(S.x,headY(),'MEOW!','#2c8fd6');say('You meow at the moon…','');
   later(()=>{
     const o=$('.eyeOpen'),c=$('.eyeShut');o&&(o.style.display='none');c&&(c.style.display='');
     sfx.twinkle(5);bubble(300,192,'WINK!','#d6ad45');S.wink=true;S.busy=false;react('happy');
@@ -770,14 +809,53 @@ function meowMoon(){
     later(()=>{o&&(o.style.display='');c&&(c.style.display='none')},1300);
   },900);
 }
+function hopInBox(){
+  // jump in, peek out, then pop up wearing the box as a hat until bedtime
+  S.busy=true;S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
+  const an=$('#catAnim');an&&restartClass(an,'jump',700);sfx.boing();
+  say('A box! You jump in…','');
+  later(()=>{S.box='in';render();bubble(354,316,'IT FITS!','#a8652f')},450);
+  later(()=>{S.box='hat';S.x=354;S.busy=false;render();sfx.boing();react('happy');say('Pop! Now the box is your hat!')},2000);
+}
+function pushCup(){
+  S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
+  if(S.cup>=2){fallCup();return}
+  S.cup++;clearTimeout(moodT);S.mood='push';render();sfx.scrape();
+  const c=$('.cupw');c&&restartClass(c,'wiggle',900);
+  moodT=setTimeout(()=>setMood('normal'),700);
+  say(S.cup===1?'You push the cup with your paw. Slowly…':'Slowly… slowly… It is on the edge!');
+}
+function fallCup(){
+  S.busy=true;S.cup='fall';clearTimeout(moodT);S.mood='push';render();sfx.scrape();say('One more push…','');
+  const id='c'+(++uid);
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none" transform="translate(303,322) rotate(9)">${cupArt()}</g>`);
+  const g=document.getElementById(id);
+  later(()=>{
+    const t0=performance.now();
+    (function step(t){
+      const p=Math.max(0,Math.min(1,(t-t0)/600));
+      g.setAttribute('transform',`translate(${303+22*p},${322+170*p*p}) rotate(${9+120*p})`);
+      if(p<1)requestAnimationFrame(step);else crash();
+    })(t0);
+  },500);
+}
+function crash(){
+  S.cup='broken';S.mood='normal';render();sfx.crash();
+  restartClass(document.querySelector('.frame'),'shake',900);
+  bubble(308,170,'CRASH!','#d9363e');
+  const pa=$('#palAnim');pa&&restartClass(pa,'jump',700);
+  later(()=>react('scared'),250);
+  say('CRASH! The cup breaks. Oops! Miaawow!','');
+  later(()=>{S.busy=false;react('happy');say('Oops… that was so funny! Poooourrr!')},1800);
+}
 function pet(){react('happy');say('You lick your paws. Poooourrr!')}
 function hungry(){
-  sfx.rumble();bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f');
+  sfx.rumble();bubble(S.x,headY(),'RUMBLE!','#a8652f');
   say('Tummy rumble! Milk first.');
 }
 function nap(){
   walkTo(200,()=>{
-    S.awake=false;S.tummy=0;S.fridge=false;S.bowl=0;S.fish=false;S.mood='sleep';S.stars=[];S.wink=false;
+    S.awake=false;S.tummy=0;S.fridge=false;S.bowl=0;S.fish=false;S.mood='sleep';S.stars=[];S.wink=false;S.box='door';S.cup=0;
     // a new day: the second one is always rainy so everyone gets to see it, then rain comes now and then
     S.day++;S.rain=S.day===2||Math.random()<.4;
     render();updateHud();sfx.purr();
@@ -866,6 +944,16 @@ const sfx={
   slurp(){seq('sine',[[300,700,.12,.15],[300,700,.12,.15]])},
   coin(){seq('triangle',[[660,660,.1,.14],[990,990,.22,.14]])},
   pounce(){seq('sine',[[220,620,.14,.2]])},
+  boing(){seq('sine',[[200,520,.15,.2],[520,300,.2,.15]])},
+  scrape(){seq('sawtooth',[[95,75,.28,.05]])},
+  crash(){
+    const a=ac();if(!a)return;const t=a.currentTime,d=.7,len=Math.floor(a.sampleRate*d);
+    const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+    const s=a.createBufferSource();s.buffer=b;const f=a.createBiquadFilter();f.type='highpass';f.frequency.value=1200;
+    const g=a.createGain();g.gain.setValueAtTime(.6,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    s.connect(f).connect(g).connect(a.destination);s.start(t);s.stop(t+d);
+    seq('triangle',[[2100,2100,.05,.08],[2700,2700,.05,.06],[1900,1900,.07,.05]]);
+  },
   sticker(){seq('triangle',[[523,523,.1,.12],[659,659,.1,.12],[784,784,.22,.12]])},
   stick(){seq('sine',[[300,900,.08,.22]])},
   twinkle(n){const f=[523,587,659,784,880][Math.min(n,5)-1];seq('triangle',[[f,f,.12,.12],[f*2,f*2,.2,.08]])},
