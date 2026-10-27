@@ -12,6 +12,10 @@ Every nap moves the season on. Day 1 is summer, then comes autumn, with orange l
 
 Every day a delivery box waits by the front door: tap it and the cat jumps in, peeks out, then pops up wearing the box as a hat until bedtime. In the kitchen a cup sits on the edge of the counter; push it with your paw, slowly, slowly… CRASH! It's scary, but so funny.
 
+In the morning, open the dress-up drawer in the bedroom and pick a crown, a top hat, a bow or heart glasses; a mirror shows how you look, and you wear it all day. Bat the ball of yarn across the bedroom floor until it unrolls and the cat ends up tangled like a pink present, then wiggle free. At night it is bath time first: the cat really doesn't want it. Pop all the bubbles, and it jumps out and shakes so the whole screen gets wet.
+
+On sunny days a little bird lands on the kitchen windowsill. The cat chatters "ek-ek-ek" and the bird sings a short tune, which shows up on the piano's music sheet so you can copy it. On day 3, and every five days after, it's your birthday: a cake waits on the sofa, meow to blow out the candles, and everyone gets a party hat (even the golden bunny). Past the city there is a park with a pond and two ducks. Say hello to the ducks and watch the fish jump for hearts; you can't catch them, and sometimes one splashes you.
+
 ## Play
 
 Open `you-are-a-cat.html` in a browser, or play the published version:
