@@ -1816,7 +1816,7 @@ ov.addEventListener('click',e=>{
   else if(a==='no'){const f=CONFIRM&&CONFIRM.no;CONFIRM=null;f&&f()}
 });
 ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nameIn'){e.preventDefault();ov.querySelector('[data-a="go"]').click()}});
-document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():ovKind==='menu'?resume():0});
+document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():CUR?resume():0});
 // saving when the page goes away too, in case the last tap did not tell a story
 addEventListener('pagehide',save);
 document.addEventListener('visibilitychange',()=>document.visibilityState==='hidden'&&save());
