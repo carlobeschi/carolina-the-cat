@@ -34,7 +34,7 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .lbl{font-family:var(--display);font-size:17px;fill:var(--pen);stroke:#fff;stroke-width:4px;paint-order:stroke;letter-spacing:.04em}
 .say{font-family:var(--display);font-size:27px;letter-spacing:.03em}
 .sign{font-family:var(--display);font-size:26px;fill:var(--pen)}
-#catAnim{transform-box:fill-box;transform-origin:50% 100%}
+#catAnim,#palAnim{transform-box:fill-box;transform-origin:50% 100%}
 .walk{animation:walk .32s ease-in-out infinite}
 @keyframes walk{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-5px) rotate(-3deg)}75%{transform:translateY(-5px) rotate(3deg)}}
 .jump{animation:jump .7s ease-out}
@@ -70,9 +70,15 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 @keyframes fall{to{transform:translateY(520px)}}
 .ripple{animation:ripple 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}
 @keyframes ripple{0%{transform:scale(.3);opacity:1}100%{transform:scale(1.2);opacity:0}}
+/* a new sticker pops up big, waits a moment, then fades away */
+.stkpop{animation:stkpop 2.3s ease-out both;transform-box:fill-box;transform-origin:center}
+@keyframes stkpop{0%{transform:scale(.2) rotate(-20deg);opacity:0}15%{transform:scale(1.15) rotate(4deg);opacity:1}25%{transform:scale(1) rotate(0)}80%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-30px)}}
+/* the shy grey cat ducks behind the wall */
+.duck{animation:duck 1.5s ease-in-out}
+@keyframes duck{0%,100%{transform:none}25%,70%{transform:translateY(75px)}}
 @media (prefers-reduced-motion:reduce){
   .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple{animation:none}
-  .jump,.wiggle,.stretch,.shake,.drive{animation-duration:.01s}
+  .jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck{animation-duration:.01s}
 }
 </style>
 
@@ -110,16 +116,31 @@ const $=s=>stage.querySelector(s);
 let uid=0, moodT=null;
 
 const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',fridge:false,bowl:0,fly:{x:300,y:200},busy:false,sound:true,fish:false,
-  day:1,rain:false,umbrella:false,dot:{x:300,y:478,n:0,hid:false},stars:[],wink:false};
+  day:1,rain:false,umbrella:false,dot:{x:300,y:478,n:0,hid:false},stars:[],wink:false,
+  earned:0,stk:[],newStk:[],pal:false,palX:136,palFace:1};
 const FISH=5, UMB=2;
 const STARS=[[60,84],[150,48],[222,146],[96,206],[364,214]];
 const WORDS=['One','Two','Three','Four','Five'];
+// every time the total of hearts ever earned reaches one of these, a new sticker unlocks
+const STK_AT=[3,6,10,15,21,28,36,45];
+// the big fridge door in the sticker scene, and the small closed fridge in the kitchen
+const DOOR={x:115,y:14,w:170,h:433}, FRIDGE={x:22,y:170,w:110,h:280};
+const PINK={head:'#a8652f',body:'#f3a3c6',ear:'#f1e05a'}, GREY={head:'#8d8d9a',body:'#d3d4dc',ear:'#f3a3c6'};
 let T=[];
 function later(fn,ms){T.push(setTimeout(fn,ms))}
 function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
 const umbOn=()=>S.scene==='city'&&S.rain&&S.umbrella;
+const fridgeShut=()=>!S.fridge||(S.tummy>=3&&S.bowl===0);
+
+/* stickers and the friend cat are kept between visits on this device */
+const SAVE='you-are-a-cat';
+function save(){try{localStorage.setItem(SAVE,JSON.stringify({earned:S.earned,stk:S.stk,newStk:S.newStk,pal:S.pal}))}catch(e){}}
+try{
+  const v=JSON.parse(localStorage.getItem(SAVE)||'null');
+  if(v&&Array.isArray(v.stk)&&Array.isArray(v.newStk)){S.earned=+v.earned||0;S.stk=v.stk;S.newStk=v.newStk;S.pal=!!v.pal}
+}catch(e){}
 
 /* ---------- drawing helpers ---------- */
 function cloud(cx,cy,rx,ry,n){
@@ -133,7 +154,7 @@ function cloud(cx,cy,rx,ry,n){
 }
 function heart(x,y,s,fill){return `<path transform="translate(${x},${y}) scale(${s})" d="${HEART}" fill="${fill}" stroke="${INK}" stroke-width="${(2/s).toFixed(2)}"/>`}
 
-function catSVG(m,carry,umb){
+function catSVG(m,carry,umb,p=PINK){
   const ra=umb?'40,-102':'45,-61';
   let st='';for(let y=-74;y<=-6;y+=8) st+=`M-22,${y} q5.25,-5 10.5,0 t10.5,0 t10.5,0 t10.5,0 `;
   let eyes;
@@ -149,13 +170,13 @@ function catSVG(m,carry,umb){
   <path d="M-8,-176 Q40,-232 88,-176 q-8,-8 -16,0 q-8,-8 -16,0 q-8,-8 -16,0 q-8,-8 -16,0 q-8,-8 -16,0 q-8,-8 -16,0Z" fill="#2c8fd6" ${K}/>
   <path d="M40,-212 Q30,-196 24,-178 M40,-212 Q50,-196 56,-178" fill="none" stroke="#fffaf6" stroke-width="2.5" stroke-linecap="round"/>`:''}
   <path d="M-18,-68 L-46,-58 M17,-68 L${ra}" stroke="${INK}" stroke-width="7.5" stroke-linecap="round"/>
-  <path d="M-18,-68 L-46,-58 M17,-68 L${ra}" stroke="#a8652f" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M-18,-68 L-46,-58 M17,-68 L${ra}" stroke="${p.head}" stroke-width="3.5" stroke-linecap="round"/>
   <path d="M-46,-58 l-6,-5 M-46,-58 l-7,1 M-46,-58 l-4,6 M${ra} l6,-5 M${ra} l7,1 M${ra} l4,6" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>
-  <path d="${BODY}" fill="#f3a3c6"/>
+  <path d="${BODY}" fill="${p.body}"/>
   <path d="${st}" fill="none" stroke="${INK}" stroke-width="2" clip-path="url(#catClip)"/>
   <path d="${BODY}" fill="none" ${K}/>
-  <path d="M-28,-88 L-29,-124 L-24,-142 L-9,-125 L13,-127 L28,-148 L31,-116 L30,-88 Q30,-79 21,-79 L-19,-79 Q-28,-79 -28,-88Z" fill="#a8652f" ${K}/>
-  <path d="M-24,-134 L-14,-126 L-25,-124Z M25,-139 L18,-128 L27,-125Z" fill="#f1e05a" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M-28,-88 L-29,-124 L-24,-142 L-9,-125 L13,-127 L28,-148 L31,-116 L30,-88 Q30,-79 21,-79 L-19,-79 Q-28,-79 -28,-88Z" fill="${p.head}" ${K}/>
+  <path d="M-24,-134 L-14,-126 L-25,-124Z M25,-139 L18,-128 L27,-125Z" fill="${p.ear}" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
   <path d="M-9,-115 l4,3 M-4,-117 l4,3 M-6,-120 l3,3" stroke="#e0508a" stroke-width="2" stroke-linecap="round"/>
   ${eyes}
   <path d="M-3,-98 L3,-98 L0,-95Z" fill="#e0508a" stroke="${INK}" stroke-width="1.2"/>
@@ -175,6 +196,7 @@ function arrow(side,label){
 const DEFS=`<defs>
 <filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter>
 <clipPath id="catClip"><path d="${BODY}"/></clipPath>
+<clipPath id="wallClip"><rect x="200" y="0" width="200" height="337"/></clipPath>
 <pattern id="hearts" width="48" height="48" patternUnits="userSpaceOnUse"><path transform="translate(12,14) scale(.55)" d="${HEART}" fill="#f6b3cb"/><path transform="translate(36,38) scale(.55)" d="${HEART}" fill="#f6b3cb"/></pattern>
 <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="3" fill="#f3c98a"/><circle cx="30" cy="30" r="3" fill="#9fd0ef"/></pattern>
 <pattern id="tiles" width="36" height="36" patternUnits="userSpaceOnUse"><rect width="36" height="36" fill="#fff"/><rect width="18" height="18" fill="#f7b9d0"/><rect x="18" y="18" width="18" height="18" fill="#f7b9d0"/></pattern>
@@ -217,11 +239,12 @@ function door(){
   ${heart(354,410,.9,'#f3a3c6')}`;
 }
 function fridge(){
-  if(!S.fridge) return `<rect x="22" y="170" width="110" height="280" rx="14" fill="#fff" ${K}/>
+  if(fridgeShut()) return `<rect x="22" y="170" width="110" height="280" rx="14" fill="#fff" ${K}/>
     <path d="M22,262 H132" ${K}/>
     <rect x="112" y="200" width="7" height="40" rx="3" fill="#cfd3dc" stroke="${INK}" stroke-width="2"/>
     <rect x="112" y="280" width="7" height="62" rx="3" fill="#cfd3dc" stroke="${INK}" stroke-width="2"/>
-    ${heart(60,320,1.1,'#e0508a')}<circle cx="86" cy="360" r="7" fill="#f1e05a" stroke="${INK}" stroke-width="2"/>`;
+    ${heart(60,320,1.1,'#e0508a')}<circle cx="86" cy="360" r="7" fill="#f1e05a" stroke="${INK}" stroke-width="2"/>
+    ${S.stk.map((s,i)=>placed(s,i,true)).join('')}`;
   return `<rect x="22" y="170" width="110" height="280" rx="14" fill="#eaf7ff" ${K}/>
     <path d="M28,262 H126 M28,330 H126 M28,392 H126" stroke="${INK}" stroke-width="2.5"/>
     <path d="M44,330 V292 L50,282 H70 L76,292 V330Z" fill="#fff" ${K} stroke-width="2.5"/>
@@ -350,6 +373,43 @@ function starHot(i){
   ${n<0?'':`<text x="${x}" y="${y+38}" text-anchor="middle" class="lbl">${n+1}</text>`}`;
 }
 
+/* stickers: crayon doodles on a bumpy white sticker. To use one of Carolina's own drawings,
+   swap a sticker's svg for <image href="data:image/png;base64,…" x="-24" y="-24" width="48" height="48"/> */
+const STK=[
+  {name:'a fish',svg:`<path d="M-19,0 q16,-16 32,0 q-16,16 -32,0Z M13,0 l12,-10 v20Z" fill="#f9a03f" ${K} stroke-width="2.5"/><circle cx="-10" cy="-2" r="2.4" fill="${INK}"/>`},
+  {name:'a cat',svg:`<g transform="scale(.42) translate(0,113)"><path d="M-28,-88 L-29,-124 L-24,-142 L-9,-125 L13,-127 L28,-148 L31,-116 L30,-88 Q30,-79 21,-79 L-19,-79 Q-28,-79 -28,-88Z" fill="#a8652f" ${K} stroke-width="5"/>
+    <path d="M-24,-134 L-14,-126 L-25,-124Z M25,-139 L18,-128 L27,-125Z" fill="#f1e05a" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M-15,-102 q5,-7 10,0 M5,-102 q5,-7 10,0" fill="none" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>
+    <path d="M-3,-98 L3,-98 L0,-95Z" fill="#e0508a" stroke="${INK}" stroke-width="2"/>
+    <path d="M-12,-95 L-40,-99 M-12,-92 L-40,-88 M12,-95 L40,-99 M12,-92 L40,-88" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></g>`},
+  {name:'a sun',svg:`<path d="M0,-21 V-15 M0,21 V15 M-21,0 H-15 M21,0 H15 M-15,-15 l4,4 M15,15 l-4,-4 M-15,15 l4,-4 M15,-15 l-4,4" stroke="#f9a03f" stroke-width="4" stroke-linecap="round"/><circle r="11" fill="#ffd34d" ${K} stroke-width="2.5"/>`},
+  {name:'a rainbow',svg:`<path d="M-21,8 A21,21 0 0 1 21,8" fill="none" stroke="#e0508a" stroke-width="6"/><path d="M-15,8 A15,15 0 0 1 15,8" fill="none" stroke="#ffd34d" stroke-width="6"/><path d="M-9,8 A9,9 0 0 1 9,8" fill="none" stroke="#2c8fd6" stroke-width="6"/>
+    <path d="${cloud(-18,10,8,5,5)}" fill="#fff" stroke="${INK}" stroke-width="2"/><path d="${cloud(18,10,8,5,5)}" fill="#fff" stroke="${INK}" stroke-width="2"/>`},
+  {name:'a butterfly',svg:`<ellipse cx="-9" cy="-5" rx="10" ry="8" fill="#f3a3c6" ${K} stroke-width="2"/><ellipse cx="9" cy="-5" rx="10" ry="8" fill="#f3a3c6" ${K} stroke-width="2"/>
+    <ellipse cx="-7" cy="7" rx="6" ry="5" fill="#f1e05a" ${K} stroke-width="2"/><ellipse cx="7" cy="7" rx="6" ry="5" fill="#f1e05a" ${K} stroke-width="2"/><path d="M0,-10 V13 M0,-10 l-4,-7 M0,-10 l4,-7" ${K} stroke-width="2.5" fill="none"/>`},
+  {name:'a star',svg:`<path d="${starPath(0,1,20)}" fill="#ffd34d" ${K} stroke-width="2.5"/>`},
+  {name:'a flower',svg:`<path d="M0,6 V22" stroke="#4f9c45" stroke-width="4" stroke-linecap="round"/>${[0,1,2,3,4].map(i=>{const a=i*Math.PI*2/5-Math.PI/2;return `<circle cx="${(9*Math.cos(a)).toFixed(1)}" cy="${(-4+9*Math.sin(a)).toFixed(1)}" r="7" fill="#f38db5" stroke="${INK}" stroke-width="2"/>`}).join('')}<circle cy="-4" r="5" fill="#ffd34d" stroke="${INK}" stroke-width="2"/>`},
+  {name:'a moon',svg:`<path d="M6,-19 A19,19 0 1 0 6,19 A14,14 0 1 1 6,-19Z" fill="#fff3b0" ${K} stroke-width="2.5"/><circle cx="-8" cy="-2" r="2.2" fill="${INK}"/>`}
+];
+const stkSVG=i=>`<path d="${cloud(0,0,25,25,9)}" fill="#fff" ${K} stroke-width="2.5"/>${STK[i].svg}`;
+function placed(s,i,small){
+  // stickers live in big-door coordinates; the kitchen fridge shows them shrunk to fit its door
+  const x=small?FRIDGE.x+(s.x-DOOR.x)*FRIDGE.w/DOOR.w:s.x, y=small?FRIDGE.y+(s.y-DOOR.y)*FRIDGE.h/DOOR.h:s.y;
+  return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${s.r}) scale(${small?.6:1})"><g class="stk${i}">${stkSVG(s.i)}</g></g>`;
+}
+function bigDoor(){
+  const {x,y,w,h}=DOOR;
+  return `<rect x="${x-6}" y="${y}" width="${w+12}" height="${h+3}" rx="22" fill="#cfd3dc" ${K}/>
+  <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="20" fill="#fff" ${K}/>
+  <path d="M${x},156 H${x+w}" ${K}/>
+  <rect x="${x+w-24}" y="54" width="10" height="62" rx="4" fill="#cfd3dc" stroke="${INK}" stroke-width="2.5"/>
+  <rect x="${x+w-24}" y="190" width="10" height="96" rx="4" fill="#cfd3dc" stroke="${INK}" stroke-width="2.5"/>`;
+}
+/* the shy grey cat on the city wall; it lives with you once you share a fish */
+function wallCat(){
+  return `<rect x="236" y="240" width="72" height="100" fill="transparent"/><g clip-path="url(#wallClip)"><g class="palWall"><g transform="translate(272,337) scale(.55)">${catSVG('normal',false,false,GREY)}</g></g></g>`;
+}
+
 /* ---------- scenes ---------- */
 const SC={
   bed:{
@@ -395,7 +455,8 @@ const SC={
       <path d="M225,336 V450" ${K}/><circle cx="214" cy="392" r="3" fill="${INK}"/><circle cx="236" cy="392" r="3" fill="${INK}"/>`,
     hots:()=>[
       {id:'fridge',label:'Fridge',svg:fridge(),walk:170,tap:()=>{
-        if(!S.fridge){S.fridge=true;S.bowl=3;redraw();react('happy');say('You open the fridge. There is milk! You pour it in your bowl.','Tap the bowl')}
+        if(fridgeShut()&&S.tummy>=3) go('stickers','left');
+        else if(!S.fridge){S.fridge=true;S.bowl=3;redraw();react('happy');say('You open the fridge. There is milk! You pour it in your bowl.','Tap the bowl')}
         else if(S.bowl>0){say('The milk is in your bowl.','Tap the bowl')}
         else if(S.tummy<3){S.bowl=3;redraw();react('happy');say('More milk! You pour it in your bowl.','Tap the bowl')}
         else say('Your tummy is full. No more milk!')}},
@@ -404,7 +465,8 @@ const SC={
         later(()=>react('scared'),450);say('Bzzzz! The blender is so loud! Miaawow!')}},
       {id:'bowl',label:'Milk bowl',svg:bowl(),walk:262,tap:()=>{
         S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
-        if(S.fish==='carry'){S.fish='eaten';S.tummy=3;S.rain=false;sfx.slurp();redraw();react('happy');updateHud();say('Nom nom! A yummy fish! Look, now it is night.')}
+        if(S.fish==='carry'){S.fish='eaten';S.tummy=3;S.rain=false;sfx.slurp();redraw();react('happy');updateHud();
+          say(S.pal?'Nom nom! You and your friend eat the fish. Look, now it is night.':'Nom nom! A yummy fish! Look, now it is night.')}
         else if(S.bowl>0){S.bowl--;S.tummy=Math.min(3,S.tummy+1);sfx.slurp();redraw();react('happy');updateHud();
           if(S.tummy<3) say('Slurp slurp! Yummy milk! Poooourrr!','Tap the bowl again for more');
           else say('Your tummy is full! Poooourrr!');}
@@ -416,6 +478,7 @@ const SC={
     goal:()=>S.fish==='carry'?{id:'bowl',hint:'Tap the bowl to eat your fish'}
       :S.bowl>0?{id:'bowl',hint:'Tap the bowl'}
       :S.tummy<3?{id:'fridge',hint:'Tap the fridge'}
+      :S.newStk.length?{id:'fridge',hint:'New sticker! Tap the fridge'}
       :homeward()?{id:'go-bed',hint:'It is night! Go to the bedroom ↖'}
       :{id:'go-living',hint:'Go to the house ↗'},
     enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. You can find some milk…':'This is the kitchen. Your tummy is full.')
@@ -455,20 +518,24 @@ const SC={
       ${[...Array(4)].map((_,r)=>`<rect x="164" y="${190+r*48}" width="16" height="20" fill="#fff" stroke="${INK}" stroke-width="2"/><rect x="192" y="${190+r*48}" width="16" height="20" fill="#fff" stroke="${INK}" stroke-width="2"/>`).join('')}
       ${[...Array(5)].map((_,r)=>`<rect x="242" y="${150+r*48}" width="18" height="22" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/><rect x="272" y="${150+r*48}" width="18" height="22" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/>`).join('')}
       ${[...Array(S.rain?2:3)].map((_,r)=>`<rect x="326" y="${212+r*56}" width="20" height="24" fill="#fff" stroke="${INK}" stroke-width="2"/><rect x="360" y="${212+r*56}" width="20" height="24" fill="#fff" stroke="${INK}" stroke-width="2"/>`).join('')}
+      <rect x="232" y="342" width="80" height="58" fill="#e09a78" ${K}/>
+      <path d="M232,361 H312 M232,380 H312 M256,342 V361 M288,342 V361 M272,361 V380 M248,380 V400 M296,380 V400" stroke="${INK}" stroke-width="2" fill="none"/>
+      <rect x="228" y="336" width="88" height="8" rx="3" fill="#c97a5a" ${K}/>
       <rect y="400" width="400" height="70" fill="#eadfe6"/><path d="M0,400 H400 M0,470 H400" ${K}/>
       <rect y="470" width="400" height="50" fill="#5d5866"/>
       <path d="M10,496 H50 M90,496 H130 M170,496 H210 M250,496 H290 M330,496 H370" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
     hots:()=>[
       {id:'fish',label:'Fish shop',svg:fishShop(),walk:110,tap:()=>{
         if(S.fish){react('happy');say('The fish shop smells so yummy. Poooourrr!')}
-        else if(S.hearts>=FISH){S.hearts-=FISH;S.fish='carry';updateHud();sfx.coin();react('happy',false);say(`You buy a fish for ${FISH} hearts! Take it home.`)}
+        else if(S.hearts>=FISH){S.hearts-=FISH;S.fish='carry';updateHud();sfx.coin();react('happy',false);
+          say(S.pal?`You buy a fish for ${FISH} hearts! Take it home.`:`You buy a fish! The grey cat looks at it…`)}
         else{react('happy',false);bubble(110,180,`${S.hearts} / ${FISH} ♥`,'#e0508a');say(`A fish costs ${FISH} hearts. You have ${S.hearts}.`)}}},
       {id:'dog',label:'Dog',svg:dog(),walk:150,tap:()=>{S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');sfx.woof();bubble(200,330,'WOOF!','#7a4a26');
         later(()=>react('scared'),500);say('Woof woof! A big dog! Miaawow!')}},
       {id:'car',label:'Car',svg:car(),walk:250,tap:()=>{sfx.beep();bubble(318,430,'BEEP!','#e0508a');
         const c=$('.car');c&&restartClass(c,'drive',2200);later(()=>react('scared'),350);say('Beep beep! A car! Miaawow!')}},
       {id:'fly',label:'Butterfly',svg:butterfly(),walk:()=>S.fly.x,tap:()=>{react('happy');say('A butterfly! You try to catch it. Poooourrr!');
-        S.fly={x:170+Math.random()*190,y:130+Math.random()*170};const f=$('.bfly');if(f)f.style.transform=`translate(${S.fly.x}px,${S.fly.y}px)`}},
+        S.fly={x:170+Math.random()*190,y:120+Math.random()*120};const f=$('.bfly');if(f)f.style.transform=`translate(${S.fly.x}px,${S.fly.y}px)`}},
       ...(S.rain?[
         {id:'umbrella',label:'Umbrella shop',svg:umbrellaShop(),walk:350,tap:()=>{
           if(S.umbrella){react('happy',false);say('You have your umbrella. Pitter patter!')}
@@ -479,16 +546,22 @@ const SC={
           if(S.umbrella){react('happy');say('Splish splash! Your umbrella keeps you dry. Poooourrr!')}
           else{later(()=>react('scared'),200);say('Splash! Wet paws! Miaawow!')}}}
       ]:[]),
+      ...(S.pal?[]:[{id:'friend',label:'Grey cat on the wall',svg:wallCat(),walk:250,tap:meetFriend}]),
       {id:'go-home',label:'Go home',svg:arrow('left','HOME'),tap:()=>leave(-60,()=>go('living','right'))}
     ],
-    goal:()=>S.fish==='carry'?{id:'go-home',hint:'Take your fish home ↖'}
+    goal:()=>S.fish==='carry'&&!S.pal?{id:'friend',hint:'Share your fish with the grey cat'}
+      :S.fish==='carry'?{id:'go-home',hint:'Take your fish home ↖'}
       :S.fish==='eaten'?{id:'go-home',hint:'It is night! Go home ↖'}
       :S.rain&&!S.umbrella&&S.hearts>=UMB?{id:'umbrella',hint:`It is raining! Buy an umbrella for ${UMB} hearts`}
       :S.hearts>=FISH?{id:'fish',hint:`You have ${FISH} hearts! Tap the fish shop`}
       :S.rain&&S.umbrella?{id:'puddle',hint:`Splash in the puddle for hearts (${S.hearts} of ${FISH})`}
       :{id:'fly',hint:`Catch the butterfly for hearts (${S.hearts} of ${FISH})`},
     over:()=>S.rain?rain():'',
-    enter:()=>say(S.rain&&!S.fish?'You go outside. It is raining! Pitter patter.':S.fish?'You go outside. You wander in the city.':'You go outside. You can buy a fish!')
+    enter:()=>say(S.rain&&!S.fish?'You go outside. It is raining! Pitter patter.'
+      :S.fish==='carry'&&!S.pal?'The grey cat on the wall looks at your fish…'
+      :S.fish?'You go outside. You wander in the city.'
+      :!S.pal?'You go outside. A grey cat sits on the wall.'
+      :'You go outside. You can buy a fish!')
   },
   roof:{
     draw:()=>`<rect width="400" height="520" fill="#22306a"/>
@@ -511,13 +584,32 @@ const SC={
         :{id:'hatch',hint:'Go down the ladder for a nap ↓'};
     },
     enter:()=>say(S.wink?'You are on the roof. The moon smiles at you.':'You climb up to the roof. Look at all the stars!')
+  },
+  stickers:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#dff1fb"/><rect width="400" height="450" fill="url(#dots)"/>
+      <rect y="450" width="400" height="70" fill="url(#tiles)"/><path d="M0,450 H400" ${K}/>
+      ${bigDoor()}${heart(174,246,1.7,'#e0508a')}<circle cx="214" cy="308" r="11" fill="#f1e05a" stroke="${INK}" stroke-width="2.5"/>`,
+    hots:()=>[
+      {id:'door',label:'Fridge door',svg:`<rect x="${DOOR.x}" y="${DOOR.y}" width="${DOOR.w}" height="${DOOR.h}" fill="transparent"/>`,tap:stickIt},
+      ...S.stk.map((s,i)=>({id:'stk'+i,label:STK[s.i].name+' sticker',svg:placed(s,i),tap:()=>S.newStk.length?stickIt():admire(i)})),
+      ...(S.newStk.length?[{id:'tray',label:'New sticker',svg:`<circle cx="346" cy="300" r="38" fill="transparent"/>
+        <text x="346" y="248" text-anchor="middle" class="lbl">NEW!</text><g transform="translate(346,300) scale(1.2)"><g class="pulse">${stkSVG(S.newStk[0])}</g></g>`,
+        tap:()=>say('Tap the fridge door to stick it on!')}]:[]),
+      {id:'go-kitchen',label:'Back to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>go('kitchen',170)}
+    ],
+    goal:()=>S.newStk.length?{id:'door',hint:'Tap the fridge door to stick it on!'}
+      :{id:'go-kitchen',hint:'Tap a sticker, or go back ↖'},
+    enter:()=>say(S.newStk.length?`Your fridge door! You have ${S.newStk.length>1?'new stickers':'a new sticker'}.`:'Your fridge door. Look at your stickers!')
   }
 };
 
 /* ---------- render ---------- */
 function catLayer(){
+  if(SC[S.scene].noCat) return '';
   if(S.scene==='bed'&&!S.awake){
-    return `<g class="hot${SC.bed.goal().id==='cat'?' pulse':''}" data-id="cat" role="button" tabindex="0" aria-label="Sleeping cat">
+    return `${S.pal?`<g pointer-events="none" transform="translate(306,432) rotate(-84) scale(.62)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,GREY)}</g></g>`:''}
+      <g class="hot${SC.bed.goal().id==='cat'?' pulse':''}" data-id="cat" role="button" tabindex="0" aria-label="Sleeping cat">
       <g transform="translate(272,396) rotate(-84)"><g id="catAnim" class="breathe">${catSVG('sleep')}</g></g></g>
       <g class="zzz" pointer-events="none"><text x="120" y="318">Z</text><text x="146" y="296">z</text><text x="166" y="278">z</text></g>`;
   }
@@ -525,13 +617,19 @@ function catLayer(){
   return `<g id="cat" ${pet} transform="translate(${S.x},${FLOOR})"><g id="catFlip" transform="scale(${S.face},1)"><g id="catAnim">${catArt(S.mood)}</g></g></g>`;
 }
 const catArt=m=>catSVG(m,S.fish==='carry',umbOn());
+// the friend walks behind the cat; it sits under the other hotspots so it never blocks them, and can be tapped for a cuddle
+function palLayer(){
+  if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)) return '';
+  return `<g class="hot" data-id="pal" role="button" tabindex="0" aria-label="Your grey cat friend"><g id="pal" transform="translate(${S.palX.toFixed(1)},${FLOOR}) scale(.82)"><g id="palFlip" transform="scale(${S.palFace},1)"><g id="palAnim">${catSVG('normal',false,false,GREY)}</g></g></g></g>`;
+}
 let HOTS={};
 function render(){
   const sc=SC[S.scene], p=sc.goal().id, hs=sc.hots();
   HOTS={};hs.forEach(h=>HOTS[h.id]=h);
   if(S.scene==='bed') HOTS.cat={id:'cat',tap:S.awake?pet:wake};
+  if(S.pal) HOTS.pal={id:'pal',tap:petPal};
   const ae=document.activeElement, fid=stage.contains(ae)&&ae.dataset?ae.dataset.id:null;
-  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+
+  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+palLayer()+
     hs.map(h=>`<g class="hot${p===h.id?' pulse':''}" data-id="${h.id}" role="button" tabindex="0" aria-label="${h.label}">${h.svg}</g>`).join('')+
     catLayer()+(sc.over?sc.over():'');
   const f=fid&&$(`[data-id="${fid}"]`);f&&f.focus();
@@ -551,21 +649,39 @@ function walkTo(tx,cb){
   flip.setAttribute('transform',`scale(${S.face},1)`);an.classList.add('walk');
   const sx=S.x,dur=Math.abs(dist)/.22,t0=performance.now();
   (function step(t){
-    const p=Math.min(1,(t-t0)/dur);S.x=sx+dist*p;cat.setAttribute('transform',`translate(${S.x},${FLOOR})`);
+    const p=Math.min(1,(t-t0)/dur);S.x=sx+dist*p;cat.setAttribute('transform',`translate(${S.x},${FLOOR})`);follow();
     if(p<1)requestAnimationFrame(step);else{an.classList.remove('walk');S.busy=false;cb&&cb()}
   })(t0);
 }
 function leave(tx,cb){walkTo(tx,cb)}
+let palRaf=0;
+function follow(){
+  if(palRaf||!S.pal)return;
+  const tick=()=>{
+    const el=$('#pal'),fl=$('#palFlip'),an=$('#palAnim');
+    if(!el){palRaf=0;return}
+    const tx=Math.max(30,Math.min(370,S.x-62*S.face)),d=tx-S.palX;
+    if(Math.abs(d)<1.5){
+      palRaf=0;an.classList.remove('walk');S.palFace=S.x>=S.palX?1:-1;fl.setAttribute('transform',`scale(${S.palFace},1)`);return;
+    }
+    S.palX+=Math.sign(d)*Math.min(Math.abs(d)*.12+.4,4.2);S.palFace=Math.sign(d);
+    el.setAttribute('transform',`translate(${S.palX.toFixed(1)},${FLOOR}) scale(.82)`);fl.setAttribute('transform',`scale(${S.palFace},1)`);an.classList.add('walk');
+    palRaf=requestAnimationFrame(tick);
+  };
+  palRaf=requestAnimationFrame(tick);
+}
 // from: 'left' or 'right' walks in from that edge; a number puts the cat right there (top or bottom of a ladder)
 function go(name,from){
   clearLater();S.busy=true;stage.classList.add('fade');
   setTimeout(()=>{
     const at=typeof from==='number';
     S.scene=name;S.x=at?from:from==='left'?-50:450;S.face=1;S.mood='normal';
+    S.palX=at?Math.max(30,from-62):from==='left'?-120:520;
     SC[name].before&&SC[name].before();render();updateHud();
     stage.classList.remove('fade');SC[name].enter();
     if(at){const an=$('#catAnim');an&&restartClass(an,'stretch',900);S.busy=false}
     else walkTo(from==='left'?80:320,()=>{});
+    follow();
   },300);
 }
 function react(kind,earn=true){
@@ -573,11 +689,51 @@ function react(kind,earn=true){
   const an=$('#catAnim');
   const by=FLOOR-(umbOn()?268:190); // above the umbrella when the cat holds one
   if(kind==='scared'){setMood('scared');an&&restartClass(an,'jump',700);bubble(S.x,by,'MIAAWOW!','#d9363e');sfx.meow(true)}
-  else{setMood('happy');an&&restartClass(an,'wiggle',900);bubble(S.x,by,'POOOOURRR','#e0508a');sfx.purr();if(earn){hearts(S.x,FLOOR-150);S.hearts++;updateHud()}}
+  else{setMood('happy');an&&restartClass(an,'wiggle',900);bubble(S.x,by,'POOOOURRR','#e0508a');sfx.purr();if(earn){hearts(S.x,FLOOR-150);earnHeart()}}
   moodT=setTimeout(()=>setMood('normal'),1600);
 }
+function earnHeart(){
+  S.hearts++;S.earned++;updateHud();
+  const i=STK_AT.indexOf(S.earned);
+  if(i<0){save();return}
+  S.newStk.push(i);save();
+  // after the caller has told its own story, add the news and show the sticker big
+  setTimeout(()=>{document.getElementById('story').textContent+=' New sticker!';refreshGoal()},0);
+  setTimeout(()=>{stickerPop(i);sfx.sticker()},700);
+}
+function stickIt(){
+  if(!S.newStk.length){say('Your fridge door. Tap a sticker!');return}
+  const i=S.newStk.shift(),p=TAP||{x:DOOR.x+30+Math.random()*(DOOR.w-60),y:DOOR.y+40+Math.random()*(DOOR.h-80)};
+  S.stk.push({i,x:Math.round(Math.max(DOOR.x+28,Math.min(DOOR.x+DOOR.w-28,p.x))),y:Math.round(Math.max(DOOR.y+28,Math.min(DOOR.y+DOOR.h-28,p.y))),r:Math.round(Math.random()*28-14)});
+  save();sfx.stick();render();
+  const el=$('.stk'+(S.stk.length-1));el&&restartClass(el,'stretch',900);
+  say(`Stick! You put ${STK[i].name} on the fridge.`+(S.newStk.length?' One more!':''));
+}
+function admire(n){
+  const s=S.stk[n],el=$('.stk'+n);el&&restartClass(el,'wiggle',900);sfx.twinkle(1+n%5);
+  bubble(s.x,Math.max(70,s.y-60),STK[s.i].name.replace('a ','').toUpperCase()+'!','#e0508a');
+  say(`A sticker of ${STK[s.i].name}!`);
+}
+function meetFriend(){
+  S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
+  if(S.fish==='carry'){
+    // sharing the fish makes a friend; it hops off the wall and follows you home
+    S.pal=true;S.palX=272;S.palFace=-1;save();render();
+    const an=$('#palAnim');an&&restartClass(an,'jump',700);
+    sfx.meow(false);bubble(272,230,'MEOW!','#8d8d9a');
+    later(()=>{react('happy');follow()},700);
+    say('You share your fish with the grey cat. Now it is your friend!');
+  }else{
+    const w=$('.palWall');w&&restartClass(w,'duck',1500);
+    say('The grey cat is shy. It hides! Maybe it likes fish?');
+  }
+}
+function petPal(){
+  const an=$('#palAnim');an&&restartClass(an,'wiggle',900);
+  react('happy');say('You cuddle your friend. Poooourrr!');
+}
 function wake(){
-  S.awake=true;S.busy=true;S.x=200;S.face=1;S.mood='normal';render();updateHud();
+  S.awake=true;S.busy=true;S.x=200;S.face=1;S.mood='normal';S.palX=136;S.palFace=1;render();updateHud();
   const an=$('#catAnim');an&&restartClass(an,'stretch',900);
   setTimeout(()=>S.busy=false,900);
   sfx.rumble();later(()=>bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f'),250);
@@ -625,7 +781,7 @@ function nap(){
     // a new day: the second one is always rainy so everyone gets to see it, then rain comes now and then
     S.day++;S.rain=S.day===2||Math.random()<.4;
     render();updateHud();sfx.purr();
-    say(S.rain?'You curl up on your cloud. Zzz… Listen, rain!':'You curl up on your cloud. Zzz… Good night, cat!','Tap the cat to wake up again');
+    say(S.pal?'You and your friend curl up on your cloud. Zzz…':S.rain?'You curl up on your cloud. Zzz… Listen, rain!':'You curl up on your cloud. Zzz… Good night, cat!','Tap the cat to wake up again');
   });
 }
 
@@ -638,6 +794,12 @@ function bubble(x,y,text,color){
     <path d="M${x-12},${y+23} L${x+10},${y+23}" stroke="#fff" stroke-width="5"/>
     <text x="${x}" y="${y+9}" text-anchor="middle" class="say" fill="${color}">${text}</text></g>`);
   setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1700);
+}
+function stickerPop(i){
+  const id='p'+(++uid);
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none" transform="translate(200,150)"><g class="stkpop"><g transform="scale(1.7)">${stkSVG(i)}</g>
+    <text y="80" text-anchor="middle" class="say" fill="#e0508a" stroke="#fff" stroke-width="5" paint-order="stroke">NEW STICKER!</text></g></g>`);
+  setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},2400);
 }
 function splash(x,y){
   const id='s'+(++uid);
@@ -704,6 +866,8 @@ const sfx={
   slurp(){seq('sine',[[300,700,.12,.15],[300,700,.12,.15]])},
   coin(){seq('triangle',[[660,660,.1,.14],[990,990,.22,.14]])},
   pounce(){seq('sine',[[220,620,.14,.2]])},
+  sticker(){seq('triangle',[[523,523,.1,.12],[659,659,.1,.12],[784,784,.22,.12]])},
+  stick(){seq('sine',[[300,900,.08,.22]])},
   twinkle(n){const f=[523,587,659,784,880][Math.min(n,5)-1];seq('triangle',[[f,f,.12,.12],[f*2,f*2,.2,.08]])},
   splash(){
     const a=ac();if(!a)return;const t=a.currentTime,d=.45,len=Math.floor(a.sampleRate*d);
@@ -724,8 +888,13 @@ function activate(el){
     walkTo(tx,h.tap);
   }else h.tap();
 }
-stage.addEventListener('click',e=>activate(e.target.closest('.hot')));
-stage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const el=e.target.closest&&e.target.closest('.hot');if(el){e.preventDefault();activate(el)}}});
+let TAP=null;
+stage.addEventListener('click',e=>{
+  const m=stage.getScreenCTM();
+  TAP=m?new DOMPoint(e.clientX,e.clientY).matrixTransform(m.inverse()):null;
+  activate(e.target.closest('.hot'));
+});
+stage.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const el=e.target.closest&&e.target.closest('.hot');if(el){e.preventDefault();TAP=null;activate(el)}}});
 document.getElementById('snd').addEventListener('click',e=>{
   S.sound=!S.sound;e.currentTarget.textContent=S.sound?'♪ ON':'♪ OFF';e.currentTarget.setAttribute('aria-label',S.sound?'Sound on':'Sound off');e.currentTarget.setAttribute('aria-pressed',S.sound);
 });
