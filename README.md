@@ -4,6 +4,8 @@ A simple and lovely cat game. It is tap-to-play for young kids, and based on an 
 
 You are a cat. You wake up hungry, drink milk in the kitchen, wander around the house and out into the city. Happy things make the cat purr and earn hearts; loud things make it jump ("MIAAWOW!"). Collect 5 hearts to buy a fish at the fish shop, carry it home, eat it from your bowl, then go back to your cloud bed for a nap.
 
+After the fish it gets dark, and a ladder in the bedroom leads up to the roof: count the five stars, meow at the moon and it winks back. In the living room a red laser dot zips around; pounce on it for hearts until it hides under the sofa. Some mornings it rains: the city gets puddles, and an umbrella shop sells a tiny cat umbrella for 2 hearts, so you can splash without getting wet paws.
+
 ## Play
 
 Open `you-are-a-cat.html` in a browser, or play the published version:
