@@ -1,6 +1,6 @@
 # You Are a Cat
 
-A simple and lovely cat game. A tap-to-play game for young kids, based on an idea and a drawing by Carolina.
+A simple and lovely cat game. It is tap-to-play for young kids, and based on an idea and a drawing by Carolina.
 
 You are a cat. You wake up hungry, drink milk in the kitchen, wander around the house and out into the city. Happy things make the cat purr and earn hearts; loud things make it jump ("MIAAWOW!"). Collect 5 hearts to buy a fish at the fish shop, carry it home, eat it from your bowl, then go back to your cloud bed for a nap.
 
