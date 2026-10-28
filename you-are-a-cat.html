@@ -183,6 +183,9 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .big.year[aria-pressed=true]{background:var(--pink)}
 /* playground: the swing swings from its top bar, the seesaw rocks on its middle */
 .swingy{animation:swingy 1.2s ease-in-out 3}
+/* the hammock sways gently in the shade */
+.sway{animation:sway 2.4s ease-in-out infinite}
+@keyframes sway{50%{transform:rotate(4deg)}}
 @keyframes swingy{25%{transform:rotate(-28deg)}75%{transform:rotate(28deg)}}
 .teeter{animation:teeter 1.1s ease-in-out 3}
 @keyframes teeter{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
@@ -197,7 +200,7 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .drift{animation:drift 4s linear infinite}
 @keyframes drift{to{transform:translateX(-140px)}}
 @media (prefers-reduced-motion:reduce){
-  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift{animation:none}
+  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift,.sway{animation:none}
   .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick,.scrub{animation-duration:.01s}
 }
 </style>
@@ -2181,9 +2184,19 @@ function sandcastle(){
   if(n>=1)c+=`<path d="M38,450 V412 h10 v-8 h10 v8 h10 v-8 h10 v8 h10 v-8 h10 v8 h4 V450Z" fill="#f1c76a" ${K} stroke-width="2.5"/><path d="M62,450 v-14 q8,-8 16,0 v14" fill="#d9a066" stroke="${INK}" stroke-width="2"/>`;
   if(n>=2)c+=`<path d="M50,404 V374 h8 v-7 h8 v7 h8 v-7 h8 v7 h8 V404Z" fill="#f1c76a" ${K} stroke-width="2.5"/>`;
   if(n>=3)c+=`<path d="M70,367 V330" stroke="${INK}" stroke-width="2.5"/><path d="M70,330 L94,338 L70,346Z" fill="#e0508a" stroke="${INK}" stroke-width="2"/>`;
-  return `<rect x="20" y="320" width="110" height="136" fill="transparent"/>${c}
+  if(n>=4)c+=[[46,428,'#f38db5'],[92,426,'#fff'],[58,390,'#fff'],[84,388,'#f38db5'],[70,416,'#ffd34d']].map(([x,y,f])=>shell(x,y,f)).join('');
+  if(n>=5)c=`<path d="M22,452 Q70,470 118,452" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/><path d="M22,452 Q70,470 118,452" fill="none" stroke="#7cc6f0" stroke-width="5" stroke-linecap="round"/>`+c
+    +`<rect x="60" y="450" width="20" height="12" fill="#d9a066" stroke="${INK}" stroke-width="1.8"/>`;
+  return `<rect x="20" y="320" width="110" height="146" fill="transparent"/>${c}
   <path d="M114,452 L108,420 H134 L128,452Z" fill="#e8473f" ${K} stroke-width="2.5"/><path d="M110,420 q11,-14 22,0" fill="none" stroke="${INK}" stroke-width="2"/>
   <text x="70" y="${n>=3?322:n>=2?360:396}" text-anchor="middle" class="lbl">SANDCASTLE</text>`;
+}
+// a little scallop shell for the sandcastle
+const shell=(x,y,f)=>`<path d="M${x-6},${y+3} Q${x},${y-9} ${x+6},${y+3}Z M${x},${y+3} V${y-4} M${x-3},${y+3} L${x-2},${y-3} M${x+3},${y+3} L${x+2},${y-3}" fill="${f}" stroke="${INK}" stroke-width="1.4" stroke-linejoin="round"/>`;
+// a swim ring bobbing in the sea: tap it to go for a swim
+function seaRing(){
+  return `<rect x="226" y="262" width="80" height="62" fill="transparent"/><g class="bob"><ellipse cx="266" cy="304" rx="22" ry="8" fill="#f38db5" ${K} stroke-width="2.5"/><ellipse cx="266" cy="303" rx="10" ry="3" fill="#3cb8b0" stroke="${INK}" stroke-width="1.5"/></g>
+  <text x="266" y="286" text-anchor="middle" class="lbl">SWIM</text>`;
 }
 function beachShade(){
   return `<path d="M168,300 V452" stroke="${INK}" stroke-width="4"/>
@@ -2226,6 +2239,42 @@ function toucan(){
   <path d="M338,284 Q314,276 316,290 Q326,296 340,292Z" fill="#f9a03f" ${K} stroke-width="2.2"/><path d="M316,290 q4,-4 8,-2" fill="none" stroke="#d8243c" stroke-width="2.4"/>
   <circle cx="345" cy="284" r="3.6" fill="#7fc3e6" stroke="${INK}" stroke-width="1.5"/><circle cx="345" cy="284" r="1.4" fill="${INK}"/></g>`;
 }
+const MANGOS=[[48,196],[112,160],[150,214]];
+const mango=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><path d="M0,-12 q4,-6 9,-6" fill="none" stroke="#4f9c45" stroke-width="2.5"/><ellipse cx="0" cy="0" rx="9" ry="12" fill="#f9a03f" ${K} stroke-width="2.2"/><ellipse cx="-3" cy="2" rx="4" ry="6" fill="#e8473f" opacity=".55"/></g>`;
+function mangoTree(){
+  const left=MANGOS.length-(S.tp.picked||0);
+  return `<rect x="0" y="100" width="200" height="200" fill="transparent"/>
+  <path d="M60,452 Q66,350 76,240 L96,240 Q100,350 108,452Z" fill="#a8652f" ${K}/>
+  <g class="mtree" style="transform-box:fill-box;transform-origin:50% 100%"><path d="${cloud(96,186,96,76,11)}" fill="#3f8a3c" ${K}/>
+  ${MANGOS.slice(0,left).map(([x,y])=>mango(x,y)).join('')}</g>
+  <text x="96" y="${left?124:120}" text-anchor="middle" class="lbl">MANGO TREE</text>`;
+}
+function fallenMango(){return `<circle cx="134" cy="442" r="20" fill="transparent"/><g transform="rotate(70 134 442)">${mango(134,442,1.1)}</g>`}
+function hammock(){
+  const on=S.ride==='hammock';
+  return `<rect x="96" y="300" width="160" height="110" fill="transparent"/>
+  <path d="M96,318 L124,352 M252,318 L226,352" stroke="${INK}" stroke-width="2.5"/>
+  <g class="sway" style="transform-box:view-box;transform-origin:175px 318px">
+  ${on?`<g transform="translate(222,366) rotate(-84) scale(.5)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,PINK,wearNow())}</g></g>`:''}
+  <path d="M124,352 Q175,${on?404:394} 226,352 Q175,${on?378:372} 124,352Z" fill="#ffd34d" ${K} stroke-width="2.5"/>
+  <path d="M130,358 Q175,${on?396:386} 220,358 M138,364 Q175,${on?392:382} 212,364" fill="none" stroke="#e8473f" stroke-width="3"/></g>
+  ${on?`<g class="zzz" pointer-events="none"><text x="120" y="320">Z</text><text x="140" y="300">z</text><text x="158" y="284">z</text></g>`:''}
+  <text x="175" y="${on?262:300}" text-anchor="middle" class="lbl">HAMMOCK</text>`;
+}
+function fishingRod(){
+  return `<rect x="252" y="330" width="148" height="190" fill="transparent"/>
+  <path d="M386,450 L318,336" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M386,450 L318,336" stroke="#d9a066" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="372" cy="426" r="6" fill="#cfd3dc" stroke="${INK}" stroke-width="2"/>
+  <path d="M318,336 Q296,380 284,466" fill="none" stroke="${INK}" stroke-width="1.2"/>
+  <g class="bobber" style="transform-box:fill-box;transform-origin:50% 100%"><g class="bob"><circle cx="284" cy="470" r="7" fill="#fff" stroke="${INK}" stroke-width="2"/><path d="M277,470 a7,7 0 0 1 14,0Z" fill="#e8473f" stroke="${INK}" stroke-width="2"/></g></g>
+  <text x="352" y="324" text-anchor="middle" class="lbl">FISHING</text>`;
+}
+const BOOT=`<path d="M-8,-16 h12 v12 h8 q8,0 8,7 v5 h-28Z" fill="#7a4a26" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M-8,-12 h12" stroke="#d9a066" stroke-width="2"/>`;
+const CATCH=[
+  {art:fishArt,big:'A FISH!',say:'A little orange fish! You say hello… and let it swim away. Splash!'},
+  {art:BOOT,big:'A BOOT?',say:'An old boot! Silly boot. You put it in the bin. Ha ha!'},
+  {art:fishArt.replace('#f9a03f','#8a6bd1'),big:'WOW!',say:'Wow! A big purple fish! You let it go. Bye bye, fish!'}
+];
 const OLA=[['OLÁ!','Olá! The toucan says hello. That is how you say hello in Brazil!'],['OBRIGADO!','Obrigado! That means thank you!'],['TCHAU!','Tchau! That means bye bye!']];
 
 /* the train station at night */
@@ -3036,21 +3085,54 @@ const SC={
       ${palmTree()}${beachShade()}${footballGoal()}
       <rect y="468" width="400" height="52" fill="#fff"/><path d="${prom}" fill="none" stroke="${INK}" stroke-width="5"/><path d="M0,468 H400" ${K}/>`},
     hots:()=>[
+      {id:'sea',label:'Swim ring in the sea',svg:seaRing(),walk:240,tap:swimSea},
       {id:'castle',label:'Sandcastle',svg:sandcastle(),walk:150,tap:buildCastle},
       {id:'crab',label:'Crab',svg:crab(),walk:300,tap:tapCrab},
       ...(S.souv.includes('sunhat')?[]:[{id:'hat',label:'Sun hat',svg:sunHat(),walk:150,tap:takeSunHat}]),
       {id:'ball',label:'Football',svg:football(),walk:196,tap:kickBall},
       {id:'toucan',label:'Toucan in the palm tree',svg:toucan(),walk:290,tap:tapToucan},
-      {id:'go-home',label:'Fly home',svg:arrow('left','FLY HOME'),tap:flyHome}
+      {id:'go-home',label:'Fly home',svg:arrow('left','FLY HOME'),tap:flyHome},
+      {id:'go-lagoon',label:'Go to the lagoon',svg:arrow('right','LAGOON'),tap:()=>leave(460,()=>go('lagoon','left'))}
     ],
-    goal:()=>!S.souv.includes('sunhat')?{id:'hat',hint:'A sun hat! Put it on'}
-      :(S.tp.castle||0)<3?{id:'castle',hint:`Build a sandcastle! (${S.tp.castle||0} of 3)`}
+    goal:()=>S.ride==='sea'?{id:'',hint:''}
+      :!S.souv.includes('sunhat')?{id:'hat',hint:'A sun hat! Put it on'}
+      :(S.tp.castle||0)<CASTLE.length?{id:'castle',hint:`Build a sandcastle! (${S.tp.castle||0} of ${CASTLE.length})`}
+      :!S.tp.swim?{id:'sea',hint:'Swim in the sea! Tap the swim ring'}
       :!S.tp.goals?{id:'ball',hint:'Football! Kick the ball in the goal'}
       :!S.tp.tou?{id:'toucan',hint:'A toucan in the palm tree! Tap it'}
       :!S.tp.crab?{id:'crab',hint:'A little crab! Say hello'}
+      :!S.tp.lagoon?{id:'go-lagoon',hint:'Mango trees and a lagoon! Go and see ↗'}
       :{id:'go-home',hint:`What a holiday! Play more for hearts (${S.hearts}), or fly home ↖`},
-    landLeft:310,
+    landLeft:310,landRight:300,
     enter:()=>say('Brazil! The beach in Rio de Janeiro. The sun is hot and the sea is warm!')
+  },
+  lagoon:{
+    draw:()=>`<rect width="400" height="520" fill="#bfe3fa"/><circle cx="330" cy="70" r="22" fill="#ffd34d" ${K}/>
+      <path d="${cloud(250,96,28,10,7)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,300 Q120,284 240,300 T400,296 V520 H0Z" fill="#f6dc9a" ${K}/>
+      <path d="M250,520 V430 Q262,384 320,384 Q370,380 400,366 V520Z" fill="#3cb8b0" ${K}/>
+      <path d="M300,410 q8,-6 16,0 t16,0 M350,400 q8,-6 16,0 t16,0 M266,500 q8,-6 16,0 t16,0" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+      <ellipse cx="170" cy="456" rx="120" ry="12" fill="#d9b86e"/>
+      <path d="M252,452 Q246,340 262,214" fill="none" stroke="${INK}" stroke-width="14" stroke-linecap="round"/><path d="M252,452 Q246,340 262,214" fill="none" stroke="#a8652f" stroke-width="8" stroke-linecap="round"/>
+      ${[[-170,56],[-130,50],[-60,58],[-20,52],[20,44]].map(([a,l])=>{const r=a*Math.PI/180,x=262+l*Math.cos(r),y=214+l*Math.sin(r)*.55+16;
+        return `<path d="M262,214 Q${(262+x)/2},${Math.min(214,y)-20} ${x.toFixed(1)},${y.toFixed(1)} Q${(262+x)/2},${Math.min(214,y)-4} 262,214Z" fill="#4f9c45" ${K} stroke-width="2.5"/>`}).join('')}
+      <rect x="282" y="446" width="118" height="10" fill="#d9a066" ${K} stroke-width="2.5"/><path d="M300,456 V500 M380,456 V500" stroke="${INK}" stroke-width="7"/><path d="M300,456 V500 M380,456 V500" stroke="#a8652f" stroke-width="3"/>`,
+    hots:()=>[
+      {id:'tree',label:'Mango tree',svg:mangoTree(),walk:150,tap:shakeMango},
+      ...(S.tp.fallen?[{id:'mango',label:'Mango',svg:fallenMango(),walk:180,tap:eatMango}]:[]),
+      {id:'hammock',label:'Hammock in the shade',svg:hammock(),walk:190,tap:restHammock},
+      {id:'rod',label:'Fishing rod',svg:fishingRod(),walk:340,tap:goFishing},
+      {id:'go-beach',label:'Back to the beach',svg:arrow('left','BEACH'),tap:()=>leave(-60,()=>go('beach','right'))}
+    ],
+    goal:()=>S.ride==='hammock'||S.tp.casting?{id:'',hint:''}
+      :S.tp.fallen?{id:'mango',hint:'A mango fell down! Eat it'}
+      :!S.tp.mango?{id:'tree',hint:'Mangoes! Shake the mango tree'}
+      :!S.tp.hammock?{id:'hammock',hint:'A hammock in the shade. Have a rest!'}
+      :(S.tp.fish||0)<CATCH.length?{id:'rod',hint:`Go fishing! (${S.tp.fish||0} of ${CATCH.length})`}
+      :{id:'go-beach',hint:'Back to the beach ↖'},
+    before:()=>{S.tp.lagoon=true;S.tp.casting=false},
+    landLeft:200,
+    enter:()=>say('A shady lagoon! A mango tree, a hammock and a little wooden pier for fishing.')
   },
   station:{
     draw:()=>`<rect width="400" height="520" fill="#e7e1d6"/>
@@ -3779,13 +3861,63 @@ function takeSunHat(){
   S.souv.push('sunhat');S.hat='sunhat';S.dressed=true;clearBubbles();render();sfx.sticker();react('happy');
   say('You put on a sun hat! You can keep it. It goes in your dress-up drawer.');
 }
+// what each pat adds to the sandcastle
+const CASTLE=['Pat pat pat! You start a sandcastle.','Pat pat! Another tower!','A flag on top! Flap flap.','You find pretty shells and stick them on. So pretty!',
+  'You dig a moat and fill it with sea water. Splash! The best sandcastle ever!'];
 function buildCastle(){
   faceLeft();
   const n=S.tp.castle||0;
-  if(n>=3){react('happy');say('Your sandcastle is so tall! A castle for a cat queen!');return}
-  S.tp.castle=n+1;render();sfx.crunch(true);
-  if(n+1<3){react('happy');say(n?'Pat pat! Another tower!':'Pat pat pat! You start a sandcastle.')}
-  else{burst(70,330,(x,y,j)=>`<path d="${starPath(x,y,8)}" fill="${KEYC[(j*3)%8]}" stroke="${INK}" stroke-width="1.4"/>`);react('happy');say('Ta-da! Your sandcastle has a flag on top!')}
+  if(n>=CASTLE.length){react('happy');say('Your sandcastle is so tall! A castle for a cat queen!');return}
+  S.tp.castle=n+1;render();n===4?sfx.splash():sfx.crunch(true);
+  if(n===4)burst(70,330,(x,y,j)=>`<path d="${starPath(x,y,8)}" fill="${KEYC[(j*3)%8]}" stroke="${INK}" stroke-width="1.4"/>`);
+  react('happy');say(CASTLE[n]);
+}
+// a swim in the sea in the pink ring, then a big shake on the sand
+function swimSea(){
+  S.busy=true;S.ride='sea';clearTimeout(moodT);S.mood='normal';clearBubbles();render();sfx.splash();splash(266,300);
+  say('Splash! You paddle out into the warm sea in your swim ring…','');
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none" transform="translate(266,330)">${swimmer().replace("#7cc6f0","#3cb8b0")}</g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now();
+  later(()=>{sfx.whee();bubble(200,230,'WHEEE!','#2c8fd6');say('A wave! Up you go… wheee!','')},1500);
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const s=(t-t0)/1000;
+    if(s>=3.6){S.ride=null;S.tp.swim=true;S.x=200;S.face=1;clearBubbles();render();follow();
+      const an=$('#catAnim');an&&restartClass(an,'wetshake',900);sfx.shake();
+      later(()=>{S.busy=false;react('happy');say('What a swim! The sea in Brazil is so warm. Shake shake!')},900);return}
+    const x=266-200*Math.sin(Math.PI*s/3.6),y=330+4*Math.sin(s*7)-(s>1.4&&s<2.2?22*Math.sin(Math.PI*(s-1.4)/.8):0);
+    el.setAttribute('transform',`translate(${x.toFixed(1)},${y.toFixed(1)})`);
+    requestAnimationFrame(step);
+  })(t0);
+}
+// the mango tree drops one mango at a time; eat it off the sand
+function shakeMango(){
+  faceLeft();const t=$('.mtree');t&&restartClass(t,'shake',900);sfx.crunch(true);
+  if(S.tp.fallen){react('happy',false);say('A mango is on the sand already. Eat it first!');return}
+  if((S.tp.picked||0)>=MANGOS.length){react('happy',false);say('No more mangoes on the tree. You ate them all!');return}
+  S.busy=true;say('Shake shake shake…','');
+  later(()=>{S.tp.picked=(S.tp.picked||0)+1;S.tp.fallen=true;S.busy=false;render();faceLeft();sfx.plop();bubble(134,380,'BONK!','#f5891f');react('happy');say('Bonk! A ripe mango falls down!')},800);
+}
+function eatMango(){
+  faceLeft();S.tp.fallen=false;S.tp.mango=(S.tp.mango||0)+1;render();faceLeft();sfx.slurp();react('happy');
+  say(S.tp.mango>1?'Another mango! Sticky paws. Yum!':'Mmm, a sweet juicy mango! Slurp slurp! Poooourrr!');
+}
+function restHammock(){
+  S.busy=true;S.ride='hammock';clearTimeout(moodT);clearBubbles();render();sfx.purr();
+  say('You climb into the hammock in the shade. Swing… swing… Aaah.','');
+  later(()=>sfx.purr(),1800);
+  later(()=>{S.ride=null;S.tp.hammock=true;S.x=190;S.face=1;S.busy=false;render();follow();react('happy');
+    say('What a lovely rest in the shade! Now you feel so relaxed. Poooourrr!')},3800);
+}
+// fishing off the pier: a little fish, an old boot, then a big purple fish
+function goFishing(){
+  faceLeft();S.busy=true;S.tp.casting=true;const k=(S.tp.fish||0)%CATCH.length,c=CATCH[k];
+  sfx.whoosh();later(()=>{sfx.plop();splash(284,470)},400);say('You cast your line… plop! Now wait…','');
+  later(()=>{const b=$('.bobber');b&&restartClass(b,'shake',900);sfx.squeak();bubble(284,400,'TUG TUG!','#2c8fd6');say('Tug tug! Something is on the line!','')},1700);
+  later(()=>{clearBubbles();sfx.splash();splash(284,470);
+    const id='c'+(++uid);stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g class="floaty" style="animation-duration:1.8s"><g transform="translate(284,420) scale(2.2)">${c.art}</g></g></g>`);
+    setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1900);
+    S.tp.fish=(S.tp.fish||0)+1;S.tp.casting=false;S.busy=false;react('happy');bubble(250,250,c.big,'#1f8a4c');say(c.say)},2800);
 }
 function kickBall(){
   faceRight();S.busy=true;const b=$('.fb');b&&restartClass(b,'kick',1500);sfx.pounce();say('You kick the ball…','');
