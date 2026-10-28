@@ -3663,7 +3663,7 @@ function showBoard(){
 }
 function confirmBox(q,sub,yes,no){
   openOv('confirm',`${miniCat(null,'scared').replace('class="mini"','class="mini" style="align-self:center"')}
-    <h2>${q}</h2><p>${sub}</p>
+    <h2>${esc(q)}</h2><p>${esc(sub)}</p>
     <button class="big pink" data-a="no" data-focus>NO, KEEP IT!</button>
     <button class="big small" data-a="yes">YES</button>`,q,'');
   CONFIRM={yes,no};
@@ -3717,7 +3717,7 @@ ov.addEventListener('click',e=>{
   else if(a==='moveno'){S.moveAsk=S.day;save();resume()}
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
   else if(a==='again') confirmBox('Start again from day 1?','Your hearts, points and stickers start over.',startAgain,showMenu);
-  else if(a==='del'){const c=DB.cats.find(c=>c.id===id);c&&confirmBox(`Say bye-bye to ${esc(c.name)}?`,'This cat goes away for good.',()=>{
+  else if(a==='del'){const c=DB.cats.find(c=>c.id===id);c&&confirmBox(`Say bye-bye to ${c.name}?`,'This cat goes away for good.',()=>{
     DB.cats=DB.cats.filter(x=>x.id!==id);store();
     if(CUR===id){CUR=null;reset();document.getElementById('menuBtn').hidden=true;loadState(null);render();updateHud()}
     showTitle()},showTitle)}

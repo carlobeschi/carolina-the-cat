@@ -2,6 +2,8 @@
 
 A simple and lovely cat game. It is tap-to-play for young kids, and based on an idea and a drawing by Carolina.
 
+**Play it:** https://carlobeschi.github.io/carolina-the-cat/ (works on phones, tablets and laptops, and can be installed as an app).
+
 You are a cat. You wake up hungry, pick something to eat from the fridge, wander around the house and out into the city. Happy things make the cat purr and earn hearts; loud things make it jump ("MIAAWOW!"). Collect 5 hearts to buy a fish at the fish shop, carry it home, eat it from your bowl, then go back to your cloud bed for a nap.
 
 After the fish it gets dark, and a ladder in the bedroom leads up to the roof: count the five stars, meow at the moon and it winks back. In the living room a red laser dot zips around; pounce on it for hearts until it hides under the sofa. Some mornings it rains: the city gets puddles, and an umbrella shop sells a tiny cat umbrella for 2 hearts, so you can splash without getting wet paws.
@@ -48,8 +50,16 @@ Everyone who plays gets their own cat. Give it a name (tap one of the ideas or t
 
 ## Play
 
-Open `you-are-a-cat.html` in a browser, or play the published version:
-https://claude.ai/artifact/1z3SQodhS5wFZKTUsx8c7k
+Play it at https://carlobeschi.github.io/carolina-the-cat/, or open the claude.ai version at https://claude.ai/artifact/1z3SQodhS5wFZKTUsx8c7k.
+
+To run it from a copy of this repo, build the site and serve it (the service worker needs a web server, not a `file://` page):
+
+```sh
+./pwa/build.sh            # writes _site/
+python3 -m http.server -d _site 8000
+```
+
+then open http://localhost:8000.
 
 ## Install it on a phone
 
@@ -69,6 +79,21 @@ Saves stay on the phone, as before. The app lives at a different web address fro
 
 The file holds the page body only (no `<!doctype>` wrapper), because the artifact host adds the document skeleton when it publishes.
 
+## Privacy and safety
+
+The game is made for small children, so it keeps everything on the device:
+
+- There are no accounts, ads, analytics, trackers or in-app purchases, and the game never sends anything anywhere. Cat names, saves and the Top Cats board live in the browser's local storage on that device only; clearing the site's data or saying bye-bye to a cat removes them.
+- The only thing loaded from outside is the two fonts from Google Fonts (which means Google sees the request for them, like any site that uses Google Fonts). Everything else, including Carolina's paintings, is inside the page.
+- Names typed by players are escaped before they are shown, so a name can't turn into code on the page.
+- The installable version sets a Content Security Policy that only lets the page load its own files and the Google fonts, and the service worker only caches the game's own files and the fonts.
+
+If you find a security problem, see [SECURITY.md](SECURITY.md).
+
 ## License
 
-GPL-3.0, see [LICENSE](LICENSE).
+Copyright (C) 2026 Carlo Beschi. The game is an idea of Carolina's, and the paintings and sticker drawings in it are hers.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See [LICENSE](LICENSE) for the full GNU General Public License v3.0.
+
+The fonts (Gochi Hand and Patrick Hand) are not part of this repository; they are loaded from Google Fonts under the SIL Open Font License.
