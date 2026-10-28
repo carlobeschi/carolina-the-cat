@@ -51,6 +51,14 @@ Everyone who plays gets their own cat. Give it a name (tap one of the ideas or t
 Open `you-are-a-cat.html` in a browser, or play the published version:
 https://claude.ai/artifact/1z3SQodhS5wFZKTUsx8c7k
 
+## Install it on a phone
+
+The game is also an installable web app (a PWA): it gets its own icon on the home screen, opens full screen like an app and works offline. There is no second copy of the game to look after: `pwa/build.sh` wraps the same `you-are-a-cat.html` with an app manifest, icons and a small service worker, and writes the site to `_site/`. Every change to the game goes into the app the next time the site is built.
+
+Every merge to `main` publishes it to GitHub Pages (`.github/workflows/pages.yml`) at https://carlobeschi.github.io/carolina-the-cat/. On Android, open the site in Chrome, tap ⋮ and then **Add to Home screen** (or **Install app**). On an iPhone, open it in Safari, tap Share and then **Add to Home Screen**. When the phone is online the app picks up the newest version by itself. On a laptop, Chrome and Edge show an install button in the address bar. The game grows to fill a tablet screen and shrinks to fit a laptop screen without scrolling, and works with a mouse as well as touch.
+
+Saves stay on the phone, as before. The app lives at a different web address from the claude.ai version, so cats saved there don't carry over to it.
+
 ## How it's built
 
 - One file: inline SVG drawings, CSS animations and plain JavaScript, no build step and no libraries.
