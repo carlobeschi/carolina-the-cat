@@ -155,6 +155,8 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .score{font-size:clamp(1.2rem,5.5vw,1.6rem);color:var(--ink);white-space:nowrap}
 .star{color:var(--gold);-webkit-text-stroke:1px var(--ink)}
 .bump{animation:bump .5s ease-out}
+.scrub{animation:scrub .22s ease-in-out 6}
+@keyframes scrub{50%{transform:translateX(-9px)}}
 @keyframes bump{40%{transform:scale(1.25)}}
 .big.orange{background:#f9b36b}
 /* parties: the crayon frame changes colour for each one */
@@ -191,7 +193,7 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 @keyframes drift{to{transform:translateX(-140px)}}
 @media (prefers-reduced-motion:reduce){
   .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift{animation:none}
-  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick{animation-duration:.01s}
+  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick,.scrub{animation-duration:.01s}
 }
 </style>
 
@@ -245,7 +247,8 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   points:0,today:0,done:[],look:null,looked:false,
   playground:false,rides:[],ride:null,school:false,q:null,qn:0,lessons:0,fest:'',visit:'',
   square:false,picks:null,went:[],seen:[],wish:false,pigeonN:0,latte:false,cafeCats:[],cafeN:0,dish:null,ate:[],swim:false,ballN:0,eaten:[],
-  slid:false,big:false,tour:false,moveAsk:0,trip:'',tp:{},trips:[],tripDay:0,souv:[]};
+  slid:false,big:false,tour:false,moveAsk:0,trip:'',tp:{},trips:[],tripDay:0,souv:[],
+  sweets:0,ache:false,teeth:0,nag:false,meds:false};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -390,7 +393,8 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['party',()=>S.party],['park',()=>S.park],['season',()=>S.sDone],['bath',()=>S.bath==='done'],
   ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
   ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['fest',()=>!!S.fest],['visit',()=>!!S.visit],
-  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['trip',()=>S.tripDay===S.day]];
+  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['trip',()=>S.tripDay===S.day],
+  ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done']];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -465,11 +469,14 @@ function catSVG(m,carry,umb,p=PINK,w={}){
   let st='';for(let y=-74;y<=-6;y+=8) st+=`M-22,${y} q5.25,-5 10.5,0 t10.5,0 t10.5,0 t10.5,0 `;
   let eyes;
   if(m==='sleep') eyes=`<path d="M-15,-104 q5,5 10,0 M5,-104 q5,5 10,0" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>`;
-  else if(m==='happy') eyes=`<path d="M-15,-102 q5,-7 10,0 M5,-102 q5,-7 10,0" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>`;
+  else if(m==='happy'||m==='grin') eyes=`<path d="M-15,-102 q5,-7 10,0 M5,-102 q5,-7 10,0" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>`;
   else if(m==='scared') eyes=`<circle cx="-10" cy="-105" r="6.5" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="10" cy="-105" r="6.5" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="-10" cy="-105" r="2.3" fill="${INK}"/><circle cx="10" cy="-105" r="2.3" fill="${INK}"/>`;
+  else if(m==='ache') eyes=`<circle cx="-10" cy="-103" r="3" fill="${INK}"/><circle cx="10" cy="-103" r="3" fill="${INK}"/><path d="M-16,-109 L-5,-113 M16,-109 L5,-113" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`;
   else eyes=`<circle cx="-10" cy="-104" r="3.3" fill="${INK}"/><circle cx="10" cy="-104" r="3.3" fill="${INK}"/><circle cx="-9" cy="-105.2" r="1" fill="#fff"/><circle cx="11" cy="-105.2" r="1" fill="#fff"/>`;
   const mouth=m==='scared'
     ?`<ellipse cx="0" cy="-89" rx="3.5" ry="4.5" fill="${INK}"/>`
+    :m==='ache'?`<path d="M-7,-88 q2,-3 4.5,0 t4.5,0 t4.5,0" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`
+    :m==='grin'?`<path d="M-9,-93 H9 Q8,-82 0,-82 Q-8,-82 -9,-93Z" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M-3,-93 V-88 M3,-93 V-88" stroke="${INK}" stroke-width="1.2"/>`
     :`<path d="M-5,-92 q2.5,3 5,0 q2.5,3 5,0" fill="none" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/>`;
   return `
   ${umb?`<path d="M40,-100 V-176" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>
@@ -1389,10 +1396,10 @@ function owl(){
 }
 
 /* ---------- the town square: a fountain, pigeons, and a door to every place in town ---------- */
-const PLACES=['park','play','cafe','pool','rest','school'];
-const PLACE={park:'park',play:'playground',cafe:'cat café',pool:'swimming pool',rest:'restaurant',school:'cat school'};
+const PLACES=['park','play','cafe','pool','rest','school','sweets'];
+const PLACE={park:'park',play:'playground',cafe:'cat café',pool:'swimming pool',rest:'restaurant',school:'cat school',sweets:'sweet shop'};
 // where the cat comes back out on the square from each place; from the park it walks in from the right
-const DOORX={cafe:51,rest:149,school:251,pool:349,play:350};
+const DOORX={cafe:51,rest:149,school:251,pool:349,play:350,sweets:56};
 // each day the square shows you two places to go: places you have never been come first
 function dayPicks(){
   const fresh=PLACES.filter(p=>!S.seen.includes(p)),turn=PLACES.map((_,i)=>PLACES[(i+(S.day-1)*2)%PLACES.length]);
@@ -1481,7 +1488,7 @@ function pigeon(x,y,s=1){
   <path d="M-4,2 v5 M2,2 v5" stroke="#f38db5" stroke-width="2.4" stroke-linecap="round"/></g>`;
 }
 function pigeons(){
-  return `<rect x="34" y="416" width="100" height="50" fill="transparent"/><g class="pgs" style="transform-box:fill-box">${pigeon(62,458)}${pigeon(106,452,.85)}</g>`;
+  return `<rect x="112" y="474" width="112" height="46" fill="transparent"/><g class="pgs" style="transform-box:fill-box">${pigeon(146,510)}${pigeon(192,505,.85)}</g>`;
 }
 
 /* ---------- the cat café: warm milk from the barista cat, and café cats to cuddle ---------- */
@@ -1567,6 +1574,167 @@ function penguin(){
   <circle cx="355" cy="363" r="2.2" fill="${INK}"/><circle cx="371" cy="363" r="2.2" fill="${INK}"/><path d="M357,371 H369 L363,380Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
   <path d="M363,388 l-11,-6 v12Z M363,388 l11,-6 v12Z" fill="#d8243c" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><circle cx="363" cy="388" r="3" fill="#d8243c" stroke="${INK}" stroke-width="1.5"/>
   </g><text x="363" y="330" text-anchor="middle" class="lbl">WAITER</text>`;
+}
+
+/* ---------- the sweet shop: Mrs Mouse sells sweets for a heart each, but three is too many ---------- */
+const SWEETS=[
+  {name:'lollipop',say:'A lollipop! Lick lick lick. Yummy!',art:(x,y)=>`<g transform="translate(${x},${y})"><path d="M0,0 V-30" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M0,0 V-30" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+    <circle cy="-44" r="17" fill="#f38db5" ${K} stroke-width="2.5"/><path d="M0,-44 a3,3 0 0 1 6,0 a6,6 0 0 1 -12,0 a9,9 0 0 1 18,0 a12,12 0 0 1 -24,0" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></g>`},
+  {name:'chocolate',say:'Chocolate! Munch munch. So yummy!',art:(x,y)=>`<g transform="translate(${x},${y}) rotate(-8)"><rect x="-20" y="-50" width="40" height="50" rx="3" fill="#8a5232" ${K} stroke-width="2.5"/>
+    <path d="M-20,-38 H20 M-20,-26 H20 M0,-50 V-26" stroke="${INK}" stroke-width="1.6"/><rect x="-21" y="-24" width="42" height="24" rx="2" fill="#8a6bd1" stroke="${INK}" stroke-width="2.2"/>
+    ${heart(0,-13,.6,'#ffd34d')}</g>`},
+  {name:'jelly beans',say:'Jelly beans! Chewy chewy. Yum!',art:(x,y)=>`<g transform="translate(${x},${y})"><rect x="-18" y="-46" width="36" height="46" rx="9" fill="#eaf7ff" ${K} stroke-width="2.5"/>
+    ${[[-8,-10,'#e8473f'],[5,-12,'#ffd34d'],[-3,-22,'#7fc36b'],[9,-26,'#8a6bd1'],[-9,-32,'#f38db5'],[4,-36,'#f9a03f']].map(([bx,by,c],i)=>`<ellipse cx="${bx}" cy="${by}" rx="5" ry="3.4" transform="rotate(${i*40} ${bx} ${by})" fill="${c}" stroke="${INK}" stroke-width="1.3"/>`).join('')}
+    <rect x="-14" y="-54" width="28" height="9" rx="3" fill="#e0508a" stroke="${INK}" stroke-width="2.2"/></g>`},
+  {name:'candy floss',say:'Candy floss! Like a fluffy pink cloud. Mmm!',art:(x,y)=>`<g transform="translate(${x},${y})"><path d="M0,0 V-22" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M0,0 V-22" stroke="#fff3c4" stroke-width="3" stroke-linecap="round"/>
+    <path d="${cloud(0,-40,19,17,8)}" fill="#f6b3cb" ${K} stroke-width="2.5"/><path d="M-8,-46 q5,-5 11,-3" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/></g>`},
+  {name:'doughnut',say:'A pink doughnut with sprinkles! Nom nom!',art:(x,y)=>`<g transform="translate(${x},${y})"><ellipse cy="-15" rx="25" ry="14" fill="#e0b07a" ${K} stroke-width="2.5"/>
+    <path d="M-22,-18 Q-24,-29 0,-29 Q24,-29 22,-18 q-4,5 -8,1 q-4,5 -9,1 q-5,4 -10,0 q-5,4 -9,-1 q-4,4 -8,-1Z" fill="#f38db5" stroke="${INK}" stroke-width="2"/>
+    <ellipse cy="-21" rx="7" ry="3.5" fill="#e0b07a" stroke="${INK}" stroke-width="2"/>
+    <path d="M-14,-23 l3,-2 M-6,-27 l3,1 M8,-27 l3,2 M14,-21 l2,-3 M-16,-18 l3,1" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></g>`},
+  {name:'gummy bear',say:'A gummy bear! Squishy and chewy. Yum!',art:(x,y)=>`<g transform="translate(${x},${y})" fill="#7fc36b" fill-opacity=".9" stroke="${INK}" stroke-width="2.2">
+    <circle cx="-9" cy="-4" r="6"/><circle cx="9" cy="-4" r="6"/><circle cx="-13" cy="-23" r="5"/><circle cx="13" cy="-23" r="5"/>
+    <ellipse cy="-17" rx="12" ry="15"/><circle cx="-8" cy="-47" r="5"/><circle cx="8" cy="-47" r="5"/><circle cy="-38" r="11"/>
+    <circle cx="-4" cy="-39" r="1.6" fill="${INK}" stroke="none"/><circle cx="4" cy="-39" r="1.6" fill="${INK}" stroke="none"/></g>`}
+];
+const SWEETX=[70,152,234], SWEETY=[198,316];
+const sweetAt=i=>[SWEETX[i%3],SWEETY[Math.floor(i/3)]];
+const TOOMANY=3;
+function sweetHot(i){const [x,y]=sweetAt(i);return `<rect x="${x-38}" y="${y-68}" width="76" height="70" fill="transparent"/>${SWEETS[i].art(x,y)}`}
+// out on the square: a little sweet cart with a big lollipop on top
+function sweetFront(){
+  const jar=(x,a,b)=>`<rect x="${x-8}" y="400" width="16" height="20" rx="4" fill="#eaf7ff" stroke="${INK}" stroke-width="2"/><circle cx="${x-3}" cy="414" r="3" fill="${a}"/><circle cx="${x+3}" cy="409" r="3" fill="${b}"/><circle cx="${x+2}" cy="416" r="2.6" fill="${a}"/>`;
+  return `<rect x="2" y="372" width="106" height="102" fill="transparent"/>
+  <path d="M16,420 V392 M96,420 V392" stroke="${INK}" stroke-width="3"/>
+  <path d="M90,392 V346" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M90,392 V346" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="90" cy="336" r="15" fill="#ffd34d" ${K} stroke-width="2.5"/><path d="M90,336 a3,3 0 0 1 6,0 a6,6 0 0 1 -12,0 a9,9 0 0 1 18,0" fill="none" stroke="#e0508a" stroke-width="2.6" stroke-linecap="round"/>
+  ${awning(8,378,4,24,'#e0508a','#fff')}
+  ${jar(32,'#e8473f','#7fc36b')}${jar(56,'#8a6bd1','#ffd34d')}${jar(80,'#f9a03f','#f38db5')}
+  <rect x="8" y="420" width="96" height="38" rx="5" fill="#9fe0cf" ${K}/>
+  <text x="56" y="446" text-anchor="middle" class="sign" style="font-size:16px;fill:#e0508a">SWEETS</text>
+  <circle cx="28" cy="462" r="9" fill="#fff" ${K} stroke-width="2.5"/><circle cx="84" cy="462" r="9" fill="#fff" ${K} stroke-width="2.5"/>`;
+}
+function sweetShelves(){
+  return SWEETY.map(y=>`<rect x="24" y="${y}" width="256" height="12" rx="3" fill="#d6ad45" ${K} stroke-width="2.5"/>`).join('');
+}
+function mouseCounter(){
+  return `<rect x="276" y="250" width="124" height="206" fill="transparent"/><g class="mse" style="transform-box:fill-box;transform-origin:50% 100%">
+  <circle cx="318" cy="246" r="14" fill="#cfd3dc" ${K} stroke-width="2.5"/><circle cx="318" cy="246" r="7" fill="#f6b3cb"/>
+  <circle cx="358" cy="246" r="14" fill="#cfd3dc" ${K} stroke-width="2.5"/><circle cx="358" cy="246" r="7" fill="#f6b3cb"/>
+  <path d="M318,350 V300 Q318,284 338,284 Q358,284 358,300 V350Z" fill="#cfd3dc" ${K}/>
+  <path d="M322,350 V306 H354 V350Z" fill="#fff" stroke="${INK}" stroke-width="2"/>${heart(338,322,.7,'#f38db5')}
+  <ellipse cx="338" cy="268" rx="22" ry="19" fill="#cfd3dc" ${K}/>
+  <circle cx="330" cy="264" r="2.6" fill="${INK}"/><circle cx="346" cy="264" r="2.6" fill="${INK}"/><circle cx="338" cy="273" r="3.5" fill="#f38db5" stroke="${INK}" stroke-width="1.4"/>
+  <path d="M332,274 L314,270 M332,277 L314,280 M344,274 L362,270 M344,277 L362,280" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M332,280 q6,5 12,0" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/></g>
+  <rect x="280" y="338" width="120" height="112" fill="#9fe0cf" ${K}/>
+  <path d="M300,338 V450 M320,338 V450 M340,338 V450 M360,338 V450 M380,338 V450" stroke="#fff" stroke-width="6" opacity=".7"/>
+  <rect x="274" y="330" width="130" height="12" rx="3" fill="#fff" ${K} stroke-width="2.5"/>
+  <circle cx="384" cy="312" r="15" fill="#eaf7ff" fill-opacity=".85" ${K} stroke-width="2.5"/>
+  ${[[378,316,'#e8473f'],[388,320,'#ffd34d'],[384,308,'#2c8fd6'],[392,310,'#7fc36b'],[376,306,'#f38db5']].map(([x,y,c])=>`<circle cx="${x}" cy="${y}" r="3.6" fill="${c}" stroke="${INK}" stroke-width="1"/>`).join('')}
+  <text x="340" y="232" text-anchor="middle" class="lbl">MRS MOUSE</text>`;
+}
+// the sweet flies from where it was to the cat's mouth, like food from the fridge
+function flyToMouth(art,x,y,cb){
+  const id='e'+(++uid);stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none">${art(0,0)}</g>`);
+  const el=document.getElementById(id),tx=S.x+18,ty=FLOOR-86,t0=performance.now(),g=GEN;
+  (function step(t){
+    if(g!==GEN){el.remove();return}
+    const p=Math.min(1,(t-t0)/550),ex=x+(tx-x)*p,ey=y+(ty-y)*p-80*Math.sin(Math.PI*p);
+    el.setAttribute('transform',`translate(${ex.toFixed(1)},${ey.toFixed(1)}) scale(${(1-.6*p).toFixed(2)})`);
+    if(p<1){requestAnimationFrame(step);return}
+    el.remove();cb();
+  })(t0);
+}
+function tummyAche(){
+  const an=$('#catAnim');setMood('normal');an&&restartClass(an,'wetshake',900);
+  sfx.rumble();bubble(S.x,headY(),'OUCH!','#1f8a4c');
+}
+function buySweet(i){
+  faceRight();
+  if(S.ache){tummyAche();say('Ouch! Your tummy hurts. No more sweets today!');return}
+  if(S.hearts<1){bubble(338,200,'1 HEART, PLEASE!','#e0508a');say('Each sweet costs 1 heart, and you have none. Earn hearts on the square!');return}
+  const sw=SWEETS[i],[x,y]=sweetAt(i);S.busy=true;S.hearts--;S.sweets++;updateHud();sfx.coin();
+  // a sweet after brushing means brushing again before bed
+  if(S.teeth==='done')S.teeth=0;
+  flyToMouth(sw.art,x,y-24,()=>{
+    S.busy=false;sfx.crunch(true);
+    if(S.sweets<TOOMANY-1){react('happy',false);say(sw.say);return}
+    if(S.sweets<TOOMANY){react('happy',false);const m=$('.mse');m&&restartClass(m,'wiggle',900);later(()=>bubble(338,214,'CAREFUL!','#e0508a'),600);
+      say(sw.say+' Mrs Mouse says: careful! Too many sweets give you a tummy ache.');return}
+    S.ache=true;S.busy=true;react('happy',false);
+    later(()=>{S.busy=false;clearTimeout(moodT);tummyAche();say('Oh no! Too many sweets. Your tummy hurts! You need some medicine. It is in the bathroom at home.')},1000);
+  });
+}
+function tapMouse(){
+  const m=$('.mse');m&&restartClass(m,'wiggle',900);sfx.squeak();
+  bubble(338,214,S.ache?'OH DEAR!':'SQUEAK!','#e0508a');
+  say(S.ache?'Mrs Mouse says: oh dear, a tummy ache! Take your medicine, and drink some water.'
+    :S.sweets>=TOOMANY-1?'Mrs Mouse says: that is enough sweets for today. Remember to brush your teeth!'
+    :'Mrs Mouse says: hello! Every sweet is one heart. Which one would you like?');
+}
+
+/* ---------- bedtime in the bathroom: brushing teeth, and the medicine cabinet ---------- */
+function toothMug(){
+  return `<rect x="196" y="122" width="54" height="74" fill="transparent"/>
+  <g class="tbr" style="transform-box:fill-box;transform-origin:50% 100%">
+  ${typeof S.teeth!=="number"||!S.teeth?`<path d="M214,174 L206,134" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M214,174 L206,134" stroke="#f38db5" stroke-width="3.5" stroke-linecap="round"/><rect x="200" y="122" width="9" height="13" rx="3" fill="#fff" stroke="${INK}" stroke-width="1.8" transform="rotate(-11 205 128)"/>`:''}
+  <path d="M228,174 L236,136" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M228,174 L236,136" stroke="#7cc6f0" stroke-width="3.5" stroke-linecap="round"/><rect x="232" y="124" width="9" height="13" rx="3" fill="#fff" stroke="${INK}" stroke-width="1.8" transform="rotate(11 236 130)"/>
+  <path d="M206,160 H242 L238,190 H210Z" fill="#ffd34d" ${K} stroke-width="2.5"/>${heart(224,176,.5,'#e0508a')}</g>`;
+}
+// medicine lives up high in a cabinet: a heart on the door, and a pink bottle inside
+function medCabinet(){
+  const open=S.ache;
+  return `<rect x="132" y="50" width="78" height="96" fill="transparent"/>
+  <rect x="140" y="58" width="64" height="80" rx="6" fill="#fff" ${K}/>
+  ${open?`<rect x="146" y="64" width="52" height="68" rx="3" fill="#eaf7ff" stroke="${INK}" stroke-width="2"/><path d="M146,100 H198" stroke="${INK}" stroke-width="2"/>
+    <rect x="160" y="74" width="18" height="24" rx="4" fill="#f38db5" stroke="${INK}" stroke-width="2"/><rect x="163" y="68" width="12" height="7" rx="2" fill="#fff" stroke="${INK}" stroke-width="1.6"/>
+    <path d="M154,122 h14 q8,0 8,-5 q0,-5 -8,-5 q-6,0 -8,5" fill="#fff" stroke="${INK}" stroke-width="1.8"/>
+    <rect x="182" y="110" width="10" height="20" rx="3" fill="#ffd34d" stroke="${INK}" stroke-width="1.6"/>`
+  :`<path d="M172,64 V132" stroke="${INK}" stroke-width="2"/><circle cx="166" cy="98" r="2.5" fill="${INK}"/><circle cx="178" cy="98" r="2.5" fill="${INK}"/>`}
+  ${open?'':heart(172,84,.9,'#7fc36b')}`;
+}
+function brushTeeth(){
+  if(S.teeth==='done'){setMood('grin');moodT=setTimeout(()=>setMood('normal'),1600);sfx.twinkle(5);say('Your teeth are sparkly clean already! Ting!');return}
+  if(S.busy)return;
+  faceRight();S.busy=true;setMood('happy');
+  if(S.teeth===0){S.teeth=1;render()}
+  const id='t'+(++uid),step=S.teeth;
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none" transform="translate(${S.x},${FLOOR})"><g class="scrub">
+    <path d="M10,${step===1?-96:-86} H48" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M10,${step===1?-96:-86} H48" stroke="#f38db5" stroke-width="3.5" stroke-linecap="round"/>
+    <rect x="2" y="${step===1?-102:-92}" width="13" height="10" rx="3" fill="#fff" stroke="${INK}" stroke-width="1.8"/></g>
+    ${[[-6,-84],[4,-80],[-12,-90],[12,-92],[0,-76]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="4" fill="#fff" stroke="#9fd0ef" stroke-width="1.5"/>`).join('')}</g>`);
+  sfx.psh();bubble(S.x,headY(),'SCRUB SCRUB!','#2c8fd6');
+  say(step===1?'Brush brush! Up and down, all the top teeth.':'Brush brush! Round and round, all the bottom teeth.','');
+  later(()=>{
+    const e=document.getElementById(id);e&&e.remove();S.busy=false;setMood('normal');
+    if(step===1){S.teeth=2;say('Top teeth done! Now the bottom teeth.','Tap the toothbrush again');return}
+    S.teeth='done';render();setMood('grin');sfx.splash();bubble(S.x,headY(),'PTOO!','#2c8fd6');
+    later(()=>{sfx.twinkle(5);burst(S.x,FLOOR-110,(bx,by)=>`<path d="${starPath(bx,by,7)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.4"/>`)},400);
+    moodT=setTimeout(()=>setMood('normal'),2200);
+    say('Spit and rinse! Sparkly clean teeth! Ting!');
+  },1400);
+}
+function takeMedicine(){
+  faceRight();
+  if(!S.ache){const c=$('[data-id="meds"]');c&&restartClass(c,'wiggle',900);say('The medicine cabinet. Medicine is only for when you feel poorly, and your tummy feels fine!');return}
+  S.busy=true;
+  const spoon=(x,y)=>`<g transform="translate(${x},${y})"><path d="M-14,0 h18 q12,0 12,-7 q0,-7 -12,-7 q-8,0 -10,7" fill="#fff" stroke="${INK}" stroke-width="2"/><ellipse cx="8" cy="-7" rx="7" ry="4" fill="#f38db5"/></g>`;
+  flyToMouth(spoon,170,118,()=>{
+    S.ache=false;S.meds=true;S.busy=false;render();sfx.slurp();react('happy',false);
+    later(()=>bubble(S.x,headY(),'ALL BETTER!','#1f8a4c'),900);
+    say('Gulp! Strawberry medicine. Yuck… no, yum! Your tummy feels all better.');
+  });
+}
+// tapping the bed without brushing (or with a tummy ache) gives one gentle reminder; tapping again goes to sleep
+function bedtime(){
+  if(!S.nag&&(S.ache||S.teeth!=='done')){
+    S.nag=true;sfx.ding();bubble(S.x,headY(),S.ache?'MY TUMMY…':'MY TEETH!','#2c8fd6');
+    say(S.ache?'Wait! Your tummy still hurts. The medicine is in the bathroom.':'Wait! Did you brush your teeth? The toothbrush is in the bathroom.',
+      S.ache?'Go to the bathroom ↖ or tap the bed to sleep':'Brush your teeth ↖ or tap the bed to sleep');
+    return;
+  }
+  nap();
 }
 
 /* ---------- the swimming pool: a diving board, a beach ball and a lifeguard duck ---------- */
@@ -1973,7 +2141,7 @@ const SC={
       // the ladder sits behind the bed, so it goes first
       if(S.awake&&night()) h.push({id:'ladder',label:'Ladder to the roof',svg:bedLadder(),walk:261,tap:()=>go('roof',70)});
       h.push({id:'bed',label:'Cloud bed',svg:`<path d="${cloud(190,414,116,32,11)}" fill="#fff" ${K}/><ellipse cx="96" cy="398" rx="30" ry="13" fill="#f3a3c6" ${K}/>`,
-        tap:()=>!S.awake?wake():S.tummy<3?hungry():nap()});
+        tap:()=>!S.awake?wake():S.tummy<3?hungry():bedtime()});
       // in the big house the dresser moves over to make room for the slide
       h.push({id:'drawer',label:'Dress-up drawer',svg:S.big?`<g transform="translate(-300,0)">${dresser()}</g>`:dresser(),walk:S.big?60:300,tap:()=>S.awake?go('dress',270):wake()});
       h.push({id:'vase',label:ART.vase.label,svg:framed('vase',298,136,72),walk:300,tap:()=>S.awake?lookAt('vase'):wake()});
@@ -1990,11 +2158,13 @@ const SC={
       const down=S.big?'slide':'go-kitchen';
       return !S.awake?{id:'cat',hint:'Tap the cat to wake up!'}
       :S.yarn==='tangled'?{id:'yarn',hint:'You are tangled! Tap the yarn to wiggle free'}
+      :S.ache&&(S.tummy<3||homeward())&&!S.nag?{id:'go-bath',hint:'Your tummy hurts! Medicine is in the bathroom ↖'}
       :S.tour&&!homeward()?{id:'slide',hint:'A slide in your bedroom! Tap it ↘'}
       :!homeward()&&!S.dressed?{id:'drawer',hint:'Get dressed! Tap the drawer'}
       :!homeward()&&typeof S.yarn==='number'?{id:'yarn',hint:'A ball of yarn! Bat it with your paw'}
       :S.tummy<3?{id:down,hint:S.big?'Slide down to the kitchen! ↘':'Now go to the kitchen ↗'}
       :homeward()&&!S.bath?{id:'go-bath',hint:'Bath time before bed! ↖'}
+      :homeward()&&S.teeth!=='done'&&!S.nag?{id:'go-bath',hint:'Brush your teeth before bed! ↖'}
       :homeward()&&!S.wink?{id:'ladder',hint:'Climb the ladder to the roof ↑'}
       :homeward()?{id:'bed',hint:'Tap the bed for a nap'}
       :{id:down,hint:S.big?'Take the slide down! ↘':'Go and explore ↗'};
@@ -2002,7 +2172,9 @@ const SC={
     enter:()=>{const room=S.big?'your big bedroom, upstairs':'your bedroom';
       say(S.tour&&!night()?`This is ${room}! And look… a slide!`
       :S.tummy<3?`This is ${room}. Your tummy rumbles!`
+      :night()&&S.ache?'It is night! Your tummy still hurts from all those sweets…'
       :night()&&!S.bath?'It is night! Bath time before bed…'
+      :night()&&S.teeth!=='done'&&!S.nag?'It is night! Teeth time before bed…'
       :night()&&!S.wink?'It is night! A ladder goes up to the roof.'
       :night()?'Back in your bedroom. What a big day!'
       :`This is ${room}. Your cloud bed is so soft.`)},
@@ -2024,6 +2196,7 @@ const SC={
       {id:'fridge',label:'Fridge',svg:fridge(),walk:170,tap:()=>{
         if(fridgeShut()&&S.tummy>=3) go('stickers','left');
         else if(S.bowl>0){say('The milk is in your bowl.','Tap the bowl')}
+        else if(S.tummy<3&&S.ache){tummyAche();say('Your tummy hurts too much to eat. Take your medicine first! It is in the bathroom.')}
         else if(S.tummy<3){S.fridge=true;go('food','left')}
         else say('Your tummy is full. No more food!')}},
       {id:'blender',label:'Blender',svg:blender(),walk:190,tap:()=>{
@@ -2046,6 +2219,7 @@ const SC={
     ],
     goal:()=>S.fish==='carry'?{id:'bowl',hint:'Tap the bowl to eat your fish'}
       :S.bowl>0?{id:'bowl',hint:'Tap the bowl'}
+      :S.tummy<3&&S.ache?{id:'go-bed',hint:S.big?'Medicine first! Go upstairs to the bathroom ↖':'Medicine first! Go to the bathroom ↖'}
       :S.tummy<3?{id:'fridge',hint:'Tap the fridge for some food'}
       :S.newStk.length?{id:'fridge',hint:'New sticker! Tap the fridge'}
       :!homeward()&&S.bird==='here'?{id:'bird',hint:'A bird at the window! Tap it'}
@@ -2212,12 +2386,14 @@ const SC={
       <rect y="450" width="400" height="70" fill="url(#tiles)"/><path d="M0,450 H400" ${K}/>
       <path d="M36,186 H86" stroke="${INK}" stroke-width="4" stroke-linecap="round"/><rect x="42" y="186" width="38" height="100" rx="5" fill="#f38db5" ${K}/>
       <path d="M42,262 H80 M42,270 H80" stroke="#fff" stroke-width="3"/>
-      <rect x="244" y="190" width="104" height="10" rx="3" fill="#d6ad45" ${K}/>
+      <rect x="196" y="190" width="152" height="10" rx="3" fill="#d6ad45" ${K}/>
       <rect x="256" y="158" width="18" height="32" rx="5" fill="#7fc36b" ${K} stroke-width="2.5"/><rect x="284" y="166" width="16" height="24" rx="5" fill="#f9a03f" ${K} stroke-width="2.5"/><rect x="310" y="154" width="22" height="36" rx="6" fill="#8a6bd1" ${K} stroke-width="2.5"/>
       <path d="M120,332 V298 q0,-14 16,-14 h12" fill="none" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="M120,332 V298 q0,-14 16,-14 h12" fill="none" stroke="#cfd3dc" stroke-width="5" stroke-linecap="round"/>
       <ellipse cx="220" cy="484" rx="80" ry="14" fill="#c9e6a8" ${K}/>
       ${S.bath==='done'||S.bath==='shake'?`<ellipse cx="320" cy="470" rx="34" ry="7" fill="#9fd0ef" stroke="${INK}" stroke-width="2"/><ellipse cx="92" cy="492" rx="22" ry="5" fill="#9fd0ef" stroke="${INK}" stroke-width="2"/>`:''}`,
     hots:()=>[
+      {id:'meds',label:'Medicine cabinet',svg:medCabinet(),walk:172,tap:takeMedicine},
+      {id:'brush',label:'Toothbrush',svg:toothMug(),walk:S.bath==='in'?undefined:206,tap:()=>S.bath==='in'?say('Pop the bubbles first!'):brushTeeth()},
       {id:'tub',label:'Bath tub',svg:tub(),walk:S.bath?undefined:220,tap:hopInBath},
       {id:'rduck',label:'Rubber duck',svg:`<circle cx="306" cy="318" r="26" fill="transparent"/><g class="rd">${duckArt(306,326)}</g>`,tap:()=>{
         const d=$('.rd');d&&restartClass(d,'jump',700);sfx.squeak();bubble(306,262,'SQUEAK!','#d6ad45');
@@ -2225,11 +2401,16 @@ const SC={
       ...(S.bath==='in'?BUBS.map((_,i)=>S.pops.includes(i)?null:{id:'bub'+i,label:'Bubble',svg:bathBubble(i),tap:()=>popBubble(i)}).filter(Boolean):[]),
       ...(S.bath==='in'?[]:[{id:'go-bed',label:'Go to the bedroom',svg:arrow('right','BEDROOM'),tap:()=>leave(460,()=>go('bed','left'))}])
     ],
-    goal:()=>!S.bath?{id:'tub',hint:'Bath time! Tap the bath'}
-      :S.bath==='in'?{id:'bub'+BUBS.findIndex((_,i)=>!S.pops.includes(i)),hint:`Pop the bubbles! (${S.pops.length} of ${BUBS.length})`}
+    goal:()=>S.bath==='in'?{id:'bub'+BUBS.findIndex((_,i)=>!S.pops.includes(i)),hint:`Pop the bubbles! (${S.pops.length} of ${BUBS.length})`}
       :S.bath==='shake'?{id:'',hint:''}
-      :{id:'go-bed',hint:'All clean! Go back to the bedroom ↗'},
-    enter:()=>say(S.bath==='done'?'The bathroom. You are all clean and fluffy!':'The bathroom. A bubbly bath… oh no!')
+      :S.ache?{id:'meds',hint:'Tummy ache! Tap the cabinet for your medicine'}
+      :S.meds&&S.tummy<3?{id:'go-bed',hint:'Your tummy feels better! Now breakfast ↗'}
+      :!S.bath?{id:'tub',hint:'Bath time! Tap the bath'}
+      :night()&&S.teeth!=='done'?{id:'brush',hint:S.teeth?'Keep brushing! Tap the toothbrush':'Brush your teeth before bed! Tap the toothbrush'}
+      :{id:'go-bed',hint:night()?'All clean! Go back to bed ↗':'All clean! Go back to the bedroom ↗'},
+    enter:()=>say(S.ache?'The bathroom. The medicine cabinet is open… there is your medicine!'
+      :S.bath==='done'&&night()&&S.teeth!=='done'?'The bathroom. Time to brush your teeth!'
+      :S.bath==='done'?'The bathroom. You are all clean and fluffy!':'The bathroom. A bubbly bath… oh no!')
   },
   dress:{
     draw:()=>`<rect width="400" height="520" fill="#fde6ee"/><rect width="400" height="450" fill="url(#heartpaper)"/>
@@ -2346,7 +2527,8 @@ const SC={
       {id:'pool',label:'Swimming pool',svg:poolFront(),walk:349,tap:()=>go('pool','left')},
       {id:'play',label:'Playground',svg:playArch(),walk:350,tap:()=>go('play','left')},
       {id:'fountain',label:'Fountain',svg:fountain(),walk:276,tap:tapFountain},
-      {id:'pigeons',label:'Pigeons',svg:pigeons(),walk:156,tap:chasePigeons},
+      {id:'pigeons',label:'Pigeons',svg:pigeons(),walk:166,tap:chasePigeons},
+      {id:'sweets',label:'Sweet shop',svg:sweetFront(),walk:56,tap:()=>go('sweets','left')},
       ...(night()?[]:[{id:'holiday',label:'Holiday plane',svg:holidayPlane(),tap:offerTrip}]),
       {id:'go-city',label:'Back to the shops',svg:arrow('left','SHOP'),tap:()=>leave(-60,()=>go('city','right'))},
       {id:'park',label:'Go to the park',svg:arrow('right','PARK'),tap:()=>leave(460,()=>go('park','left'))}
@@ -2407,6 +2589,24 @@ const SC={
       ()=>{const i=[0,1,2].find(i=>!S.ate.includes(i));return {id:'dish'+(i===undefined?S.hearts%3:i),hint:`Try something else! (${S.hearts} of ${FISH} hearts)`}}),
     enter:()=>say('The restaurant! The waiter is a penguin. What would you like to eat?')
   },
+  sweets:{
+    draw:()=>`<rect width="400" height="520" fill="#fde6ee"/>
+      <path d="${[...Array(10)].map((_,i)=>`M${i*44+10},0 V450`).join(' ')}" stroke="#f9cfe0" stroke-width="16"/>
+      <rect y="450" width="400" height="70" fill="url(#checks)"/><path d="M0,450 H400" ${K}/>
+      ${signBoard(200,34,180,'SWEET SHOP',18)}${awning(110,64,8,22.5,'#e0508a','#fff')}
+      ${sweetShelves()}${deco(30,452,.55)}`,
+    hots:()=>[
+      ...SWEETS.map((sw,i)=>({id:'sweet'+i,label:sw.name,svg:sweetHot(i),walk:sweetAt(i)[0]-20,tap:()=>buySweet(i)})),
+      {id:'mouse',label:'Mrs Mouse',svg:mouseCounter(),walk:240,tap:tapMouse},
+      toSquare()
+    ],
+    goal:()=>placeGoal(()=>S.ache?{id:'go-square',hint:'Tummy ache! No more sweets today ↖'}
+      :!S.sweets&&S.hearts>=1?{id:'sweet'+((S.day-1)%SWEETS.length),hint:'Pick a sweet! Each one is 1 heart'}:null,
+      ()=>({id:'go-square',hint:`Earn hearts on the square (${S.hearts} of ${FISH}) ↖`})),
+    landLeft:150,
+    enter:()=>say(S.ache?'The sweet shop. Ooh, your tummy hurts. No more sweets today!'
+      :'The sweet shop! Mrs Mouse sells lollipops, chocolate and lots more. Each sweet is 1 heart.')
+  },
   pool:{
     draw:()=>`<rect width="400" height="520" fill="#e3f3fb"/>
       <path d="${[...Array(7)].map((_,i)=>`M0,${i*42+20} H400`).join(' ')} ${[...Array(10)].map((_,i)=>`M${i*42+20},0 V296`).join(' ')}" stroke="#c4e3f3" stroke-width="2"/>
@@ -2465,6 +2665,7 @@ const SC={
     goal:()=>S.ride==='chute'?{id:'',hint:''}
       :S.tour?{id:'stairs',hint:'Go upstairs and see your new bedroom ↑'}
       :S.fish==='carry'?{id:'go-kitchen',hint:'Take your fish to the kitchen ↗'}
+      :S.tummy<3&&S.ache?{id:'stairs',hint:'Medicine first! Go upstairs to the bathroom ↑'}
       :S.tummy<3?{id:'go-kitchen',hint:'Breakfast time! Go to the kitchen ↗'}
       :homeward()?{id:'stairs',hint:'It is night! Go upstairs to bed ↑'}
       :{id:'go-kitchen',hint:'Go and explore ↗'},
@@ -2700,7 +2901,8 @@ function catLayer(){
   const pet=S.scene==='bed'?'class="hot" data-id="cat" role="button" tabindex="0" aria-label="Pet the cat"':'pointer-events="none"';
   return `<g id="cat" ${pet} transform="translate(${S.x},${FLOOR})"><g id="catFlip" transform="scale(${S.face},1)"><g id="catAnim">${catArt(S.mood)}</g></g></g>`;
 }
-const catArt=m=>catSVG(m,S.fish==='carry',umbOn(),PINK,wearNow());
+// with a tummy ache the cat looks poorly whenever it is not purring or jumping
+const catArt=m=>catSVG(m==='normal'&&S.ache?'ache':m,S.fish==='carry',umbOn(),PINK,wearNow());
 // the friend walks behind the cat; it sits under the other hotspots so it never blocks them, and can be tapped for a cuddle
 function palLayer(){
   if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)||S.ride==='seesaw') return '';
@@ -2833,7 +3035,8 @@ function wake(){
   setTimeout(()=>S.busy=false,900);
   sfx.rumble();later(()=>bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f'),250);
   const sea={autumn:'The leaves are orange. It is autumn!',winter:'Look, snow! It is winter!',spring:'Flowers are growing. It is spring!'}[season()];
-  say(bday()?'You wake up. It is your birthday! Happy birthday, '+nm()+'!'
+  if(S.ache) say('You wake up. Oh! Your tummy still feels funny from all those sweets. Take your medicine in the bathroom!');
+  else say(bday()?'You wake up. It is your birthday! Happy birthday, '+nm()+'!'
     :S.rain?(sea?`You wake up. ${sea} And it is raining!`:'You wake up. It is raining! And you are hungry…')
     :sea?`You wake up. ${sea} And you are hungry…`:'You wake up and you are hungry! Rumble rumble…');
   // a cat with enough days and points is asked if it wants to move; saying not now asks again tomorrow
@@ -3027,7 +3230,7 @@ function nap(){
     S.hat='';S.bow=false;S.glasses=false;S.dressed=false;S.yarn=0;S.bath=false;S.pops=[];S.party=false;S.park=false;S.pondN=0;S.quackN=0;S.looked=false;
     S.playground=false;S.rides=[];S.school=false;S.q=null;S.qn=0;S.lessons=0;S.fest='';S.visit='';
     S.square=false;S.picks=null;S.went=[];S.wish=false;S.pigeonN=0;S.latte=false;S.cafeCats=[];S.cafeN=0;S.dish=null;S.ate=[];
-    S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;
+    S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;S.sweets=0;S.teeth=0;S.nag=false;S.meds=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     // the bird only comes when it is not raining
@@ -3207,16 +3410,10 @@ function eatFood(k){
   faceRight();
   if(S.tummy>=3){react('happy',false);say('Your tummy is full! No more food today.');return}
   const f=FOODS[k],[x,y]=foodAt(k);S.busy=true;S.eaten.push(k);render();
-  const id='e'+(++uid);stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none">${f.art(0,0)}</g>`);
-  const el=document.getElementById(id),tx=S.x+18,ty=FLOOR-86,t0=performance.now(),g=GEN;
-  (function step(t){
-    if(g!==GEN){el.remove();return}
-    const p=Math.min(1,(t-t0)/550),ex=x+(tx-x)*p,ey=y+(ty-y)*p-80*Math.sin(Math.PI*p);
-    el.setAttribute('transform',`translate(${ex.toFixed(1)},${ey.toFixed(1)}) scale(${(1-.6*p).toFixed(2)})`);
-    if(p<1){requestAnimationFrame(step);return}
-    el.remove();S.busy=false;S.tummy++;updateHud();f.slurp?sfx.slurp():sfx.crunch(true);react('happy');
+  flyToMouth(f.art,x,y,()=>{
+    S.busy=false;S.tummy++;updateHud();f.slurp?sfx.slurp():sfx.crunch(true);react('happy');
     say(f.say+(S.tummy<3?'':' Your tummy is full! Poooourrr!'));
-  })(t0);
+  });
 }
 function yuckVeg(){
   faceRight();sfx.nope();bubble(252,330,'BLEH!','#1f8a4c');later(()=>react('scared'),300);
