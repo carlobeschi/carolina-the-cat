@@ -153,9 +153,21 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .star{color:var(--gold);-webkit-text-stroke:1px var(--ink)}
 .bump{animation:bump .5s ease-out}
 @keyframes bump{40%{transform:scale(1.25)}}
+.big.orange{background:#f9b36b}
+/* Halloween: the crayon frame turns purple with orange dots */
+:root.spooky{--sky-soft:#efe4f7}
+.spooky .frame{background-color:#5b3a8c;background-image:radial-gradient(circle,#f5891f 0 5px,transparent 6px)}
+.spooky h1{color:#e8742a}
+/* playground: the swing swings from its top bar, the seesaw rocks on its middle */
+.swingy{animation:swingy 1.2s ease-in-out 3}
+@keyframes swingy{25%{transform:rotate(-28deg)}75%{transform:rotate(28deg)}}
+.teeter{animation:teeter 1.1s ease-in-out 3}
+@keyframes teeter{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
+/* cat school: chalk on the blackboard */
+.chalk{font-family:var(--display);fill:#fff;letter-spacing:.05em}
 @media (prefers-reduced-motion:reduce){
   .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim{animation:none}
-  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr{animation-duration:.01s}
+  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter{animation-duration:.01s}
 }
 </style>
 
@@ -206,7 +218,8 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   box:'door',cup:0,sDone:false,stamps:0,prints:[],
   piano:false,song:0,songAt:0,danced:false,lastKey:-1,lastNote:-1,noteT:0,
   hat:'',bow:false,glasses:false,dressed:false,yarn:0,bath:false,pops:[],party:false,bird:'here',park:false,pondN:0,quackN:0,
-  points:0,today:0,done:[],look:null,looked:false};
+  points:0,today:0,done:[],look:null,looked:false,
+  playground:false,rides:[],ride:null,school:false,q:null,qn:0,lessons:0,pumpkin:false,ghost:false};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -224,9 +237,12 @@ const ITEMS=[
   {id:'bow',slot:'bow',name:'bow',c:[18,-127]},
   {id:'glasses',slot:'glasses',name:'heart glasses',c:[0,-104]}
 ];
+// at Halloween there is a witch hat in the drawer too
+const WITCH={id:'witch',slot:'hat',name:'witch hat',c:[0,-152]};
+const items=()=>SPOOKY?[ITEMS[0],ITEMS[1],WITCH,ITEMS[2],ITEMS[3]]:ITEMS;
 const wearing=it=>it.slot==='hat'?S.hat===it.id:S[it.slot];
 // how high above the floor speech bubbles go for each hat
-const HATH={box:226,tophat:230,crown:216,party:242};
+const HATH={box:226,tophat:230,crown:216,party:242,witch:240};
 // every nap moves the season on; day 1 is summer
 const SEASONS=['summer','autumn','winter','spring'];
 const season=()=>SEASONS[(S.day-1)%4];
@@ -254,7 +270,7 @@ function later(fn,ms){T.push(setTimeout(fn,ms))}
 function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
-const outside=()=>S.scene==='city'||S.scene==='park';
+const outside=()=>S.scene==='city'||S.scene==='park'||S.scene==='play';
 const umbOn=()=>outside()&&S.rain&&S.umbrella;
 // speech bubbles sit above the cat's head, or above its hat or umbrella
 const headY=()=>FLOOR-(umbOn()?268:HATH[S.hat]||190);
@@ -264,8 +280,13 @@ const fridgeShut=()=>!S.fridge||(S.tummy>=3&&S.bowl===0);
 const SAVE='you-are-a-cat';
 const FRESH=JSON.stringify(S);
 try{S.sound=localStorage.getItem(SAVE+'-sound')!=='0'}catch(e){}
+/* Halloween comes on by itself in the last weeks of October; the menu switches it on or off, and this device remembers */
+let SPOOKY=(()=>{const d=new Date(),m=d.getMonth(),n=d.getDate();return (m===9&&n>=15)||(m===10&&n<=2)})();
+try{const v=localStorage.getItem(SAVE+'-halloween');if(v!==null)SPOOKY=v==='1'}catch(e){}
+function setSpooky(on){SPOOKY=on;document.documentElement.classList.toggle('spooky',on);try{localStorage.setItem(SAVE+'-halloween',on?'1':'0')}catch(e){}}
+document.documentElement.classList.toggle('spooky',SPOOKY);
 // things that only matter while a scene is on screen are not saved
-const NOSAVE=['busy','sound','fly','dot','lastKey','lastNote','noteT','prints'];
+const NOSAVE=['busy','sound','fly','dot','lastKey','lastNote','noteT','prints','ride'];
 let DB={cats:[]}, CUR=null, GEN=0;
 const curCat=()=>DB.cats.find(c=>c.id===CUR);
 const nm=()=>(curCat()||{name:'cat'}).name;
@@ -292,6 +313,7 @@ function loadState(s){
   if(S.box==='in'){S.box='gone';S.hat='box'}
   if(S.bath==='shake'||(S.bath==='in'&&S.pops.length>=BUBS.length)) S.bath='done';
   if(!Array.isArray(S.done)) S.done=[];
+  if(S.scene==='school'&&!S.q) S.q=lesson(S.qn);
   // stickers added after a cat already had enough hearts for them are waiting on the fridge
   STK_AT.forEach((n,i)=>{if(S.earned>=n&&!S.newStk.includes(i)&&!S.stk.some(t=>t.i===i))S.newStk.push(i)});
 }
@@ -300,7 +322,8 @@ function loadState(s){
 const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.dressed],['yarn',()=>S.yarn==='done'],
   ['box',()=>S.box==='gone'],['cup',()=>S.cup==='broken'],['bird',()=>S.bird==='sang'||S.bird==='copied'],['song',()=>S.danced],
   ['party',()=>S.party],['park',()=>S.park],['season',()=>S.sDone],['bath',()=>S.bath==='done'],
-  ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked]];
+  ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
+  ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['pumpkin',()=>S.pumpkin],['ghost',()=>S.ghost]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -337,6 +360,10 @@ const WEAR={
   party:(c='#ffd34d',d='#e0508a')=>`<g transform="rotate(10 0 -128)"><path d="M-17,-127 L1,-186 L17,-127Z" fill="${c}" ${K} stroke-width="2.5"/>
     <circle cx="-4" cy="-138" r="3.5" fill="${d}"/><circle cx="7" cy="-147" r="3.5" fill="${d}"/><circle cx="-1" cy="-162" r="3" fill="${d}"/>
     <circle cx="1" cy="-189" r="6" fill="${d}" stroke="${INK}" stroke-width="2"/></g>`,
+  witch:()=>`<g transform="rotate(-7 0 -128)"><path d="M-17,-130 Q-8,-150 2,-176 Q8,-190 24,-184 Q12,-178 11,-160 L17,-130Z" fill="#5b3a8c" ${K}/>
+    <path d="M-16,-143 H16 L17,-135 H-17Z" fill="#f5891f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+    <path d="${starPath(4,-160,6)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/>
+    <ellipse cx="0" cy="-129" rx="33" ry="6" fill="#5b3a8c" ${K}/></g>`,
   bow:()=>`<path d="M18,-127 L4,-138 L5,-116Z M18,-127 L32,-138 L31,-116Z" fill="#e0508a" ${K} stroke-width="2.2"/><circle cx="18" cy="-127" r="4.5" fill="#f38db5" stroke="${INK}" stroke-width="2"/>`,
   glasses:()=>`<path transform="translate(-11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
     <path transform="translate(11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
@@ -796,10 +823,10 @@ function dresser(){
   <path d="M357,380 V350" ${K}/><path d="M338,350 L376,350 L368,322 L346,322Z" fill="#d6ad45" ${K}/>
   <path d="M336,414 q-4,10 2,16 q4,-8 8,-16Z" fill="#e0508a" stroke="${INK}" stroke-width="2"/>`;
 }
-function itemHot(it,i){
-  const x=70+i*87,[cx,cy]=it.c;
-  return `<rect x="${x-40}" y="124" width="80" height="92" fill="transparent"/>
-  <g opacity="${wearing(it)?.3:1}"><g transform="translate(${x},170) scale(1.5) translate(${-cx},${-cy})">${WEAR[it.id]()}</g></g>`;
+function itemHot(it,i,n){
+  const w=348/n,x=26+(i+.5)*w,[cx,cy]=it.c;
+  return `<rect x="${x-w/2}" y="124" width="${w}" height="92" fill="transparent"/>
+  <g opacity="${wearing(it)?.3:1}"><g transform="translate(${x},170) scale(${n>4?1.25:1.5}) translate(${-cx},${-cy})">${WEAR[it.id]()}</g></g>`;
 }
 function mirror(){
   return `<ellipse cx="110" cy="352" rx="72" ry="94" fill="#d6ad45" ${K}/><ellipse cx="110" cy="352" rx="62" ry="84" fill="#e6f6ff" stroke="${INK}" stroke-width="2.5"/>
@@ -866,11 +893,11 @@ function cake(){
     ${lit?`<path d="M${x},306 q8,9 0,14 q-8,-5 0,-14Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.8"/>`:`<path d="M${x},318 q-4,-5 0,-9 q4,-4 0,-9" fill="none" stroke="#9aa0ad" stroke-width="2" stroke-linecap="round"/>`}`).join('')}
   ${heart(200,370,.7,'#e0508a')}`;
 }
-function bunting(){
+function bunting(cols=KEYC){
   let s='';
   for(let i=0;i<9;i++){
     const t=(i+.5)/9,x=(1-t)*(1-t)*80+2*(1-t)*t*236+t*t*392,y=(1-t)*(1-t)*18+2*(1-t)*t*58+t*t*18;
-    s+=`<path d="M${(x-12).toFixed(1)},${y.toFixed(1)} L${(x+12).toFixed(1)},${y.toFixed(1)} L${x.toFixed(1)},${(y+24).toFixed(1)}Z" fill="${KEYC[i%8]}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
+    s+=`<path d="M${(x-12).toFixed(1)},${y.toFixed(1)} L${(x+12).toFixed(1)},${y.toFixed(1)} L${x.toFixed(1)},${(y+24).toFixed(1)}Z" fill="${cols[i%cols.length]}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`;
   }
   return `<path d="M80,18 Q236,58 392,18" fill="none" stroke="${INK}" stroke-width="2.5"/>${s}`;
 }
@@ -922,6 +949,189 @@ function ambientLeap(){
   later(ambientLeap,3800+Math.random()*2500);
 }
 
+/* ---------- Halloween: pumpkins, bats, a spider and a friendly ghost ---------- */
+// a pumpkin with its bottom at x,y; a lit one glows yellow inside
+function pumpkin(x,y,s=1,lit=true){
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <path d="M0,-36 q1,-10 9,-13" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M0,-36 q1,-10 9,-13" fill="none" stroke="#4f9c45" stroke-width="3.5" stroke-linecap="round"/>
+  <ellipse cx="-13" cy="-19" rx="15" ry="19" fill="#e8742a" ${K}/><ellipse cx="13" cy="-19" rx="15" ry="19" fill="#e8742a" ${K}/>
+  <ellipse cx="0" cy="-19" rx="13" ry="20" fill="#f5891f" ${K}/>
+  <path d="M-15,-24 l5,-8 l5,8Z M5,-24 l5,-8 l5,8Z M-14,-13 l4,4 l4,-4 l4,4 l4,-4 l4,4 l4,-4 q-6,9 -14,9 q-8,0 -14,-9Z" fill="${lit?'#ffd34d':'#7a3b10'}" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/></g>`;
+}
+function bat(x,y,s=1){
+  return `<g transform="translate(${x},${y}) scale(${s})"><g class="flap"><path d="M0,-3 Q-9,-14 -24,-9 Q-18,-4 -19,3 Q-13,-1 -9,5 Q-5,0 0,4 Q5,0 9,5 Q13,-1 19,3 Q18,-4 24,-9 Q9,-14 0,-3Z" fill="#3a3346" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g>
+  <path d="M-5,-3 l1,-7 l3,4 M5,-3 l-1,-7 l-3,4" fill="#3a3346" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/><circle r="6" fill="#3a3346" stroke="${INK}" stroke-width="2"/>
+  <circle cx="-2.2" cy="-1" r="1.4" fill="#ffd34d"/><circle cx="2.2" cy="-1" r="1.4" fill="#ffd34d"/></g>`;
+}
+// bats flutter over the sky outside; they never get in the way of a tap
+function bats(at=[[90,150,.9],[250,76,.7],[330,180,.8]]){
+  return `<g pointer-events="none">${at.map(([x,y,s],i)=>`<g class="swim" style="animation-delay:-${i*1.6}s"><g class="bob" style="animation-delay:-${i*.7}s">${bat(x,y,s)}</g></g>`).join('')}</g>`;
+}
+// a cobweb in the top corner of a window
+function web(x,y){
+  let d='';[0,30,60,90].forEach(a=>{const r=a*Math.PI/180;d+=`M${x},${y} L${(x+44*Math.cos(r)).toFixed(1)},${(y+44*Math.sin(r)).toFixed(1)} `});
+  [14,26,38].forEach(r=>{d+=`M${x+r},${y} `+[30,60,90].map(a=>{const t=a*Math.PI/180,m=(a-15)*Math.PI/180;return `Q${(x+r*.85*Math.cos(m)).toFixed(1)},${(y+r*.85*Math.sin(m)).toFixed(1)} ${(x+r*Math.cos(t)).toFixed(1)},${(y+r*Math.sin(t)).toFixed(1)}`}).join(' ')+' '});
+  return `<path d="${d}" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>`;
+}
+// a little smiling spider bobbing on its thread from the ceiling
+function spider(x,y){
+  return `<g pointer-events="none"><g class="bob"><path d="M${x},-20 V${y}" stroke="${INK}" stroke-width="1.5"/><g transform="translate(${x},${y+8})">
+  <path d="M-6,-2 l-9,-7 l-3,6 M-7,2 l-10,1 l-2,7 M-5,5 l-6,6 l1,6 M6,-2 l9,-7 l3,6 M7,2 l10,1 l2,7 M5,5 l6,6 l-1,6" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle r="9" fill="#3a3346" stroke="${INK}" stroke-width="2"/><circle cx="-3.2" cy="-1.5" r="2.4" fill="#fff"/><circle cx="3.2" cy="-1.5" r="2.4" fill="#fff"/>
+  <circle cx="-3" cy="-1" r="1.1" fill="${INK}"/><circle cx="3.4" cy="-1" r="1.1" fill="${INK}"/><path d="M-3,3.5 q3,3 6,0" fill="none" stroke="#f38db5" stroke-width="1.6" stroke-linecap="round"/></g></g></g>`;
+}
+// the little ghost by the chimney on the roof: surprised at first, then all smiles
+function ghost(){
+  const happy=S.ghost;
+  return `<rect x="290" y="248" width="94" height="112" fill="transparent"/><g class="bob"><g class="gh" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M310,350 V290 Q310,258 336,258 Q362,258 362,290 V350 q-6.5,-9 -13,0 q-6.5,-9 -13,0 q-6.5,-9 -13,0 q-6.5,-9 -13,0Z" fill="#fff" ${K}/>
+  <path d="M311,304 q-14,-2 -16,-14 M361,304 q14,-2 16,-14" fill="none" ${K}/>
+  ${happy?`<path d="M322,292 q5,-7 10,0 M340,292 q5,-7 10,0" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/><path d="M328,306 q8,8 16,0" fill="none" stroke="${INK}" stroke-width="2.4" stroke-linecap="round"/>`
+    :`<ellipse cx="327" cy="290" rx="4" ry="6" fill="${INK}"/><ellipse cx="345" cy="290" rx="4" ry="6" fill="${INK}"/><ellipse cx="336" cy="310" rx="6" ry="8" fill="${INK}"/>`}
+  <circle cx="320" cy="302" r="4" fill="#f6b3cb"/><circle cx="352" cy="302" r="4" fill="#f6b3cb"/></g></g>`;
+}
+const SPOOKYFLAGS=['#f5891f','#5b3a8c','#3a3346'];
+
+/* ---------- the playground: a slide, a swing and a seesaw ---------- */
+// the slide's chute is one curve; the cat slides along it
+const SLIDE=[[100,252],[146,256],[134,436],[186,446]];
+const bez=(P,t)=>{const u=1-t;return [0,1].map(k=>u*u*u*P[0][k]+3*u*u*t*P[1][k]+3*u*t*t*P[2][k]+t*t*t*P[3][k])};
+const rider=()=>catSVG('happy',false,false,PINK,wearNow());
+function slide(){
+  const d=`M${SLIDE[0]} C${SLIDE[1]} ${SLIDE[2]} ${SLIDE[3]}`;
+  return `<rect x="10" y="232" width="182" height="224" fill="transparent"/>
+  <path d="M100,262 V452" ${K} stroke-width="6"/>
+  ${ladder(20,252,452)}
+  <rect x="14" y="250" width="92" height="12" rx="4" fill="#2c8fd6" ${K}/>
+  <path d="${d}" fill="none" stroke="${INK}" stroke-width="17" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#f9a03f" stroke-width="11" stroke-linecap="round"/>
+  <text x="62" y="236" text-anchor="middle" class="lbl">SLIDE</text>
+  ${S.ride==='slide'?`<g id="rider" transform="translate(43,452)"><g transform="scale(.6)">${rider()}</g></g>`:''}`;
+}
+function swing(){
+  const on=S.ride==='swing',legs='M192,452 L214,200 L236,452 M264,452 L286,200 L308,452';
+  return `<rect x="192" y="186" width="116" height="270" fill="transparent"/>
+  <path d="${legs}" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="${legs}" fill="none" stroke="#e0508a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M206,200 H294" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="M206,200 H294" stroke="#ffd34d" stroke-width="6" stroke-linecap="round"/>
+  <g class="${on?'swingy':''}" style="transform-box:view-box;transform-origin:250px 200px">
+    <path d="M232,202 V392 M268,202 V392" stroke="${INK}" stroke-width="2.5"/>
+    ${on?`<g transform="translate(250,392) scale(.6)">${rider()}</g>`:''}
+    <rect x="224" y="390" width="52" height="10" rx="4" fill="#7fc36b" ${K} stroke-width="2.5"/>
+  </g>
+  <text x="250" y="184" text-anchor="middle" class="lbl">SWING</text>`;
+}
+function seesaw(){
+  const on=S.ride==='seesaw';
+  // your friend rides the other end; with no friend yet, a duck from the pond hops on
+  const other=S.pal?`<g transform="translate(386,420) scale(-.45,.45)">${catSVG('happy',false,false,GREY,{hat:S.party?'party2':''})}</g>`
+    :`<g transform="translate(386,410) scale(-1,1)">${duckArt(0,0,'#ffd34d',1.3)}</g>`;
+  return `<rect x="296" y="366" width="104" height="90" fill="transparent"/>
+  <path d="M336,452 L352,424 L368,452Z" fill="#8a6bd1" ${K}/>
+  <g class="${on?'teeter':''}" style="transform-box:view-box;transform-origin:352px 424px;transform:rotate(-12deg)">
+    <path d="M316,418 V404 M314,404 H322 M388,418 V404 M382,404 H390" fill="none" ${K}/>
+    <rect x="304" y="418" width="96" height="10" rx="4" fill="#2c8fd6" ${K}/>
+    ${on?`<g transform="translate(320,420) scale(.45)">${rider()}</g>${other}`:''}
+  </g>
+  <text x="352" y="378" text-anchor="middle" class="lbl">SEESAW</text>`;
+}
+
+/* ---------- cat school: Miss Owl's lessons for little cats ---------- */
+// every lesson is four questions: count, find a colour, find a shape, find a letter
+const LESSON=['count','colour','shape','letter'];
+const COLS=[['RED','#d8243c'],['BLUE','#2c8fd6'],['YELLOW','#ffd34d'],['GREEN','#1f8a4c'],['ORANGE','#f5891f'],['PINK','#f38db5'],['PURPLE','#8a6bd1']];
+const SHAPES=['CIRCLE','SQUARE','TRIANGLE','STAR','HEART'];
+const ABC=[['C','CAT'],['F','FISH'],['M','MOON'],['S','SUN'],['B','BIRD'],['D','DUCK'],['H','HEART']];
+const NOUN={fish:['fish','fish'],stars:['star','stars'],hearts:['heart','hearts'],pumpkins:['pumpkin','pumpkins'],bats:['bat','bats']};
+const CARDX=[92,200,308];
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function lesson(n){
+  const t=LESSON[n%4],pool=t==='count'?[1,2,3,4,5]:[...Array((t==='colour'?COLS:t==='shape'?SHAPES:ABC).length).keys()];
+  const things=SPOOKY?['fish','stars','pumpkins','bats']:['fish','stars','hearts'];
+  return {t,opts:shuffle(pool).slice(0,3),ans:Math.floor(Math.random()*3),k:things[Math.floor(Math.random()*things.length)],c:shuffle([...KEYC.keys()]).slice(0,3)};
+}
+const qRight=()=>S.q.opts[S.q.ans];
+function qHint(){
+  const q=S.q,o=qRight();
+  return q.t==='count'?`How many ${NOUN[q.k][1]}? Tap the number`
+    :q.t==='colour'?`Find ${COLS[o][0]}!`
+    :q.t==='shape'?`Find the ${SHAPES[o]}!`
+    :`${ABC[o][1]} starts with ${ABC[o][0]}. Find ${ABC[o][0]}!`;
+}
+function qStory(){
+  const q=S.q,o=qRight();
+  return q.t==='count'?`Miss Owl draws some ${NOUN[q.k][1]}. How many?`
+    :q.t==='colour'?`Miss Owl has balls of yarn. Which one is ${COLS[o][0].toLowerCase()}?`
+    :q.t==='shape'?'Miss Owl draws some shapes.'
+    :`Miss Owl writes a word: ${ABC[o][1]}.`;
+}
+const optName=o=>({count:''+o,colour:COLS[o]&&COLS[o][0],shape:SHAPES[o],letter:ABC[o]&&ABC[o][0]})[S.q.t];
+function shapeSVG(n,x,y,r,fill,line=INK,w=3){
+  const st=`fill="${fill}" stroke="${line}" stroke-width="${w}" stroke-linejoin="round"`;
+  if(n==='CIRCLE') return `<circle cx="${x}" cy="${y}" r="${r}" ${st}/>`;
+  if(n==='SQUARE') return `<rect x="${x-r*.88}" y="${y-r*.88}" width="${r*1.76}" height="${r*1.76}" rx="2" ${st}/>`;
+  if(n==='TRIANGLE') return `<path d="M${x},${y-r} L${x+r*1.08},${y+r*.85} H${x-r*1.08}Z" ${st}/>`;
+  if(n==='STAR') return `<path d="${starPath(x,y+2,r*1.2)}" ${st}/>`;
+  const s=r/11;
+  return `<path transform="translate(${x},${y+3}) scale(${s.toFixed(2)})" d="${HEART}" fill="${fill}" stroke="${line}" stroke-width="${(w/s).toFixed(2)}" stroke-linejoin="round"/>`;
+}
+// the things to count on the blackboard
+function thing(k,x,y){
+  if(k==='fish') return `<g transform="translate(${x},${y}) scale(1.35)">${fishArt}</g>`;
+  if(k==='stars') return `<path d="${starPath(x,y,15)}" fill="#ffd34d" ${K} stroke-width="2.5"/>`;
+  if(k==='hearts') return heart(x,y+3,1.3,'#e0508a');
+  if(k==='pumpkins') return pumpkin(x,y+17,.68);
+  return bat(x,y,.9);
+}
+// a picture for each letter word
+function wordPic(w,x,y){
+  const stk=n=>`<g transform="translate(${x},${y}) scale(1.3)">${STK.find(s=>s.name===n).svg}</g>`;
+  return {CAT:`<g transform="translate(${x},${y+50}) scale(.42)">${catSVG('happy')}</g>`,FISH:`<g transform="translate(${x},${y}) scale(2)">${fishArt}</g>`,
+    MOON:stk('a moon'),SUN:stk('a sun'),BIRD:bird(x,y+14),DUCK:duckArt(x,y+4,'#ffd34d',1.7),HEART:heart(x,y+5,1.9,'#e0508a')}[w];
+}
+// the question at the top of the blackboard
+function board(){
+  if(S.qn>=4||!S.q) return '';
+  const q=S.q,o=qRight(),big=(x,y,f,t,a='middle')=>`<text x="${x}" y="${y}" text-anchor="${a}" class="chalk" style="font-size:${f}px">${t}</text>`;
+  if(q.t==='count') return big(200,144,24,'HOW MANY?')+[...Array(o)].map((_,i)=>thing(q.k,200+(i-(o-1)/2)*48,174)).join('');
+  if(q.t==='colour') return big(200,144,24,'FIND')+`<rect x="126" y="152" width="148" height="42" rx="6" fill="#fff" ${K} stroke-width="2.5"/>
+    <text x="200" y="185" text-anchor="middle" class="sign" style="font-size:34px;fill:${COLS[o][1]};stroke:${INK};stroke-width:1.2px">${COLS[o][0]}</text>`;
+  if(q.t==='shape') return big(184,144,24,'FIND THE')+big(184,184,34,SHAPES[o])+shapeSVG(SHAPES[o],326,166,17,'none','#fff',3);
+  const [l,w]=ABC[o];
+  return wordPic(w,104,166)+`<text x="160" y="188" class="chalk" style="font-size:46px"><tspan fill="#ffd34d">${l}</tspan>${w.slice(1)}</text>`;
+}
+// an answer card on the bottom of the blackboard
+function card(i){
+  const q=S.q,x=CARDX[i],o=q.opts[i];
+  const face=q.t==='count'?`<text x="${x}" y="260" text-anchor="middle" class="sign" style="font-size:54px;fill:var(--hot)">${o}</text>`
+    :q.t==='colour'?`<circle cx="${x}" cy="240" r="25" fill="${COLS[o][1]}" ${K}/><path d="M${x-17},${236} Q${x},${250} ${x+17},${234} M${x-12},${224} Q${x+4},${238} ${x+20},${244}" fill="none" stroke="${INK}" stroke-width="1.5" opacity=".35"/><path d="M${x-13},${231} q3,-9 12,-11" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".75"/>`
+    :q.t==='shape'?shapeSVG(SHAPES[o],x,240,24,KEYC[q.c[i]])
+    :`<text x="${x}" y="260" text-anchor="middle" class="sign" style="font-size:54px;fill:var(--pen)">${ABC[o][0]}</text>`;
+  return `<g class="cd${i}" style="transform-box:fill-box;transform-origin:50% 50%"><rect x="${x-46}" y="200" width="92" height="80" rx="10" fill="#fffaf6" ${K}/>${face}</g>`;
+}
+// after four right answers, a gold star fills the blackboard; tap it for another lesson
+function goldStar(){
+  return `<rect x="24" y="116" width="352" height="172" fill="transparent"/>
+  <text x="200" y="152" text-anchor="middle" class="chalk" style="font-size:26px">WELL DONE, ${esc(nm())}!</text>
+  <path d="${starPath(200,214,46)}" fill="#ffd34d" ${K}/><path d="M188,214 q6,7 12,0 M208,204 v1 M192,204 v1" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round"/>
+  <text x="200" y="282" text-anchor="middle" class="chalk" style="font-size:17px">MORE? TAP THE STAR</text>`;
+}
+function owl(){
+  return `<rect x="304" y="306" width="92" height="148" fill="transparent"/>
+  <rect x="308" y="430" width="84" height="20" rx="3" fill="#2c8fd6" ${K} stroke-width="2.5"/><rect x="314" y="412" width="74" height="18" rx="3" fill="#e0508a" ${K} stroke-width="2.5"/>
+  <path d="M320,421 H382 M314,440 H392" stroke="#fff" stroke-width="2"/>
+  <g class="owl" style="transform-box:fill-box;transform-origin:50% 100%">
+    <ellipse cx="351" cy="378" rx="30" ry="34" fill="#a8652f" ${K}/>
+    <ellipse cx="351" cy="390" rx="17" ry="20" fill="#f6d38f" stroke="${INK}" stroke-width="2"/>
+    <path d="M343,386 q4,4 8,0 M351,396 q4,4 8,0 M343,404 q4,3 8,0" fill="none" stroke="#a8652f" stroke-width="2" stroke-linecap="round"/>
+    <path d="M323,376 q-6,20 8,30 M379,376 q6,20 -8,30" fill="none" ${K}/>
+    <circle cx="340" cy="364" r="11" fill="#fff" ${K} stroke-width="2.5"/><circle cx="362" cy="364" r="11" fill="#fff" ${K} stroke-width="2.5"/>
+    <circle cx="341" cy="365" r="4.5" fill="${INK}"/><circle cx="361" cy="365" r="4.5" fill="${INK}"/>
+    <path d="M347,372 H355 L351,381Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M341,412 v4 M347,412 v4 M355,412 v4 M361,412 v4" stroke="#f9a03f" stroke-width="3" stroke-linecap="round"/>
+    <path d="M324,338 L351,328 L378,338 L351,348Z" fill="#3a3346" ${K} stroke-width="2.5"/><path d="M378,338 v14" stroke="#ffd34d" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="351" y="318" text-anchor="middle" class="lbl">MISS OWL</text>`;
+}
+
 /* ---------- scenes ---------- */
 const SC={
   bed:{
@@ -932,7 +1142,9 @@ const SC={
       ${night()?nightPane(36,122,126,116)
         :S.rain?`<path d="${cloud(76,150,28,12,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/><path d="${cloud(128,170,24,10,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/>${windowDrops(34,180,130,60)}`
         :`${snowy()?'':`<circle cx="128" cy="154" r="16" fill="#ffd34d" ${K}/>`}<path d="${cloud(76,192,26,11,7)}" fill="#fff" stroke="${INK}" stroke-width="2"/>${seasonPane(36,122,126,116)}`}
-      <path d="M99,120 V240 M34,180 H164" ${K} fill="none"/>`,
+      <path d="M99,120 V240 M34,180 H164" ${K} fill="none"/>
+      ${SPOOKY?web(36,122)+pumpkin(66,238,.6):''}`,
+    over:()=>SPOOKY?spider(186,88):'',
     hots:()=>{
       const h=[];
       // the ladder sits behind the bed, so it goes first
@@ -975,7 +1187,7 @@ const SC={
       <rect x="150" y="334" width="150" height="116" fill="#f6d38f" ${K}/>
       <rect x="146" y="322" width="158" height="14" rx="3" fill="#fff" ${K}/>
       <path d="M225,336 V450" ${K}/><circle cx="214" cy="392" r="3" fill="${INK}"/><circle cx="236" cy="392" r="3" fill="${INK}"/>
-      ${S.cup==='broken'?shards():''}`,
+      ${S.cup==='broken'?shards():''}${SPOOKY?pumpkin(170,322,.55):''}`,
     hots:()=>[
       {id:'fridge',label:'Fridge',svg:fridge(),walk:170,tap:()=>{
         if(fridgeShut()&&S.tummy>=3) go('stickers','left');
@@ -1016,7 +1228,7 @@ const SC={
     draw:()=>`<rect width="400" height="520" fill="#fff1d9"/><rect width="400" height="450" fill="url(#heartpaper)" opacity=".7"/>
       <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
       <ellipse cx="200" cy="482" rx="150" ry="22" fill="url(#mintstars)" ${K}/>
-      ${bday()?bunting():''}`,
+      ${bday()?bunting():SPOOKY?bunting(SPOOKYFLAGS):''}`,
     hots:()=>[
       {id:'picture',label:'Picture of a cat on a cloud',svg:picture(),walk:110,tap:()=>{react('happy');say('A picture of a cat on a cloud. It looks like you! Poooourrr!')}},
       {id:'bunny',label:'Golden bunny box',svg:bunnyBox()+(S.party?`<g transform="translate(250,196) scale(.45)">${WEAR.party('#7fc36b','#fff')}</g>`:''),walk:225,tap:()=>{react('happy');say(S.party?'The golden bunny has a party hat too! Poooourrr!':'A golden bunny with a red heart. Poooourrr!')}},
@@ -1024,6 +1236,7 @@ const SC={
         if(S.dot.hid){S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');react('happy',false);say('You peek under the sofa. Where did the dot go?')}
         else{react('happy');say('A soft pink sofa. You roll on it. Poooourrr!')}}},
       ...(bday()?[{id:'cake',label:'Birthday cake',svg:cake(),walk:130,tap:blowCandles}]:[]),
+      ...(SPOOKY?[{id:'pumpkin',label:'Pumpkin',svg:`<rect x="128" y="448" width="64" height="60" fill="transparent"/>${pumpkin(160,500,.85,S.pumpkin)}`,walk:205,tap:tapPumpkin}]:[]),
       {id:'door',label:'Door to outside',svg:door(),walk:350,tap:()=>leave(460,()=>go('city','left'))},
       ...(S.box==='door'||S.box==='in'?[{id:'box',label:'Delivery box',svg:deliveryBox(),walk:300,tap:hopInBox}]:[]),
       {id:'piano',label:'Little piano',svg:toyPiano(),walk:70,tap:()=>go('piano','left')},
@@ -1034,6 +1247,7 @@ const SC={
       :S.tummy<3?{id:'go-kitchen',hint:'Your tummy rumbles! Go to the kitchen ↖'}
       :homeward()?{id:'go-kitchen',hint:'It is night! Go to the kitchen ↖'}
       :bday()&&!S.party?{id:'cake',hint:'A birthday cake! Tap it and meow'}
+      :SPOOKY&&!S.pumpkin?{id:'pumpkin',hint:'A pumpkin! Tap it'}
       :S.box==='door'?{id:'box',hint:'A box! Tap it'}
       :S.bird==='sang'?{id:'piano',hint:'Play the bird\'s song on the piano'}
       :!S.piano?{id:'piano',hint:'A little piano! Tap it'}
@@ -1042,6 +1256,7 @@ const SC={
     landLeft:160,
     before:()=>{S.dot={x:300,y:478,n:0,hid:false}},
     enter:()=>say(bday()&&!S.party&&!homeward()?'You go around the house. Surprise! A birthday cake for you!'
+      :SPOOKY&&!S.pumpkin&&!homeward()?'You go around the house. A big pumpkin! It is Halloween!'
       :S.box==='door'?'You go around the house. A box came! And a red dot!':'You go around the house. Look, a red dot!')
   },
   city:{
@@ -1064,6 +1279,7 @@ const SC={
       <rect y="400" width="400" height="70" fill="${snowy()?'#fbfdff':'#eadfe6'}"/><path d="M0,400 H400 M0,470 H400" ${K}/>
       ${season()==='autumn'?[[160,460,30,0],[176,416,-20,1],[236,462,70,2],[150,428,-60,3],[332,412,10,0]].map(([x,y,r,c])=>leaf(x,y,r,LEAFC[c])).join(''):''}
       ${season()==='spring'?[160,178,196,212].map((x,i)=>`<path d="M${x},400 v-12" stroke="#4f9c45" stroke-width="2.5"/>${blossom(x,386,['#f38db5','#fff','#ffd34d','#f38db5'][i],.8)}`).join(''):''}
+      ${SPOOKY?pumpkin(158,404,.6):''}
       <rect y="470" width="400" height="50" fill="#5d5866"/>
       <path d="M10,496 H50 M90,496 H130 M170,496 H210 M250,496 H290 M330,496 H370" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
     hots:()=>[
@@ -1102,7 +1318,7 @@ const SC={
       :S.hearts>=FISH?{id:'fish',hint:`You have ${FISH} hearts! Tap the fish shop`}
       :S.rain&&S.umbrella?{id:'puddle',hint:`Splash in the puddle for hearts (${S.hearts} of ${FISH})`}
       :{id:'fly',hint:`Catch the ${snowy()?'snowflake':'butterfly'} for hearts (${S.hearts} of ${FISH})`},
-    over:()=>(S.rain?rain():'')+(snowy()?snowfall():season()==='autumn'?leaffall():''),
+    over:()=>(S.rain?rain():'')+(snowy()?snowfall():season()==='autumn'?leaffall():'')+(SPOOKY?bats():''),
     enter:()=>{
       const out={summer:'You go outside.',autumn:'You go outside. Orange leaves everywhere!',winter:'You go outside. Snow everywhere! Brrr!',spring:'You go outside. Flowers everywhere!'}[season()];
       say(S.rain&&!S.fish?(season()==='summer'?'You go outside. It is raining! Pitter patter.':out+' And it is raining!')
@@ -1121,16 +1337,18 @@ const SC={
       <path d="${[...Array(10)].map((_,i)=>`M${i*40},470 q20,16 40,0 M${i*40-20},496 q20,16 40,0`).join(' ')}" fill="none" stroke="${INK}" stroke-width="2.5"/>
       <path d="M0,450 H400" ${K}/>
       ${snowy()?`<rect x="-6" y="352" width="80" height="11" rx="5" fill="#fff" ${K} stroke-width="2.5"/><rect x="146" y="322" width="88" height="11" rx="5" fill="#fff" ${K} stroke-width="2.5"/><rect x="276" y="362" width="130" height="11" rx="5" fill="#fff" ${K} stroke-width="2.5"/><rect x="-6" y="444" width="412" height="12" rx="6" fill="#fff" ${K} stroke-width="2.5"/>`:''}`,
-    over:()=>snowy()?snowfall():'',
+    over:()=>(snowy()?snowfall():'')+(SPOOKY?bats([[40,150,.8],[180,108,.7],[250,250,.8]]):''),
     hots:()=>[
       ...STARS.map((_,i)=>({id:'star'+i,label:'Star',svg:starHot(i),tap:()=>countStar(i)})),
       {id:'moon',label:'Moon',svg:moon(),walk:300,tap:meowMoon},
+      ...(SPOOKY?[{id:'ghost',label:'Little ghost',svg:ghost(),walk:262,tap:tapGhost}]:[]),
       {id:'hatch',label:'Ladder down',svg:roofLadder(),walk:70,tap:()=>go('bed',261)}
     ],
     goal:()=>{
       const next=STARS.findIndex((_,i)=>!S.stars.includes(i));
       return next>=0?{id:'star'+next,hint:`Tap the stars to count them (${S.stars.length} of ${STARS.length})`}
         :!S.wink?{id:'moon',hint:'Tap the moon to meow at it'}
+        :SPOOKY&&!S.ghost?{id:'ghost',hint:'What is that by the chimney? Tap it!'}
         :{id:'hatch',hint:'Go down the ladder for a nap ↓'};
     },
     enter:()=>say(S.wink?'You are on the roof. The moon smiles at you.':'You climb up to the roof. Look at all the stars!')
@@ -1191,18 +1409,18 @@ const SC={
       <rect x="14" y="216" width="372" height="36" rx="6" fill="#b8de9a" ${K}/><circle cx="200" cy="234" r="6" fill="#d6ad45" stroke="${INK}" stroke-width="2"/>`,
     hots:()=>[
       {id:'mirror',label:'Mirror',svg:mirror(),tap:()=>{react('happy');say(S.hat||S.bow||S.glasses?'You look in the mirror. So pretty! Poooourrr!':`You look in the mirror. Hello, ${nm()}!`)}},
-      ...ITEMS.map((it,i)=>({id:'it-'+it.id,label:it.name,svg:itemHot(it,i),tap:()=>dressUp(it)})),
+      ...items().map((it,i,a)=>({id:'it-'+it.id,label:it.name,svg:itemHot(it,i,a.length),tap:()=>dressUp(it)})),
       {id:'go-bed',label:'Back to the bedroom',svg:arrow('right','BEDROOM'),tap:()=>go('bed',250)}
     ],
     goal:()=>!S.dressed?{id:'it-crown',hint:'Pick something to wear!'}
       :{id:'go-bed',hint:'You look so pretty! Go back ↗'},
     before:()=>{S.face=-1},
-    enter:()=>say('Your dress-up drawer! Hats, a bow and glasses.')
+    enter:()=>say(SPOOKY?'Your dress-up drawer! Look, a witch hat for Halloween!':'Your dress-up drawer! Hats, a bow and glasses.')
   },
   park:{
     draw:()=>{const s=season(),nt=night();
       return `<rect width="400" height="520" fill="${nt?'#22306a':paneSky()}"/>
-      ${nt?`<circle cx="320" cy="80" r="22" fill="#fff3b0" ${K}/><circle cx="160" cy="50" r="2.5" fill="#fff"/><circle cx="240" cy="90" r="2.5" fill="#fff"/>`
+      ${nt?`<circle cx="280" cy="92" r="22" fill="#fff3b0" ${K}/><circle cx="160" cy="50" r="2.5" fill="#fff"/><circle cx="240" cy="90" r="2.5" fill="#fff"/>`
         :S.rain?'':`<circle cx="300" cy="110" r="22" fill="#ffd34d" ${K}/>`}
       <path d="${cloud(170,90,34,12,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
       <path d="M0,300 Q100,252 200,290 T400,280 V520 H0Z" fill="${snowy()?'#fbfdff':'#a8d98a'}" ${K}/>
@@ -1213,22 +1431,83 @@ const SC={
           ${s==='spring'?[[18,180],[54,160],[66,214],[24,226],[44,196]].map(([x,y],i)=>blossom(x,y,i%2?'#fff':'#f38db5',.9)).join(''):''}
           ${s==='autumn'?[[70,300,40,1],[96,420,-30,2],[12,440,10,0]].map(([x,y,r,c])=>leaf(x,y,r,LEAFC[c])).join(''):''}`}
       <rect y="450" width="400" height="70" fill="${snowy()?'#eef4fa':'#f0d9a8'}"/><path d="M0,450 H400" ${K}/>
-      <path d="M30,486 h18 M110,500 h14 M200,480 h20 M290,498 h16 M360,482 h18" stroke="#c9a978" stroke-width="4" stroke-linecap="round"/>`},
+      <path d="M30,486 h18 M110,500 h14 M200,480 h20 M290,498 h16 M360,482 h18" stroke="#c9a978" stroke-width="4" stroke-linecap="round"/>
+      ${SPOOKY?pumpkin(84,454,.7):''}`},
     hots:()=>[
       {id:'pond',label:'Pond',svg:pond(),walk:96,tap:tapPond},
       ...[0,1].map(i=>({id:'duck'+i,label:'Duck',svg:parkDuck(i),walk:96,tap:()=>quack(i)})),
-      {id:'go-city',label:'Back to the city',svg:arrow('left','CITY'),tap:()=>leave(-60,()=>go('city','right'))}
+      {id:'go-city',label:'Back to the city',svg:arrow('left','CITY'),tap:()=>leave(-60,()=>go('city','right'))},
+      {id:'go-play',label:'Go to the playground',svg:arrow('right','PLAYGROUND'),tap:()=>leave(460,()=>go('play','left'))}
     ],
     goal:()=>S.fish==='carry'?{id:'go-city',hint:'Take your fish home ↖'}
       :night()?{id:'go-city',hint:'It is night! Go home ↖'}
       :!S.pondN?{id:'pond',hint:'A pond! What lives in it? Tap it'}
       :!S.quackN?{id:'duck0',hint:'Say hello to the ducks'}
+      :!S.playground?{id:'go-play',hint:'There is a playground! Go and see ↗'}
       :S.hearts>=FISH?{id:'go-city',hint:`You have ${FISH} hearts! Go back and buy a fish ↖`}
       :S.pondN<=S.quackN?{id:'pond',hint:`Watch the fish jump for hearts (${S.hearts} of ${FISH})`}
       :{id:'duck'+(S.quackN%2),hint:`Say hello to the ducks for hearts (${S.hearts} of ${FISH})`},
     over:()=>SC.city.over(),
     before:()=>{S.park=true},
     enter:()=>{say(S.rain?'A park with a pond. The ducks love the rain! Quack quack!':'A park with a pond! The ducks swim. Quack quack!');later(ambientLeap,1500)}
+  },
+  play:{
+    draw:()=>{const nt=night();
+      return `<rect width="400" height="520" fill="${nt?'#22306a':paneSky()}"/>
+      ${nt?`<circle cx="150" cy="96" r="22" fill="#fff3b0" ${K}/><circle cx="250" cy="50" r="2.5" fill="#fff"/><circle cx="90" cy="150" r="2.5" fill="#fff"/><circle cx="320" cy="130" r="2" fill="#fff"/>`
+        :S.rain?'':`<circle cx="150" cy="104" r="22" fill="#ffd34d" ${K}/>`}
+      <path d="${cloud(270,110,32,12,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,320 Q110,286 210,312 T400,296 V520 H0Z" fill="${snowy()?'#fbfdff':'#a8d98a'}" ${K}/>
+      ${season()==='spring'?[[150,330,'#f38db5'],[330,316,'#fff'],[60,340,'#ffd34d']].map(([x,y,c])=>blossom(x,y,c,.8)).join(''):''}
+      ${season()==='autumn'?[[140,340,30,0],[320,330,-40,1],[60,350,70,2]].map(([x,y,r,c])=>leaf(x,y,r,LEAFC[c])).join(''):''}
+      <rect y="450" width="400" height="70" fill="${snowy()?'#eef4fa':'#f0d9a8'}"/><path d="M0,450 H400" ${K}/>
+      <path d="M40,488 h16 M140,500 h14 M230,482 h18 M330,496 h16" stroke="#c9a978" stroke-width="4" stroke-linecap="round"/>
+      ${SPOOKY?pumpkin(150,506,.6):''}`},
+    hots:()=>[
+      {id:'slide',label:'Slide',svg:slide(),walk:44,tap:()=>ride('slide')},
+      {id:'swing',label:'Swing',svg:swing(),walk:250,tap:()=>ride('swing')},
+      {id:'seesaw',label:'Seesaw',svg:seesaw(),walk:330,tap:()=>ride('seesaw')},
+      {id:'go-park',label:'Back to the park',svg:arrow('left','PARK'),tap:()=>leave(-60,()=>go('park','right'))},
+      {id:'go-school',label:'Go to cat school',svg:arrow('right','SCHOOL'),tap:()=>leave(460,()=>go('school','left'))}
+    ],
+    goal:()=>S.fish==='carry'?{id:'go-park',hint:'Take your fish home ↖'}
+      :night()?{id:'go-park',hint:'It is night! Go home ↖'}
+      :!S.rides.includes('slide')?{id:'slide',hint:'A slide! Tap it'}
+      :!S.rides.includes('swing')?{id:'swing',hint:'A swing! Tap it'}
+      :!S.rides.includes('seesaw')?{id:'seesaw',hint:'A seesaw! Tap it'}
+      :!S.school?{id:'go-school',hint:'Cat school is next door! Go and see ↗'}
+      :S.hearts>=FISH?{id:'go-park',hint:`You have ${FISH} hearts! Go back and buy a fish ↖`}
+      :{id:'slide',hint:`Play again for hearts (${S.hearts} of ${FISH})`},
+    over:()=>SC.city.over(),
+    before:()=>{S.playground=true},
+    enter:()=>say(night()?'The playground is sleepy at night.':'A playground! A slide, a swing and a seesaw. Wheee!')
+  },
+  school:{
+    draw:()=>`<rect width="400" height="520" fill="#e8f6ee"/><rect width="400" height="450" fill="url(#mintstars)" opacity=".6"/>
+      <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="118" y="12" width="164" height="46" rx="8" fill="#fff" ${K}/><text x="200" y="44" text-anchor="middle" class="sign">CAT SCHOOL</text>
+      ${[0,1,2,3].map(i=>`<path d="${starPath(155+i*30,82,11)}" fill="${i<S.qn?'#ffd34d':'#fff8d6'}" stroke="${INK}" stroke-width="2"/>`).join('')}
+      <rect x="16" y="108" width="368" height="188" rx="6" fill="#a8652f" ${K}/><rect x="24" y="116" width="352" height="172" rx="3" fill="#2f6b4f" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="150" y="292" width="100" height="9" rx="3" fill="#a8652f" ${K} stroke-width="2.5"/><rect x="166" y="286" width="20" height="6" rx="2" fill="#fff"/><rect x="194" y="286" width="16" height="6" rx="2" fill="#f6b3cb"/>
+      <rect x="18" y="384" width="104" height="12" rx="3" fill="#d6ad45" ${K}/><path d="M30,396 V452 M110,396 V452" ${K} stroke-width="5"/>
+      <circle cx="46" cy="373" r="11" fill="#d8243c" ${K} stroke-width="2.5"/><path d="M46,362 q2,-6 7,-7" fill="none" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="64" y="372" width="34" height="12" rx="2" fill="#2c8fd6" stroke="${INK}" stroke-width="2"/>
+      ${SPOOKY?pumpkin(108,384,.42):''}
+      ${board()}`,
+    hots:()=>[
+      ...(S.qn<4?[0,1,2].map(i=>({id:'opt'+i,label:optName(S.q.opts[i]),svg:card(i),walk:CARDX[i],tap:()=>answer(i)}))
+        :[{id:'more',label:'Gold star',svg:goldStar(),walk:200,tap:moreSchool}]),
+      {id:'owl',label:'Miss Owl the teacher',svg:owl(),walk:282,tap:tapOwl},
+      {id:'go-play',label:'Back to the playground',svg:arrow('left','PLAYGROUND'),tap:()=>leave(-60,()=>go('play','right'))}
+    ],
+    // the right answer does not glow: that would give it away
+    goal:()=>S.fish==='carry'?{id:'go-play',hint:'Take your fish home ↖'}
+      :night()?{id:'go-play',hint:'It is night! Go home ↖'}
+      :S.qn<4?{id:'',hint:qHint()}
+      :S.hearts>=FISH?{id:'go-play',hint:`You have ${FISH} hearts! Go and buy a fish ↖`}
+      :{id:'more',hint:'Tap the gold star for more, or go back ↖'},
+    before:()=>{S.school=true;if(!S.q)S.q=lesson(S.qn)},
+    enter:()=>say(S.qn>=4?'Cat school! You got a gold star today. Hoo hoo!':`Cat school! Miss Owl is the teacher. Hoo hoo! ${qStory()}`)
   },
   stickers:{
     noCat:true,
@@ -1271,7 +1550,7 @@ const SC={
 
 /* ---------- render ---------- */
 function catLayer(){
-  if(SC[S.scene].noCat||S.box==='in'||(S.scene==='bath'&&S.bath==='in')) return '';
+  if(SC[S.scene].noCat||S.box==='in'||(S.scene==='bath'&&S.bath==='in')||S.ride) return '';
   if(S.scene==='bed'&&!S.awake){
     return `${S.pal?`<g pointer-events="none" transform="translate(306,432) rotate(-84) scale(.62)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,GREY)}</g></g>`:''}
       <g class="hot${SC.bed.goal().id==='cat'?' pulse':''}" data-id="cat" role="button" tabindex="0" aria-label="Sleeping cat">
@@ -1284,7 +1563,7 @@ function catLayer(){
 const catArt=m=>catSVG(m,S.fish==='carry',umbOn(),PINK,wearNow());
 // the friend walks behind the cat; it sits under the other hotspots so it never blocks them, and can be tapped for a cuddle
 function palLayer(){
-  if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)) return '';
+  if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)||S.ride==='seesaw') return '';
   return `<g class="hot" data-id="pal" role="button" tabindex="0" aria-label="Your grey cat friend"><g id="pal" transform="translate(${S.palX.toFixed(1)},${FLOOR}) scale(.82)"><g id="palFlip" transform="scale(${S.palFace},1)"><g id="palAnim">${catSVG('normal',false,false,GREY,{hat:S.party?'party2':''})}</g></g></g></g>`;
 }
 let HOTS={};
@@ -1599,6 +1878,7 @@ function nap(){
     S.awake=false;S.tummy=0;S.fridge=false;S.bowl=0;S.fish=false;S.mood='sleep';S.stars=[];S.wink=false;S.box='door';S.cup=0;
     S.sDone=false;S.stamps=0;S.piano=false;S.danced=false;S.songAt=0;
     S.hat='';S.bow=false;S.glasses=false;S.dressed=false;S.yarn=0;S.bath=false;S.pops=[];S.party=false;S.park=false;S.pondN=0;S.quackN=0;S.looked=false;
+    S.playground=false;S.rides=[];S.school=false;S.q=null;S.qn=0;S.lessons=0;S.pumpkin=false;S.ghost=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     // the bird only comes when it is not raining
@@ -1607,6 +1887,87 @@ function nap(){
     say((S.pal?'You and your friend curl up on your cloud. Zzz…':snowy()?'You curl up on your cloud. Zzz… Shh, it is snowing.':S.rain?'You curl up on your cloud. Zzz… Listen, rain!':`You curl up on your cloud. Zzz… Good night, ${nm()}!`)+` ${got} points today!`,'Tap the cat to wake up again');
     bubble(200,250,`+${got} ★`,'#d6ad45');
   });
+}
+
+function tapPumpkin(){
+  if(S.pumpkin){const a=$('#catAnim');a&&restartClass(a,'wiggle',900);sfx.boo();bubble(160,404,'HEE HEE!','#e8742a');react('happy');say('The pumpkin smiles at you. Happy Halloween!');return}
+  // the pumpkin lights up all by itself… BOO!
+  S.busy=true;S.pumpkin=true;render();sfx.boo();bubble(160,404,'BOO!','#e8742a');
+  later(()=>react('scared'),250);say('The pumpkin lights up… BOO! Miaawow!','');
+  later(()=>{S.busy=false;react('happy');say(`It is only a pumpkin! Happy Halloween, ${nm()}!`)},1700);
+}
+function tapGhost(){
+  faceRight();
+  if(S.ghost){const g=$('.gh');g&&restartClass(g,'wiggle',900);sfx.boo();bubble(336,226,'HEE HEE!','#8a6bd1');react('happy');say('The little ghost waves at you. Happy Halloween!');return}
+  S.busy=true;const g=$('.gh');g&&restartClass(g,'jump',700);sfx.boo();bubble(336,226,'BOO!','#8a6bd1');
+  later(()=>react('scared'),250);say('A ghost! BOO! Miaawow!','');
+  later(()=>{S.ghost=true;S.busy=false;render();bubble(336,226,'HEE HEE!','#8a6bd1');react('happy');
+    say('It is a friendly little ghost. It giggles: hee hee! Happy Halloween!')},1700);
+}
+// on the playground the cat hops on and rides; it shows up on the slide, swing or seesaw while it plays
+function ride(k){
+  S.busy=true;S.ride=k;S.face=1;clearTimeout(moodT);S.mood='normal';clearBubbles();render();
+  const ms={slide:2700,swing:3700,seesaw:3400}[k],end={slide:206,swing:250,seesaw:296}[k];
+  const txt={slide:['Up the ladder… one, two, three…','Wheee! Down the slide! Poooourrr!'],
+    swing:['You hop on the swing. Up… and down… so high!','Swing swing! You fly like a bird! Poooourrr!'],
+    seesaw:[S.pal?'You and your friend ride the seesaw. Up and down!':'A duck hops on the other end. Up and down!','Up, down, up, down! What fun! Poooourrr!']}[k];
+  say(txt[0],'');
+  if(k==='slide'){
+    // up the ladder, along the top, then down the slide getting faster and faster
+    const g=GEN,t0=performance.now();
+    [0,1,2].forEach(j=>later(()=>sfx.twinkle(j+1),150+j*330));
+    later(()=>{sfx.whee();bubble(150,250,'WHEEE!','#f5891f')},1500);
+    (function step(t){
+      const el=$('#rider');if(g!==GEN||!el)return;
+      const p=Math.min(1,(t-t0)/2500);let x,y,r=0;
+      if(p<.45){x=43;y=452-200*(p/.45)}
+      else if(p<.58){x=43+57*((p-.45)/.13);y=252}
+      else{const q=(p-.58)/.42;[x,y]=bez(SLIDE,q*q);r=16*Math.sin(Math.PI*q)}
+      el.setAttribute('transform',`translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${r.toFixed(1)})`);
+      if(p<1)requestAnimationFrame(step);
+    })(t0);
+  }else if(k==='swing'){[0,1,2].forEach(j=>later(()=>sfx.whee(),200+j*1200))}
+  else{const pa=S.pal;[0,1,2].forEach(j=>later(()=>{sfx.boing();pa||sfx.quack()},300+j*1100))}
+  later(()=>{
+    S.ride=null;if(!S.rides.includes(k))S.rides.push(k);S.x=end;S.busy=false;render();follow();
+    react('happy');say(txt[1]);
+  },ms);
+}
+function answer(i){
+  const q=S.q,el=$('.cd'+i),o=q.opts[i],r=qRight();
+  clearTimeout(moodT);setMood('push');moodT=setTimeout(()=>setMood('normal'),700);
+  if(i!==q.ans){
+    // a gentle try again, saying what this one is
+    el&&restartClass(el,'shake',900);sfx.nope();bubble(CARDX[i],172,'HMM…','#8a6bd1');
+    say(q.t==='count'?`That says ${o}. Count the ${NOUN[q.k][1]} again!`
+      :q.t==='colour'?`That one is ${COLS[o][0].toLowerCase()}. Find ${COLS[r][0].toLowerCase()}!`
+      :q.t==='shape'?`That is a ${SHAPES[o].toLowerCase()}. Find the ${SHAPES[r].toLowerCase()}!`
+      :`That is ${ABC[o][0]}. Find ${ABC[r][0]}!`);
+    return;
+  }
+  S.busy=true;S.qn++;el&&restartClass(el,'jump',700);sfx.sticker();bubble(CARDX[i],172,'YES!','#1f8a4c');
+  const n=NOUN[q.k];
+  say(q.t==='count'?`Yes! ${WORDS[r-1]} ${r>1?n[1]:n[0]}! Well done!`
+    :q.t==='colour'?`Yes! That is ${COLS[r][0].toLowerCase()}! Well done!`
+    :q.t==='shape'?`Yes! That is a ${SHAPES[r].toLowerCase()}! Well done!`
+    :`Yes! ${ABC[r][0]} is for ${ABC[r][1].toLowerCase()}! Well done!`,'');
+  later(()=>react('happy'),500);
+  later(()=>{
+    S.busy=false;
+    if(S.qn<4){S.q=lesson(S.qn);render();say(`Next one! ${qStory()}`);return}
+    S.lessons++;render();sfx.chord();
+    burst(200,230,(x,y,j)=>`<path d="${starPath(x,y,9)}" fill="${KEYC[(j*3)%8]}" stroke="${INK}" stroke-width="1.4"/>`);
+    const o=$('.owl');o&&restartClass(o,'jump',700);bubble(330,290,'HOO HOO!','#a8652f');
+    say(`All done! Four gold stars! Miss Owl says: well done, ${nm()}!`);
+  },1700);
+}
+function tapOwl(){
+  const o=$('.owl');o&&restartClass(o,'wiggle',900);sfx.hoo();bubble(330,290,'HOO HOO!','#a8652f');
+  say(S.qn<4?`Miss Owl says: ${qHint()}`:'Miss Owl says: what a clever cat! Hoo hoo!');
+}
+function moreSchool(){
+  S.qn=0;S.q=lesson(0);render();sfx.twinkle(3);
+  say(`Another lesson! Hoo hoo! ${qStory()}`);
 }
 
 /* ---------- effects ---------- */
@@ -1756,6 +2117,10 @@ const sfx={
   shake(){this.noise(.9,'bandpass',500,.45)},
   roll(){seq('sine',[[180,120,.3,.15]])},
   plop(){seq('sine',[[500,180,.12,.18]])},
+  boo(){seq('triangle',[[260,340,.3,.16],[340,170,.6,.16]])},
+  hoo(){seq('sine',[[440,400,.22,.22],[420,370,.4,.2]])},
+  whee(){seq('sine',[[420,980,.45,.16]])},
+  nope(){seq('sine',[[330,250,.16,.14]])},
   splash(){
     const a=ac();if(!a)return;const t=a.currentTime,d=.45,len=Math.floor(a.sampleRate*d);
     const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
@@ -1790,6 +2155,7 @@ const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const miniCat=(s,m='normal')=>`<svg class="mini" viewBox="-56 -196 112 202" aria-hidden="true">${catSVG(m,false,false,PINK,s?{hat:s.hat,bow:s.bow,glasses:s.glasses}:{})}</svg>`;
 const TROPHY=`<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M6,5 H3 Q3,11 8,11 M18,5 H21 Q21,11 16,11" fill="none" stroke="${INK}" stroke-width="2"/><path d="M6,3 H18 V8 A6,6 0 0 1 6,8Z" fill="#ffd34d" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M12,14 V18" stroke="${INK}" stroke-width="2.4"/><rect x="7" y="18" width="10" height="4" rx="1" fill="#e0508a" stroke="${INK}" stroke-width="2"/></svg>`;
 const metaOf=c=>c.s?`DAY ${c.s.day||1} · ★ ${c.s.points||0}`:'NEW!';
+const spookyLabel=()=>`<svg width="30" height="30" viewBox="-30 -54 60 58" aria-hidden="true">${pumpkin(0,0,1,SPOOKY)}</svg> HALLOWEEN ${SPOOKY?'ON':'OFF'}`;
 let ovKind='';
 function openOv(kind,html,story,hint){
   ovKind=kind;ov.innerHTML=html;ov.hidden=false;ov.scrollTop=0;
@@ -1827,6 +2193,7 @@ function showMenu(){
     <button class="big blue" data-a="save" id="saveBtn">✓ SAVE</button>
     <button class="big green" data-a="again">↺ START AGAIN</button>
     <button class="big gold" data-a="board">${TROPHY} TOP CATS</button>
+    <button class="big orange" data-a="spooky" aria-pressed="${SPOOKY}">${spookyLabel()}</button>
     <button class="big" data-a="title">CHANGE CAT</button>`,
     'Paws! The game is waiting for you.','');
 }
@@ -1881,6 +2248,11 @@ ov.addEventListener('click',e=>{
     sfx.sticker();newCat(v||NAMES[0]);
   }
   else if(a==='snd'){S.sound=!S.sound;b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
+  else if(a==='spooky'){
+    // switching Halloween on or off redraws the scene behind the menu, so the hint on return matches it
+    setSpooky(!SPOOKY);b.innerHTML=spookyLabel();b.setAttribute('aria-pressed',SPOOKY);SPOOKY?sfx.boo():sfx.twinkle(2);
+    if(!S.busy){render();if(PREV)PREV[1]=SC[S.scene].goal().hint}
+  }
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
   else if(a==='again') confirmBox('Start again from day 1?','Your hearts, points and stickers start over.',startAgain,showMenu);
   else if(a==='del'){const c=DB.cats.find(c=>c.id===id);c&&confirmBox(`Say bye-bye to ${esc(c.name)}?`,'This cat goes away for good.',()=>{
