@@ -165,9 +165,12 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 @keyframes teeter{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg)}}
 /* cat school: chalk on the blackboard */
 .chalk{font-family:var(--display);fill:#fff;letter-spacing:.05em}
+/* town square: the pigeons fly off when the cat pounces, then come back */
+.flyoff{animation:flyoff 2.4s ease-in-out}
+@keyframes flyoff{0%{transform:none;opacity:1}35%{transform:translate(-40px,-230px);opacity:0}65%{transform:translate(40px,-230px);opacity:0}100%{transform:none;opacity:1}}
 @media (prefers-reduced-motion:reduce){
   .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim{animation:none}
-  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter{animation-duration:.01s}
+  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff{animation-duration:.01s}
 }
 </style>
 
@@ -219,7 +222,9 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   piano:false,song:0,songAt:0,danced:false,lastKey:-1,lastNote:-1,noteT:0,
   hat:'',bow:false,glasses:false,dressed:false,yarn:0,bath:false,pops:[],party:false,bird:'here',park:false,pondN:0,quackN:0,
   points:0,today:0,done:[],look:null,looked:false,
-  playground:false,rides:[],ride:null,school:false,q:null,qn:0,lessons:0,pumpkin:false,ghost:false};
+  playground:false,rides:[],ride:null,school:false,q:null,qn:0,lessons:0,pumpkin:false,ghost:false,
+  square:false,picks:null,went:[],seen:[],wish:false,pigeonN:0,latte:false,cafeCats:[],cafeN:0,dish:null,ate:[],swim:false,ballN:0,eaten:[],
+  slid:false,big:false,tour:false,moveAsk:0};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -270,7 +275,10 @@ function later(fn,ms){T.push(setTimeout(fn,ms))}
 function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
-const outside=()=>S.scene==='city'||S.scene==='park'||S.scene==='play';
+const outside=()=>['city','park','play','square','moving'].includes(S.scene);
+// after three days and 500 points a cat can move to the big house with two floors
+const MOVE_DAY=3, MOVE_PTS=500;
+const canMove=()=>!S.big&&S.day>=MOVE_DAY&&S.points>=MOVE_PTS;
 const umbOn=()=>outside()&&S.rain&&S.umbrella;
 // speech bubbles sit above the cat's head, or above its hat or umbrella
 const headY=()=>FLOOR-(umbOn()?268:HATH[S.hat]||190);
@@ -323,7 +331,8 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['box',()=>S.box==='gone'],['cup',()=>S.cup==='broken'],['bird',()=>S.bird==='sang'||S.bird==='copied'],['song',()=>S.danced],
   ['party',()=>S.party],['park',()=>S.park],['season',()=>S.sDone],['bath',()=>S.bath==='done'],
   ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
-  ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['pumpkin',()=>S.pumpkin],['ghost',()=>S.ghost]];
+  ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['pumpkin',()=>S.pumpkin],['ghost',()=>S.ghost],
+  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -422,7 +431,8 @@ const DEFS=`<defs>
 <pattern id="heartpaper" width="48" height="48" patternUnits="userSpaceOnUse">${[[12,14],[36,38]].map(([x,y])=>`<path transform="translate(${x},${y}) scale(.55)" d="${HEART}" fill="#f6b3cb"/><path d="M${x-2.5},${y-2.5} v1.5 M${x+2.5},${y-2.5} v1.5 M${x-2.5},${y+.5} q2.5,2.5 5,0" fill="none" stroke="#e27fa3" stroke-width="1.1" stroke-linecap="round"/>`).join('')}</pattern>
 <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="3.5" fill="#f9b36b"/><circle cx="30" cy="30" r="3.5" fill="#ef8f9c"/></pattern>
 <pattern id="tiles" width="36" height="36" patternUnits="userSpaceOnUse"><rect width="36" height="36" fill="#ffe873"/><path d="M9,4 v10 M4,9 h10 M27,22 v10 M22,27 h10 M25,6 l5,4 M6,25 l4,5" stroke="#e8473f" stroke-width="2" stroke-linecap="round"/></pattern>
-<pattern id="mintstars" width="60" height="44" patternUnits="userSpaceOnUse"><rect width="60" height="44" fill="#cdeee2"/><path d="M14,6 v16 M6,14 h16 M8,8 l12,12 M20,8 l-12,12 M44,26 v14 M37,33 h14 M39,28 l10,10 M49,28 l-10,10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></pattern>
+<pattern id="checks" width="36" height="36" patternUnits="userSpaceOnUse"><rect width="36" height="36" fill="#fff"/><rect width="18" height="18" fill="#f2a0a8"/><rect x="18" y="18" width="18" height="18" fill="#f2a0a8"/></pattern>
+<pattern id="mintstars"width="60" height="44" patternUnits="userSpaceOnUse"><rect width="60" height="44" fill="#cdeee2"/><path d="M14,6 v16 M6,14 h16 M8,8 l12,12 M20,8 l-12,12 M44,26 v14 M37,33 h14 M39,28 l10,10 M49,28 l-10,10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></pattern>
 </defs>`;
 
 /* ---------- Carolina's art ---------- */
@@ -526,7 +536,7 @@ function fridge(){
     <path d="M44,292 H76" stroke="${INK}" stroke-width="2"/>
     <text x="60" y="318" text-anchor="middle" style="font-family:var(--display);font-size:13px;fill:#2c8fd6">MILK</text>
     <circle cx="100" cy="318" r="10" fill="#f9a03f" stroke="${INK}" stroke-width="2"/>
-    <rect x="86" y="356" width="28" height="36" rx="5" fill="#c9e6a8" stroke="${INK}" stroke-width="2"/>
+    ${[[1,56,258],[2,100,258],[3,56,390],[7,102,390]].map(([k,x,y])=>`<g transform="translate(${x},${y}) scale(.55)">${FOODS[k].art(0,0)}</g>`).join('')}
     <path d="M132,172 L160,160 L160,460 L132,448Z" fill="#fff" ${K}/>`;
 }
 function bowl(){
@@ -1132,12 +1142,313 @@ function owl(){
   <text x="351" y="318" text-anchor="middle" class="lbl">MISS OWL</text>`;
 }
 
+/* ---------- the town square: a fountain, pigeons, and a door to every place in town ---------- */
+const PLACES=['park','play','cafe','pool','rest','school'];
+const PLACE={park:'park',play:'playground',cafe:'cat café',pool:'swimming pool',rest:'restaurant',school:'cat school'};
+// where the cat comes back out on the square from each place; from the park it walks in from the right
+const DOORX={cafe:51,rest:149,school:251,pool:349,play:350};
+// each day the square shows you two places to go: places you have never been come first
+function dayPicks(){
+  const fresh=PLACES.filter(p=>!S.seen.includes(p)),turn=PLACES.map((_,i)=>PLACES[(i+(S.day-1)*2)%PLACES.length]);
+  return [...new Set([...fresh,...turn])].slice(0,2);
+}
+const nextPick=()=>(S.picks||[]).find(p=>!S.went.includes(p));
+const toSquare=()=>({id:'go-square',label:'Back to the square',svg:arrow('left','SQUARE'),tap:()=>leave(-60,()=>go('square',DOORX[S.scene]||'right'))});
+// every place ends the same way: back to the square for the next place, or for a fish once you have the hearts
+function placeGoal(own,more){
+  const p=nextPick();
+  return S.fish==='carry'?{id:'go-square',hint:'Take your fish home ↖'}
+    :night()?{id:'go-square',hint:'It is night! Go home ↖'}
+    :own()||(p?{id:'go-square',hint:`Now the ${PLACE[p]}! Back to the square ↖`}
+    :S.hearts>=FISH?{id:'go-square',hint:`You have ${FISH} hearts! Go and buy a fish ↖`}:more());
+}
+const shopWin=(x,y,w,h,inner='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${night()?'#ffe08a':'#fff3c4'}" stroke="${INK}" stroke-width="2.5"/>${inner}`;
+const awning=(x,y,n,w,a,b)=>[...Array(n)].map((_,i)=>`<path d="M${x+i*w},${y} h${w} v14 q${-w/2},9 ${-w},0Z" fill="${i%2?b:a}" stroke="${INK}" stroke-width="2"/>`).join('');
+const frontDoor=(x,c)=>`<path d="M${x-13},360 V318 q0,-14 13,-14 q13,0 13,14 V360Z" fill="${c}" ${K}/><circle cx="${x+6}" cy="336" r="2.5" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/>`;
+const signBoard=(x,y,w,t,f=16)=>`<rect x="${x-w/2}" y="${y}" width="${w}" height="28" rx="6" fill="#fff" ${K} stroke-width="2.5"/><text x="${x}" y="${y+20}" text-anchor="middle" class="sign" style="font-size:${f}px">${t}</text>`;
+// the cat café has cat ears on its roof and a cat in the window
+function cafeFront(){
+  return `<rect x="4" y="124" width="94" height="236" fill="transparent"/>
+  <path d="M10,170 L16,126 L40,160Z M92,170 L86,126 L62,160Z" fill="#f7b9d0" ${K}/><path d="M19,154 L20,140 L30,154Z M83,154 L82,140 L72,154Z" fill="#e0508a"/>
+  <rect x="8" y="156" width="86" height="204" fill="#f7b9d0" ${K}/>
+  ${signBoard(51,172,78,'CAT CAFÉ',15)}${awning(8,230,4,21.5,'#e0508a','#fff')}
+  ${shopWin(14,260,26,34,`<path d="M19,294 v-12 l3,-7 l4,5 h4 l4,-5 l3,7 v12Z" fill="#3a3346"/>`)}
+  ${shopWin(62,260,26,34,`<path d="M68,290 h14 l-2,-12 h-10Z" fill="#fff" stroke="${INK}" stroke-width="1.5"/><path d="M73,274 q-3,-4 0,-8 M77,274 q3,-4 0,-8" fill="none" stroke="#a8652f" stroke-width="1.5" stroke-linecap="round"/>`)}
+  ${frontDoor(51,'#e5558e')}`;
+}
+// a silver dinner dome on the roof says restaurant
+function restFront(){
+  const candle=x=>`<rect x="${x-2}" y="276" width="4" height="12" fill="#fff" stroke="${INK}" stroke-width="1.2"/><path d="M${x},267 q3,4 0,7 q-3,-3 0,-7Z" fill="#f9a03f"/>`;
+  return `<rect x="102" y="132" width="94" height="228" fill="transparent"/>
+  <path d="M127,170 Q127,144 149,144 Q171,144 171,170Z" fill="#cfd3dc" ${K}/><circle cx="149" cy="141" r="4" fill="#cfd3dc" stroke="${INK}" stroke-width="2"/>
+  <rect x="106" y="174" width="86" height="186" fill="#f9b36b" ${K}/><ellipse cx="149" cy="172" rx="27" ry="5" fill="#fff" ${K} stroke-width="2.5"/>
+  ${signBoard(149,186,82,'RESTAURANT',13)}${awning(106,226,4,21.5,'#d8243c','#fff')}
+  ${shopWin(112,256,26,34,candle(125))}${shopWin(160,256,26,34,candle(173))}
+  ${frontDoor(149,'#c9563c')}`;
+}
+function schoolFront(){
+  return `<rect x="202" y="98" width="98" height="262" fill="transparent"/>
+  <rect x="243" y="110" width="16" height="30" fill="#fff" ${K} stroke-width="2.5"/><path d="M246,132 q5,-16 10,0Z" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/>
+  <path d="M237,112 L251,99 L265,112Z" fill="#d8243c" ${K} stroke-width="2.5"/>
+  <rect x="208" y="176" width="86" height="184" fill="#c9e6a8" ${K}/><path d="M202,180 L251,134 L300,180Z" fill="#d8243c" ${K}/>
+  ${signBoard(251,188,74,'SCHOOL')}
+  <circle cx="251" cy="240" r="16" fill="#fff3c4" ${K} stroke-width="2.5"/>
+  <circle cx="245" cy="238" r="5" fill="#fff" stroke="${INK}" stroke-width="1.5"/><circle cx="257" cy="238" r="5" fill="#fff" stroke="${INK}" stroke-width="1.5"/>
+  <circle cx="245" cy="238" r="2" fill="${INK}"/><circle cx="257" cy="238" r="2" fill="${INK}"/><path d="M249,244 h4 l-2,4Z" fill="#f9a03f"/>
+  ${shopWin(214,266,22,30)}${shopWin(266,266,22,30)}${frontDoor(251,'#2f6b4f')}`;
+}
+function poolFront(){
+  const w=y=>`M312,${y} q8,-6 16,0 t16,0 t16,0 t16,0 t16,0`;
+  return `<rect x="302" y="150" width="94" height="210" fill="transparent"/>
+  <rect x="306" y="184" width="86" height="176" fill="#9fd0ef" ${K}/>${signBoard(349,196,66,'POOL')}
+  <path d="${w(240)} ${w(250)}" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="349" cy="278" r="17" fill="#7cc6f0" ${K} stroke-width="2.5"/>${duckArt(349,286,'#ffd34d',.6)}
+  <circle cx="321" cy="322" r="9" fill="none" stroke="${INK}" stroke-width="9"/><circle cx="321" cy="322" r="9" fill="none" stroke="#fff" stroke-width="5"/><circle cx="321" cy="322" r="9" fill="none" stroke="#e8473f" stroke-width="5" stroke-dasharray="7 7"/>
+  ${frontDoor(349,'#2c8fd6')}`;
+}
+// a rainbow gate to the playground
+function playArch(){
+  const band=(r,c)=>`<path d="M${350-r},466 A${r},${r} 0 0 1 ${350+r},466" fill="none" stroke="${c}" stroke-width="5.6"/>`;
+  return `<rect x="300" y="396" width="98" height="74" fill="transparent"/>
+  ${band(45.3,'#e8473f')}${band(40,'#ffd34d')}${band(34.7,'#2c8fd6')}
+  <path d="M302,466 A48,48 0 0 1 398,466 M318,466 A32,32 0 0 1 382,466" fill="none" stroke="${INK}" stroke-width="2.5"/>
+  <path d="${cloud(310,466,12,6,6)}" fill="#fff" stroke="${INK}" stroke-width="2"/><path d="${cloud(390,466,12,6,6)}" fill="#fff" stroke="${INK}" stroke-width="2"/>
+  <text x="350" y="410" text-anchor="middle" class="lbl">PLAYGROUND</text>`;
+}
+function fountain(){
+  const ice=snowy();
+  return `<rect x="132" y="350" width="128" height="124" fill="transparent"/>
+  ${ice?'':`<path d="M196,384 q-30,-30 -46,56 M196,384 q30,-30 46,56 M196,386 q-12,-12 -20,52 M196,386 q12,-12 20,52" fill="none" stroke="#7cc6f0" stroke-width="3.5" stroke-linecap="round"/>`}
+  <path d="M138,440 V456 Q138,470 196,470 Q254,470 254,456 V440Z" fill="#cfd3dc" ${K}/>
+  <ellipse cx="196" cy="440" rx="58" ry="11" fill="${ice?'#e6f2fb':'#7cc6f0'}" ${K}/>
+  ${ice?'':`<ellipse cx="196" cy="442" rx="26" ry="5" fill="none" stroke="#fff" stroke-width="2" class="ripple"/>`}
+  <rect x="190" y="392" width="12" height="48" fill="#cfd3dc" stroke="${INK}" stroke-width="2.5"/>
+  <path d="M172,390 Q196,406 220,390Z" fill="#cfd3dc" ${K} stroke-width="2.5"/>
+  ${ice?'':`<path d="M196,388 V368" stroke="#7cc6f0" stroke-width="4" stroke-linecap="round"/>`}
+  ${heart(196,460,.7,'#9fd0ef')}`;
+}
+function pigeon(x,y,s=1){
+  return `<g transform="translate(${x},${y}) scale(${s})"><path d="M-14,-6 L-27,-12 L-24,0Z" fill="#8d8d9a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="-2" cy="-8" rx="15" ry="10" fill="#b8bcc6" ${K} stroke-width="2.2"/><path d="M-9,-10 q8,6 15,-2" fill="none" stroke="${INK}" stroke-width="1.6"/>
+  <circle cx="11" cy="-20" r="8" fill="#8d8d9a" ${K} stroke-width="2.2"/><path d="M5,-14 q6,4 11,0" fill="none" stroke="#7fc3a0" stroke-width="2.5"/>
+  <circle cx="13" cy="-22" r="1.6" fill="${INK}"/><path d="M18,-21 l6,2 l-6,2Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.2"/>
+  <path d="M-4,2 v5 M2,2 v5" stroke="#f38db5" stroke-width="2.4" stroke-linecap="round"/></g>`;
+}
+function pigeons(){
+  return `<rect x="34" y="416" width="100" height="50" fill="transparent"/><g class="pgs" style="transform-box:fill-box">${pigeon(62,458)}${pigeon(106,452,.85)}</g>`;
+}
+
+/* ---------- the cat café: warm milk from the barista cat, and café cats to cuddle ---------- */
+const CREAM={head:'#f3e6d3',body:'#fffaf6',ear:'#f38db5'}, GINGER={head:'#f5891f',body:'#f9b36b',ear:'#ffd34d'},
+  SOOT={head:'#3a3346',body:'#6b6478',ear:'#f38db5'}, CALICO={head:'#fffaf6',body:'#f1b13a',ear:'#a8652f'};
+const latteCup=()=>`<path d="M-14,-24 H14 L11,0 H-11Z" fill="#fff" ${K} stroke-width="2.5"/><path d="M14,-18 q8,0 7,7 q-1,5 -9,4" fill="none" stroke="${INK}" stroke-width="2.5"/>
+  <ellipse cx="0" cy="-24" rx="14" ry="4" fill="#f3e6d3" stroke="${INK}" stroke-width="2"/><path d="M-4,-26 q2,-3 4,0 q2,-3 4,0 l-4,4Z" fill="#c9a978"/>
+  <path d="M-4,-34 q-4,-6 0,-11 M4,-34 q4,-6 0,-11" fill="none" stroke="#cfd3dc" stroke-width="2" stroke-linecap="round"/>`;
+function cafeCounter(){
+  return `<rect x="4" y="200" width="178" height="252" fill="transparent"/>
+  <g transform="translate(96,350) scale(.62)">${catSVG(S.latte?'happy':'normal',false,false,CREAM)}
+    <rect x="-17" y="-146" width="34" height="14" fill="#fff" ${K}/><path d="${cloud(0,-152,18,10,6)}" fill="#fff" ${K}/></g>
+  <rect x="20" y="262" width="44" height="60" rx="6" fill="#cfd3dc" ${K}/><rect x="28" y="272" width="28" height="14" rx="3" fill="#fff" stroke="${INK}" stroke-width="2"/>
+  <path d="M42,296 v8" stroke="${INK}" stroke-width="4"/><circle cx="54" cy="310" r="3" fill="#e0508a"/>
+  <rect x="10" y="330" width="166" height="120" fill="#f38db5" ${K}/><rect x="4" y="320" width="178" height="14" rx="5" fill="#fff" ${K}/>
+  ${heart(50,392,1,'#fbd0e0')}${heart(136,392,1,'#fbd0e0')}
+  ${S.latte?`<g transform="translate(140,320)">${latteCup()}</g>`:''}
+  <text x="93" y="236" text-anchor="middle" class="lbl">BARISTA</text>`;
+}
+function cafeCat(i){
+  const happy=S.cafeCats.includes(i)?'happy':'normal';
+  // a ginger cat asleep on a cushion on the shelf
+  if(i===0) return `<rect x="282" y="120" width="114" height="70" fill="transparent"/>
+    <ellipse cx="340" cy="178" rx="50" ry="10" fill="#8a6bd1" ${K} stroke-width="2.5"/>
+    <g class="cc0" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(378,172) rotate(-84) scale(.42)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,GINGER)}</g></g></g>
+    <g class="zzz" pointer-events="none"><text x="300" y="140">z</text><text x="314" y="126">z</text><text x="326" y="114">z</text></g>`;
+  // a black cat in a basket
+  if(i===1) return `<rect x="300" y="360" width="96" height="94" fill="transparent"/>
+    <g class="cc1" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(351,440) scale(.5)">${catSVG(happy,false,false,SOOT)}</g></g>
+    <path d="M304,414 H396 L388,452 H312Z" fill="#d9a066" ${K}/><path d="M308,428 H392 M310,440 H390 M326,414 L322,452 M350,414 V452 M374,414 L378,452" stroke="#a8652f" stroke-width="2" fill="none"/>`;
+  // a spotty cat on top of the cat tree, with a feather on a string
+  return `<rect x="226" y="226" width="74" height="228" fill="transparent"/>
+    <rect x="255" y="296" width="14" height="154" fill="#d9a066" ${K} stroke-width="2.5"/><path d="M255,320 h14 M255,340 h14 M255,360 h14 M255,380 h14 M255,400 h14 M255,420 h14" stroke="#a8652f" stroke-width="2"/>
+    <rect x="234" y="440" width="56" height="12" rx="4" fill="#cdeee2" ${K} stroke-width="2.5"/><ellipse cx="262" cy="296" rx="32" ry="8" fill="#cdeee2" ${K} stroke-width="2.5"/>
+    <path d="M290,298 v26" stroke="${INK}" stroke-width="1.5"/><path d="M290,324 q-6,10 0,22 q6,-12 0,-22Z" fill="#f38db5" stroke="${INK}" stroke-width="1.5"/>
+    <g class="cc2" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(262,294) scale(.42)">${catSVG(happy,false,false,CALICO)}</g></g>`;
+}
+const CAFECATS=[[330,120,'PRRR…','The ginger cat is fast asleep on its cushion. Shh! It purrs in its sleep.'],
+  [351,320,'MEOW!','The black cat in the basket says hello! Meow!'],
+  [262,220,'BAT BAT!','The spotty cat bats the feather. It wants to play with you!']];
+
+/* ---------- the restaurant: a penguin waiter brings what you pick from the menu ---------- */
+const DISH=[
+  {name:'fish soup',slurp:true,say:'Fish soup! Slurp slurp… and a fish tail! Yummy!',art:(x,y)=>`<g transform="translate(${x},${y})">
+    <path d="M-6,-32 q-4,-6 0,-11 M6,-32 q4,-6 0,-11" fill="none" stroke="#cfd3dc" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M-28,-22 Q-28,0 0,0 Q28,0 28,-22Z" fill="#2c8fd6" ${K}/><ellipse cx="0" cy="-22" rx="28" ry="6" fill="#f9b36b" ${K} stroke-width="2.5"/>
+    <path d="M8,-24 l12,-10 l2,12Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>${heart(-10,-10,.6,'#fff')}</g>`},
+  {name:'spaghetti',slurp:true,say:'Spaghetti! It is sooo long… sluuurp! Yummy!',art:(x,y)=>`<g transform="translate(${x},${y})">
+    <ellipse cx="0" cy="-4" rx="32" ry="7" fill="#fff" ${K} stroke-width="2.5"/><path d="${cloud(0,-18,22,11,8)}" fill="#ffd34d" stroke="${INK}" stroke-width="2.2"/>
+    <path d="M-16,-18 q6,-6 12,0 t12,0 t10,0 M-12,-10 q6,-6 12,0 t10,0" fill="none" stroke="#f1b13a" stroke-width="2"/>
+    <circle cx="-7" cy="-27" r="6" fill="#a8652f" stroke="${INK}" stroke-width="2"/><circle cx="8" cy="-25" r="5" fill="#a8652f" stroke="${INK}" stroke-width="2"/>
+    <path d="M-5,-33 q5,-5 10,0" fill="none" stroke="#d8243c" stroke-width="3" stroke-linecap="round"/></g>`},
+  {name:'ice cream',say:'Ice cream! Lick lick… brrr, cold nose! Poooourrr!',art:(x,y)=>`<g transform="translate(${x},${y})">
+    <circle cx="-8" cy="-30" r="11" fill="#f38db5" ${K} stroke-width="2.5"/><circle cx="8" cy="-30" r="11" fill="#cdeee2" ${K} stroke-width="2.5"/><circle cx="0" cy="-43" r="11" fill="#fffaf6" ${K} stroke-width="2.5"/>
+    <circle cx="2" cy="-57" r="5" fill="#d8243c" stroke="${INK}" stroke-width="2"/><path d="M3,-62 q2,-6 8,-8" fill="none" stroke="${INK}" stroke-width="2"/>
+    <path d="M-17,-24 L-10,0 H10 L17,-24Z" fill="#e8b47a" ${K} stroke-width="2.5"/><path d="M-12,-17 L7,-3 M-3,-22 L12,-11 M12,-18 L-6,-3" stroke="#a8652f" stroke-width="1.6"/></g>`}
+];
+const MENUX=[98,200,302];
+function menuDish(i){
+  const x=MENUX[i];
+  return `<rect x="${x-48}" y="146" width="96" height="118" fill="transparent"/>${DISH[i].art(x,228)}
+  <text x="${x}" y="254" text-anchor="middle" class="sign" style="font-size:16px">${DISH[i].name.toUpperCase()}</text>
+  ${S.ate.includes(i)?`<path d="${starPath(x+36,162,9)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/>`:''}`;
+}
+function restTable(){
+  let hem='';for(let i=0;i<8;i++)hem+=' q-12,8 -24,0';
+  return `<rect x="150" y="296" width="200" height="158" fill="transparent"/>
+  <path d="M198,398 V450 M302,398 V450" stroke="${INK}" stroke-width="9" stroke-linecap="round"/><path d="M198,398 V450 M302,398 V450" stroke="#a8652f" stroke-width="5" stroke-linecap="round"/>
+  <path d="M158,350 H342 L346,400${hem}Z" fill="url(#checks)" ${K}/>
+  <path d="M308,350 V330 q0,-6 4,-8 V314 h8 V322 q4,2 4,8 V350Z" fill="#7fc36b" ${K} stroke-width="2.5"/>
+  <rect x="313" y="298" width="6" height="16" fill="#fff" stroke="${INK}" stroke-width="1.5"/><path d="M316,286 q5,6 0,11 q-5,-5 0,-11Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.5"/>
+  <ellipse cx="236" cy="350" rx="36" ry="7" fill="#fff" ${K} stroke-width="2.5"/>
+  <path d="M188,348 V326 M184,326 V334 M192,326 V334 M284,348 V324 q6,6 0,14" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+  ${S.dish!==null?`<g transform="translate(236,348) scale(.9) translate(-236,-348)">${DISH[S.dish].art(236,348)}</g>`:''}`;
+}
+function penguin(){
+  return `<rect x="326" y="306" width="72" height="150" fill="transparent"/><g class="pgw" style="transform-box:fill-box;transform-origin:50% 100%">
+  <ellipse cx="352" cy="450" rx="10" ry="4" fill="#f9a03f" stroke="${INK}" stroke-width="2"/><ellipse cx="374" cy="450" rx="10" ry="4" fill="#f9a03f" stroke="${INK}" stroke-width="2"/>
+  <path d="M336,382 q-14,20 -6,40 M390,382 q14,20 6,40" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>
+  <ellipse cx="363" cy="394" rx="30" ry="54" fill="#3a3346" ${K}/><ellipse cx="363" cy="408" rx="19" ry="38" fill="#fff" stroke="${INK}" stroke-width="2"/>
+  <path d="M396,420 l8,-2 l-4,14Z" fill="#fff" stroke="${INK}" stroke-width="1.5"/>
+  <circle cx="354" cy="362" r="5.5" fill="#fff" stroke="${INK}" stroke-width="1.5"/><circle cx="372" cy="362" r="5.5" fill="#fff" stroke="${INK}" stroke-width="1.5"/>
+  <circle cx="355" cy="363" r="2.2" fill="${INK}"/><circle cx="371" cy="363" r="2.2" fill="${INK}"/><path d="M357,371 H369 L363,380Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M363,388 l-11,-6 v12Z M363,388 l11,-6 v12Z" fill="#d8243c" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/><circle cx="363" cy="388" r="3" fill="#d8243c" stroke="${INK}" stroke-width="1.5"/>
+  </g><text x="363" y="330" text-anchor="middle" class="lbl">WAITER</text>`;
+}
+
+/* ---------- the swimming pool: a diving board, a beach ball and a lifeguard duck ---------- */
+function divingBoard(){
+  return `<rect x="10" y="196" width="170" height="260" fill="transparent"/>
+  ${ladder(18,224,452)}<rect x="34" y="220" width="140" height="11" rx="5" fill="#2c8fd6" ${K}/>
+  <text x="100" y="208" text-anchor="middle" class="lbl">DIVING BOARD</text>`;
+}
+function beachBall(){
+  const x=262,y=336;
+  return `<circle cx="${x}" cy="${y}" r="34" fill="transparent"/><g class="bob"><g class="bb" style="transform-box:fill-box;transform-origin:50% 100%">
+  <circle cx="${x}" cy="${y}" r="20" fill="#fff"/>
+  <path d="M${x},${y-20} Q${x-26},${y} ${x},${y+20} Q${x-10},${y} ${x},${y-20}Z" fill="#e8473f"/><path d="M${x},${y-20} Q${x+26},${y} ${x},${y+20} Q${x+10},${y} ${x},${y-20}Z" fill="#2c8fd6"/>
+  <circle cx="${x}" cy="${y}" r="20" fill="none" ${K} stroke-width="2.5"/><circle cx="${x}" cy="${y-20}" r="3" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/></g></g>`;
+}
+function lifeguard(){
+  const legs='M332,298 L342,214 M384,298 L374,214 M336,262 H380';
+  return `<rect x="318" y="140" width="80" height="162" fill="transparent"/>
+  <path d="${legs}" stroke="${INK}" stroke-width="8" stroke-linecap="round"/><path d="${legs}" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <rect x="332" y="206" width="52" height="10" rx="3" fill="#e8473f" ${K} stroke-width="2.5"/>
+  <g class="lg" style="transform-box:fill-box;transform-origin:50% 100%">${duckArt(356,204,'#ffd34d',1.6)}
+    <path d="M362,172 q10,-10 26,-2 l-14,4Z" fill="#e8473f" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M362,198 q-8,6 -12,-2" fill="none" stroke="${INK}" stroke-width="1.5"/><rect x="344" y="194" width="9" height="6" rx="2" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/></g>
+  <text x="358" y="150" text-anchor="middle" class="lbl">LIFEGUARD</text>`;
+}
+// swimming: the cat in its pink swim ring, with the water up to its tummy
+const swimmer=()=>`<g transform="scale(.6)">${rider()}</g><ellipse cx="0" cy="-32" rx="32" ry="9" fill="#f38db5" ${K} stroke-width="2.5"/>
+  <path d="M-48,-28 q12,-8 24,0 t24,0 t24,0 t24,0 V10 H-48Z" fill="#7cc6f0"/><path d="M-48,-28 q12,-8 24,0 t24,0 t24,0 t24,0" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>`;
+
+/* ---------- the fridge, full of food ---------- */
+const FOODS=[
+  {name:'milk',slurp:true,say:'Milk! Slurp slurp!',art:(x,y)=>`<g transform="translate(${x},${y})"><path d="M-15,0 V-42 L-9,-54 H9 L15,-42 V0Z" fill="#fff" ${K} stroke-width="2.5"/>
+    <path d="M-15,-42 H15 M-9,-54 L-6,-60 H6 L9,-54" fill="none" stroke="${INK}" stroke-width="2"/><text y="-18" text-anchor="middle" style="font-family:var(--display);font-size:12px;fill:#2c8fd6">MILK</text>
+    <circle cx="7" cy="-33" r="4" fill="#3a3346"/><circle cx="-8" cy="-6" r="3" fill="#3a3346"/></g>`},
+  {name:'cheese',say:'Cheese! Nibble nibble!',art:(x,y)=>`<g transform="translate(${x},${y})"><path d="M-28,0 H26 V-26Z" fill="#ffd34d" ${K} stroke-width="2.5"/>
+    <path d="M-28,0 L26,-26 L16,-34 L-34,-6Z" fill="#ffe873" ${K} stroke-width="2"/><circle cx="8" cy="-8" r="4" fill="#f1b13a"/><circle cx="18" cy="-15" r="3" fill="#f1b13a"/><circle cx="-6" cy="-3" r="2.5" fill="#f1b13a"/></g>`},
+  {name:'yogurt',slurp:true,say:'Strawberry yogurt! Lick lick!',art:(x,y)=>`<g transform="translate(${x},${y})"><path d="M-16,-36 H16 L12,0 H-12Z" fill="#f38db5" ${K} stroke-width="2.5"/>
+    <ellipse cx="0" cy="-36" rx="17" ry="5" fill="#fff" ${K} stroke-width="2.2"/>${heart(0,-16,.7,'#fff')}</g>`},
+  {name:'sausages',say:'Sausages! Nom nom nom!',art:(x,y)=>`<g transform="translate(${x},${y})"><ellipse cx="0" cy="-3" rx="28" ry="5" fill="#fff" stroke="${INK}" stroke-width="2"/>
+    ${[-15,0,15].map((dx,i)=>`<rect x="${dx-8}" y="${-34+(i%2)*5}" width="16" height="30" rx="8" fill="#c9563c" stroke="${INK}" stroke-width="2.2" transform="rotate(${(i-1)*14} ${dx} -16)"/>`).join('')}</g>`},
+  {name:'jelly',slurp:true,say:'Wobbly jelly! Wibble wobble… gulp!',art:(x,y)=>`<g transform="translate(${x},${y})"><ellipse cx="0" cy="-3" rx="26" ry="5" fill="#fff" stroke="${INK}" stroke-width="2"/>
+    <path d="M-20,-4 Q-22,-36 0,-38 Q22,-36 20,-4 q-5,4 -10,0 q-5,4 -10,0 q-5,4 -10,0 q-5,4 -10,0Z" fill="#e8473f" ${K} stroke-width="2.5"/>
+    <path d="M-10,-28 q4,-6 10,-6" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="2" cy="-42" r="4" fill="#d8243c" stroke="${INK}" stroke-width="1.5"/></g>`},
+  {name:'chicken',say:'A chicken leg! Crunch crunch!',art:(x,y)=>`<g transform="translate(${x},${y}) rotate(-20)"><ellipse cx="-8" cy="-16" rx="17" ry="13" fill="#c97a5a" ${K} stroke-width="2.5"/>
+    <path d="M7,-18 H20" stroke="${INK}" stroke-width="8" stroke-linecap="round"/><path d="M7,-18 H20" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="23" cy="-22" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="23" cy="-14" r="4.5" fill="#fff" stroke="${INK}" stroke-width="2"/></g>`},
+  {name:'strawberries',say:'Strawberries! So sweet and red!',art:(x,y)=>`<g transform="translate(${x},${y})">${[-12,0,12].map((dx,i)=>`<g transform="translate(${dx},${-28-(i%2)*6})">
+    <path d="M0,10 Q-9,2 -8,-4 Q0,-8 8,-4 Q9,2 0,10Z" fill="#e8473f" stroke="${INK}" stroke-width="1.8"/><path d="M-5,-5 L0,-9 L5,-5" fill="#4f9c45" stroke="${INK}" stroke-width="1.4"/></g>`).join('')}
+    <path d="M-24,-20 Q-24,0 0,0 Q24,0 24,-20Z" fill="#7cc6f0" ${K} stroke-width="2.5"/></g>`},
+  {name:'tuna',say:'A can of tuna! The best food for cats! Poooourrr!',art:(x,y)=>`<g transform="translate(${x},${y})"><rect x="-20" y="-26" width="40" height="26" rx="4" fill="#cfd3dc" ${K} stroke-width="2.5"/>
+    <rect x="-20" y="-20" width="40" height="13" fill="#2c8fd6" stroke="${INK}" stroke-width="1.6"/><text y="-9.5" text-anchor="middle" style="font-family:var(--display);font-size:11px;fill:#fff">TUNA</text>
+    <ellipse cx="0" cy="-26" rx="20" ry="4" fill="#e6e8ee" stroke="${INK}" stroke-width="2"/></g>`},
+  {name:'cake',say:'A little piece of cake! Mmm!',art:(x,y)=>`<g transform="translate(${x},${y})"><path d="M-24,0 H22 V-30 L-24,-20Z" fill="#f6b3cb" ${K} stroke-width="2.5"/>
+    <path d="M-24,-10 L22,-15" stroke="#fff" stroke-width="4"/><path d="M-24,-20 L22,-30 L22,-36 L-24,-26Z" fill="#fff" ${K} stroke-width="2"/>
+    <circle cx="14" cy="-38" r="5" fill="#d8243c" stroke="${INK}" stroke-width="1.8"/></g>`}
+];
+const FOODX=[170,252,334], FOODY=[158,290,370];
+const foodAt=k=>[FOODX[k%3],FOODY[Math.floor(k/3)]];
+function foodHot(k){const [x,y]=foodAt(k);return `<rect x="${x-40}" y="${y-66}" width="80" height="68" fill="transparent"/>${FOODS[k].art(x,y)}`}
+function vegDrawer(){
+  return `<rect x="132" y="372" width="240" height="58" rx="8" fill="#d7f0ff" ${K} stroke-width="2.5"/>
+  ${[150,184,300,334].map(x=>`<path d="M${x-4},376 l-4,-8 M${x},376 v-9 M${x+4},376 l4,-8" stroke="#4f9c45" stroke-width="2.5" stroke-linecap="round"/><path d="M${x-6},376 h12 l-6,26Z" fill="#f5891f" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>`).join('')}
+  <path d="${cloud(242,388,18,10,7)}" fill="#4f9c45" stroke="${INK}" stroke-width="2"/><path d="M242,392 v12" stroke="#7fc36b" stroke-width="5"/>
+  <rect x="226" y="414" width="52" height="7" rx="3" fill="#cfd3dc" stroke="${INK}" stroke-width="1.8"/>`;
+}
+
+/* ---------- the big house: a slide from the bedroom down to the hall, and stairs back up ---------- */
+function bedSlide(){
+  const c='M336,478 Q344,462 364,466 Q384,470 392,486';
+  return `<rect x="322" y="376" width="78" height="134" fill="transparent"/>
+  <ellipse cx="364" cy="484" rx="32" ry="12" fill="#3a3346" ${K}/>
+  <path d="${c}" fill="none" stroke="${INK}" stroke-width="13" stroke-linecap="round"/><path d="${c}" fill="none" stroke="#f9a03f" stroke-width="7" stroke-linecap="round"/>
+  <path d="M330,486 V406 M396,486 V406 M330,406 H396" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M330,486 V406 M396,486 V406 M330,406 H396" fill="none" stroke="#d6ad45" stroke-width="3.5" stroke-linecap="round"/>
+  <text x="363" y="396" text-anchor="middle" class="lbl">SLIDE ↓</text>`;
+}
+// the slide comes down through the hall ceiling and ends on the floor
+const CHUTE=[[72,-6],[66,262],[80,430],[200,446]];
+function chuteArt(){
+  const d=`M${CHUTE[0]} C${CHUTE[1]} ${CHUTE[2]} ${CHUTE[3]}`;
+  return `<rect x="150" y="410" width="80" height="46" fill="transparent"/>
+  <path d="${d}" fill="none" stroke="${INK}" stroke-width="19" stroke-linecap="round"/><path d="${d}" fill="none" stroke="#f9a03f" stroke-width="13" stroke-linecap="round"/>
+  <text x="112" y="200" class="lbl">SLIDE</text>`;
+}
+function stairs(){
+  let p='M226,452',tr='',posts='';
+  for(let i=0;i<7;i++){const x=226+i*25,y=452-(i+1)*37;p+=` V${y} H${x+25}`;tr+=`M${x+2},${y+3} H${x+23} `;
+    if(i%2===0){const cx=x+12.5;posts+=`M${cx},${y} V${(340-1.48*(cx-238)).toFixed(1)} `}}
+  const rail=`M238,340 L398,103 ${posts}`;
+  return `<rect x="222" y="104" width="178" height="350" fill="transparent"/>
+  <path d="${p} V452Z" fill="#c98a50" ${K}/><path d="${tr}" stroke="#e8b47a" stroke-width="4"/>
+  <path d="${rail}" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="${rail}" fill="none" stroke="#d6ad45" stroke-width="3.5" stroke-linecap="round"/>
+  <text x="290" y="160" text-anchor="middle" class="lbl">UPSTAIRS ↑</text>`;
+}
+function hallPhoto(){
+  return `<rect x="118" y="214" width="96" height="86" rx="4" fill="#d6ad45" ${K}/><rect x="128" y="224" width="76" height="66" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/>
+  <g transform="translate(${S.pal?150:166},288) scale(.32)">${catSVG('happy')}</g>${S.pal?`<g transform="translate(186,288) scale(.28)">${catSVG('happy',false,false,GREY)}</g>`:''}
+  ${heart(196,234,.5,'#e0508a')}`;
+}
+// the big house with two floors; a tall window shows the slide inside
+function bigHouse(x,y,s){
+  const sl='M54,-224 C54,-120 70,-80 92,-34';
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <rect x="-80" y="-330" width="24" height="56" fill="#c9563c" ${K}/>
+  <rect x="-120" y="-262" width="240" height="262" fill="#f7b9d0" ${K}/><path d="M-142,-256 L0,-344 L142,-256Z" fill="#e0508a" ${K}/>
+  ${heart(0,-286,1.3,'#fff',true)}<path d="M-120,-132 H40" ${K}/>
+  <rect x="-100" y="-232" width="58" height="58" rx="6" fill="#bfe3fa" ${K}/><path d="M-71,-232 V-174 M-100,-203 H-42" ${K}/>
+  <rect x="-100" y="-108" width="58" height="58" rx="6" fill="#bfe3fa" ${K}/><path d="M-71,-108 V-50 M-100,-79 H-42" ${K}/>
+  <path d="M-24,0 V-70 q0,-26 24,-26 q24,0 24,26 V0Z" fill="#b9773f" ${K}/><circle cx="12" cy="-40" r="4" fill="#d6ad45" stroke="${INK}" stroke-width="2"/>
+  <rect x="40" y="-240" width="64" height="220" rx="8" fill="#bfe3fa" ${K}/>
+  <path d="${sl}" fill="none" stroke="${INK}" stroke-width="13" stroke-linecap="round"/><path d="${sl}" fill="none" stroke="#f9a03f" stroke-width="8" stroke-linecap="round"/>
+  <path d="M40,-130 H104" stroke="${INK}" stroke-width="2.5" stroke-dasharray="6 5"/></g>`;
+}
+function movingVan(){
+  return `<rect x="4" y="340" width="150" height="116" fill="transparent"/><g class="van">
+  <rect x="10" y="352" width="96" height="84" rx="6" fill="#fff" ${K}/><text x="58" y="386" text-anchor="middle" class="sign" style="font-size:16px">MOVING</text>${heart(58,410,.8,'#e0508a')}
+  <path d="M106,436 V384 H130 L148,408 V436Z" fill="#2c8fd6" ${K}/><path d="M112,390 H128 L140,406 H112Z" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/>
+  <circle cx="36" cy="440" r="12" fill="${INK}"/><circle cx="36" cy="440" r="4.5" fill="#cfd3dc"/><circle cx="124" cy="440" r="12" fill="${INK}"/><circle cx="124" cy="440" r="4.5" fill="#cfd3dc"/></g>`;
+}
+const moveBox=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#d9a066" ${K} stroke-width="2.5"/><rect x="${x+w/2-4}" y="${y}" width="8" height="${h}" fill="#f1e05a" opacity=".85"/>`;
+const houseIcon=`<svg width="30" height="30" viewBox="-150 -350 300 360" aria-hidden="true">${bigHouse(0,0,1)}</svg>`;
+
 /* ---------- scenes ---------- */
 const SC={
   bed:{
-    draw:()=>`<rect width="400" height="520" fill="#fde6ee"/><rect width="400" height="450" fill="url(#heartpaper)"/>
+    draw:()=>`<rect width="400" height="520" fill="${S.big?'#efe4f7':'#fde6ee'}"/><rect width="400" height="450" fill="url(#heartpaper)"/>
       <rect y="450" width="400" height="70" fill="#e8c09a"/>
       <path d="M0,450 H400 M0,485 H400 M120,450 V485 M280,450 V485 M60,485 V520 M210,485 V520 M340,485 V520" stroke="${INK}" stroke-width="2.5" fill="none"/>
+      ${S.big?`<path d="M196,0 V30" stroke="${INK}" stroke-width="2.5"/><path d="M174,50 Q196,16 218,50Z" fill="#ffd34d" ${K}/>`:''}
       <rect x="34" y="120" width="130" height="120" rx="6" fill="${paneSky()}" ${K}/>
       ${night()?nightPane(36,122,126,116)
         :S.rain?`<path d="${cloud(76,150,28,12,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/><path d="${cloud(128,170,24,10,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/>${windowDrops(34,180,130,60)}`
@@ -1151,29 +1462,38 @@ const SC={
       if(S.awake&&night()) h.push({id:'ladder',label:'Ladder to the roof',svg:bedLadder(),walk:261,tap:()=>go('roof',70)});
       h.push({id:'bed',label:'Cloud bed',svg:`<path d="${cloud(190,414,116,32,11)}" fill="#fff" ${K}/><ellipse cx="96" cy="398" rx="30" ry="13" fill="#f3a3c6" ${K}/>`,
         tap:()=>!S.awake?wake():S.tummy<3?hungry():nap()});
-      h.push({id:'drawer',label:'Dress-up drawer',svg:dresser(),walk:300,tap:()=>S.awake?go('dress',270):wake()});
+      // in the big house the dresser moves over to make room for the slide
+      h.push({id:'drawer',label:'Dress-up drawer',svg:S.big?`<g transform="translate(-300,0)">${dresser()}</g>`:dresser(),walk:S.big?60:300,tap:()=>S.awake?go('dress',270):wake()});
       h.push({id:'vase',label:ART.vase.label,svg:framed('vase',298,136,72),walk:300,tap:()=>S.awake?lookAt('vase'):wake()});
       if(S.awake){
         h.push({id:'yarn',label:'Ball of yarn',svg:yarnHot(),walk:()=>typeof S.yarn==='number'?YARNX[S.yarn]-46:S.yarn==='done'?250:undefined,tap:batYarn});
-        h.push({id:'go-kitchen',label:'Go to the kitchen',svg:arrow('right','KITCHEN'),tap:()=>leave(460,()=>go('kitchen','left'))});
+        if(S.big) h.push({id:'slide',label:'Slide down to the hall',svg:bedSlide(),walk:364,tap:slideDown});
+        else h.push({id:'go-kitchen',label:'Go to the kitchen',svg:arrow('right','KITCHEN'),tap:()=>leave(460,()=>go('kitchen','left'))});
         h.push({id:'go-bath',label:'Go to the bathroom',svg:arrow('left','BATH'),tap:()=>leave(-60,()=>go('bath','right'))});
       }
       return h;
     },
-    goal:()=>!S.awake?{id:'cat',hint:'Tap the cat to wake up!'}
+    goal:()=>{
+      // in the big house the way down to the kitchen is the slide
+      const down=S.big?'slide':'go-kitchen';
+      return !S.awake?{id:'cat',hint:'Tap the cat to wake up!'}
       :S.yarn==='tangled'?{id:'yarn',hint:'You are tangled! Tap the yarn to wiggle free'}
+      :S.tour&&!homeward()?{id:'slide',hint:'A slide in your bedroom! Tap it ↘'}
       :!homeward()&&!S.dressed?{id:'drawer',hint:'Get dressed! Tap the drawer'}
       :!homeward()&&typeof S.yarn==='number'?{id:'yarn',hint:'A ball of yarn! Bat it with your paw'}
-      :S.tummy<3?{id:'go-kitchen',hint:'Now go to the kitchen ↗'}
+      :S.tummy<3?{id:down,hint:S.big?'Slide down to the kitchen! ↘':'Now go to the kitchen ↗'}
       :homeward()&&!S.bath?{id:'go-bath',hint:'Bath time before bed! ↖'}
       :homeward()&&!S.wink?{id:'ladder',hint:'Climb the ladder to the roof ↑'}
       :homeward()?{id:'bed',hint:'Tap the bed for a nap'}
-      :{id:'go-kitchen',hint:'Go and explore ↗'},
-    enter:()=>say(S.tummy<3?'This is your bedroom. Your tummy rumbles!'
+      :{id:down,hint:S.big?'Take the slide down! ↘':'Go and explore ↗'};
+    },
+    enter:()=>{const room=S.big?'your big bedroom, upstairs':'your bedroom';
+      say(S.tour&&!night()?`This is ${room}! And look… a slide!`
+      :S.tummy<3?`This is ${room}. Your tummy rumbles!`
       :night()&&!S.bath?'It is night! Bath time before bed…'
       :night()&&!S.wink?'It is night! A ladder goes up to the roof.'
       :night()?'Back in your bedroom. What a big day!'
-      :'This is your bedroom. Your cloud bed is so soft.'),
+      :`This is ${room}. Your cloud bed is so soft.`)},
     // stop before the dresser so it stays in sight
     landRight:250
   },
@@ -1191,10 +1511,9 @@ const SC={
     hots:()=>[
       {id:'fridge',label:'Fridge',svg:fridge(),walk:170,tap:()=>{
         if(fridgeShut()&&S.tummy>=3) go('stickers','left');
-        else if(!S.fridge){S.fridge=true;S.bowl=3;redraw();react('happy');say('You open the fridge. There is milk! You pour it in your bowl.','Tap the bowl')}
         else if(S.bowl>0){say('The milk is in your bowl.','Tap the bowl')}
-        else if(S.tummy<3){S.bowl=3;redraw();react('happy');say('More milk! You pour it in your bowl.','Tap the bowl')}
-        else say('Your tummy is full. No more milk!')}},
+        else if(S.tummy<3){S.fridge=true;go('food','left')}
+        else say('Your tummy is full. No more food!')}},
       {id:'blender',label:'Blender',svg:blender(),walk:190,tap:()=>{
         const b=$('.bl');b&&restartClass(b,'shake',900);sfx.bzz();bubble(225,212,'BZZZZ!','#2c8fd6');
         later(()=>react('scared'),450);say('Bzzzz! The blender is so loud! Miaawow!')}},
@@ -1210,18 +1529,18 @@ const SC={
           else say('Your tummy is full! Poooourrr!');}
         else if(S.tummy>=3) say('The bowl is empty. Your tummy is full!');
         else {setMood('normal');say('Your bowl is empty.')}}},
-      {id:'go-bed',label:'Go to the bedroom',svg:arrow('left','BEDROOM'),tap:()=>leave(-60,()=>go('bed','right'))},
+      {id:'go-bed',label:S.big?'Go to the stairs':'Go to the bedroom',svg:arrow('left',S.big?'STAIRS':'BEDROOM'),tap:()=>leave(-60,()=>go(S.big?'hall':'bed','right'))},
       {id:'go-living',label:'Go around the house',svg:arrow('right','HOUSE'),tap:()=>leave(460,()=>go('living','left'))}
     ],
     goal:()=>S.fish==='carry'?{id:'bowl',hint:'Tap the bowl to eat your fish'}
       :S.bowl>0?{id:'bowl',hint:'Tap the bowl'}
-      :S.tummy<3?{id:'fridge',hint:'Tap the fridge'}
+      :S.tummy<3?{id:'fridge',hint:'Tap the fridge for some food'}
       :S.newStk.length?{id:'fridge',hint:'New sticker! Tap the fridge'}
       :!homeward()&&S.bird==='here'?{id:'bird',hint:'A bird at the window! Tap it'}
       :!homeward()&&typeof S.cup==='number'?{id:'cup',hint:'A cup on the edge… push it!'}
-      :homeward()?{id:'go-bed',hint:'It is night! Go to the bedroom ↖'}
+      :homeward()?{id:'go-bed',hint:S.big?'It is night! Go upstairs to bed ↖':'It is night! Go to the bedroom ↖'}
       :{id:'go-living',hint:'Go to the house ↗'},
-    enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. You can find some milk…'
+    enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. The fridge is full of yummy food…'
       :S.bird==='here'&&!night()?'This is the kitchen. Look, a little bird!':'This is the kitchen. Your tummy is full.')
   },
   living:{
@@ -1307,14 +1626,14 @@ const SC={
       ...(season()!=='summer'?[{id:'season',label:SPOT[season()].label,svg:seasonSpot(),walk:300,tap:seasonTap}]:[]),
       ...(S.pal?[]:[{id:'friend',label:'Grey cat on the wall',svg:wallCat(),walk:250,tap:meetFriend}]),
       {id:'go-home',label:'Go home',svg:arrow('left','HOME'),tap:()=>leave(-60,()=>go('living','right'))},
-      {id:'go-park',label:'Go to the park',svg:arrow('right','PARK'),tap:()=>leave(460,()=>go('park','left'))}
+      {id:'go-square',label:'Go to the town square',svg:arrow('right','SQUARE'),tap:()=>leave(460,()=>go('square','left'))}
     ],
     goal:()=>S.fish==='carry'&&!S.pal?{id:'friend',hint:'Share your fish with the grey cat'}
       :S.fish==='carry'?{id:'go-home',hint:'Take your fish home ↖'}
       :S.fish==='eaten'?{id:'go-home',hint:'It is night! Go home ↖'}
       :S.rain&&!S.umbrella&&S.hearts>=UMB?{id:'umbrella',hint:`It is raining! Buy an umbrella for ${UMB} hearts`}
       :season()!=='summer'&&!S.sDone?{id:'season',hint:SPOT[season()].hint}
-      :!S.park?{id:'go-park',hint:'There is a park! Go and see ↗'}
+      :!S.square||nextPick()?{id:'go-square',hint:S.square?'Go to the square ↗':'There is a town square! Go and see ↗'}
       :S.hearts>=FISH?{id:'fish',hint:`You have ${FISH} hearts! Tap the fish shop`}
       :S.rain&&S.umbrella?{id:'puddle',hint:`Splash in the puddle for hearts (${S.hearts} of ${FISH})`}
       :{id:'fly',hint:`Catch the ${snowy()?'snowflake':'butterfly'} for hearts (${S.hearts} of ${FISH})`},
@@ -1436,17 +1755,12 @@ const SC={
     hots:()=>[
       {id:'pond',label:'Pond',svg:pond(),walk:96,tap:tapPond},
       ...[0,1].map(i=>({id:'duck'+i,label:'Duck',svg:parkDuck(i),walk:96,tap:()=>quack(i)})),
-      {id:'go-city',label:'Back to the city',svg:arrow('left','CITY'),tap:()=>leave(-60,()=>go('city','right'))},
-      {id:'go-play',label:'Go to the playground',svg:arrow('right','PLAYGROUND'),tap:()=>leave(460,()=>go('play','left'))}
+      toSquare()
     ],
-    goal:()=>S.fish==='carry'?{id:'go-city',hint:'Take your fish home ↖'}
-      :night()?{id:'go-city',hint:'It is night! Go home ↖'}
-      :!S.pondN?{id:'pond',hint:'A pond! What lives in it? Tap it'}
-      :!S.quackN?{id:'duck0',hint:'Say hello to the ducks'}
-      :!S.playground?{id:'go-play',hint:'There is a playground! Go and see ↗'}
-      :S.hearts>=FISH?{id:'go-city',hint:`You have ${FISH} hearts! Go back and buy a fish ↖`}
-      :S.pondN<=S.quackN?{id:'pond',hint:`Watch the fish jump for hearts (${S.hearts} of ${FISH})`}
-      :{id:'duck'+(S.quackN%2),hint:`Say hello to the ducks for hearts (${S.hearts} of ${FISH})`},
+    goal:()=>placeGoal(()=>!S.pondN?{id:'pond',hint:'A pond! What lives in it? Tap it'}
+      :!S.quackN?{id:'duck0',hint:'Say hello to the ducks'}:null,
+      ()=>S.pondN<=S.quackN?{id:'pond',hint:`Watch the fish jump for hearts (${S.hearts} of ${FISH})`}
+      :{id:'duck'+(S.quackN%2),hint:`Say hello to the ducks for hearts (${S.hearts} of ${FISH})`}),
     over:()=>SC.city.over(),
     before:()=>{S.park=true},
     enter:()=>{say(S.rain?'A park with a pond. The ducks love the rain! Quack quack!':'A park with a pond! The ducks swim. Quack quack!');later(ambientLeap,1500)}
@@ -1467,17 +1781,12 @@ const SC={
       {id:'slide',label:'Slide',svg:slide(),walk:44,tap:()=>ride('slide')},
       {id:'swing',label:'Swing',svg:swing(),walk:250,tap:()=>ride('swing')},
       {id:'seesaw',label:'Seesaw',svg:seesaw(),walk:330,tap:()=>ride('seesaw')},
-      {id:'go-park',label:'Back to the park',svg:arrow('left','PARK'),tap:()=>leave(-60,()=>go('park','right'))},
-      {id:'go-school',label:'Go to cat school',svg:arrow('right','SCHOOL'),tap:()=>leave(460,()=>go('school','left'))}
+      toSquare()
     ],
-    goal:()=>S.fish==='carry'?{id:'go-park',hint:'Take your fish home ↖'}
-      :night()?{id:'go-park',hint:'It is night! Go home ↖'}
-      :!S.rides.includes('slide')?{id:'slide',hint:'A slide! Tap it'}
+    goal:()=>placeGoal(()=>!S.rides.includes('slide')?{id:'slide',hint:'A slide! Tap it'}
       :!S.rides.includes('swing')?{id:'swing',hint:'A swing! Tap it'}
-      :!S.rides.includes('seesaw')?{id:'seesaw',hint:'A seesaw! Tap it'}
-      :!S.school?{id:'go-school',hint:'Cat school is next door! Go and see ↗'}
-      :S.hearts>=FISH?{id:'go-park',hint:`You have ${FISH} hearts! Go back and buy a fish ↖`}
-      :{id:'slide',hint:`Play again for hearts (${S.hearts} of ${FISH})`},
+      :!S.rides.includes('seesaw')?{id:'seesaw',hint:'A seesaw! Tap it'}:null,
+      ()=>({id:'slide',hint:`Play again for hearts (${S.hearts} of ${FISH})`})),
     over:()=>SC.city.over(),
     before:()=>{S.playground=true},
     enter:()=>say(night()?'The playground is sleepy at night.':'A playground! A slide, a swing and a seesaw. Wheee!')
@@ -1498,16 +1807,174 @@ const SC={
       ...(S.qn<4?[0,1,2].map(i=>({id:'opt'+i,label:optName(S.q.opts[i]),svg:card(i),walk:CARDX[i],tap:()=>answer(i)}))
         :[{id:'more',label:'Gold star',svg:goldStar(),walk:200,tap:moreSchool}]),
       {id:'owl',label:'Miss Owl the teacher',svg:owl(),walk:282,tap:tapOwl},
-      {id:'go-play',label:'Back to the playground',svg:arrow('left','PLAYGROUND'),tap:()=>leave(-60,()=>go('play','right'))}
+      toSquare()
     ],
     // the right answer does not glow: that would give it away
-    goal:()=>S.fish==='carry'?{id:'go-play',hint:'Take your fish home ↖'}
-      :night()?{id:'go-play',hint:'It is night! Go home ↖'}
-      :S.qn<4?{id:'',hint:qHint()}
-      :S.hearts>=FISH?{id:'go-play',hint:`You have ${FISH} hearts! Go and buy a fish ↖`}
-      :{id:'more',hint:'Tap the gold star for more, or go back ↖'},
+    goal:()=>placeGoal(()=>S.qn<4?{id:'',hint:qHint()}:null,()=>({id:'more',hint:'Tap the gold star for more, or go back ↖'})),
     before:()=>{S.school=true;if(!S.q)S.q=lesson(S.qn)},
     enter:()=>say(S.qn>=4?'Cat school! You got a gold star today. Hoo hoo!':`Cat school! Miss Owl is the teacher. Hoo hoo! ${qStory()}`)
+  },
+  square:{
+    draw:()=>{const nt=night(),s=season();
+      let cob='';for(let r=0;r<7;r++)for(let c=0;c<11;c++)cob+=`M${c*40+(r%2?20:0)-14},${376+r*21} q14,-7 28,0 `;
+      return `<rect width="400" height="520" fill="${nt?'#22306a':paneSky()}"/>
+      ${nt?`<circle cx="250" cy="62" r="20" fill="#fff3b0" ${K}/><circle cx="90" cy="40" r="2.5" fill="#fff"/><circle cx="180" cy="28" r="2" fill="#fff"/><circle cx="310" cy="104" r="2" fill="#fff"/>`
+        :S.rain||snowy()?'':`<circle cx="200" cy="62" r="20" fill="#ffd34d" ${K}/>`}
+      <path d="${cloud(118,74,30,11,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <path d="${cloud(286,92,26,10,7)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <rect y="356" width="400" height="164" fill="${snowy()?'#fbfdff':'#eadfe6'}"/>
+      <path d="${cob}" fill="none" stroke="${snowy()?'#dce8f3':'#d3c0cc'}" stroke-width="2.5" stroke-linecap="round"/><path d="M0,356 H400" ${K}/>
+      ${s==='autumn'?[[30,490,30,0],[150,500,-20,1],[280,486,70,2],[360,500,-60,3]].map(([x,y,r,c])=>leaf(x,y,r,LEAFC[c])).join(''):''}
+      ${s==='spring'?[[24,496,'#f38db5'],[150,504,'#fff'],[266,500,'#ffd34d'],[380,494,'#f38db5']].map(([x,y,c])=>blossom(x,y,c,.8)).join(''):''}
+      ${SPOOKY?pumpkin(272,474,.6):''}`},
+    hots:()=>[
+      {id:'cafe',label:'Cat café',svg:cafeFront(),walk:51,tap:()=>go('cafe','left')},
+      {id:'rest',label:'Restaurant',svg:restFront(),walk:149,tap:()=>go('rest','left')},
+      {id:'school',label:'Cat school',svg:schoolFront(),walk:251,tap:()=>go('school','left')},
+      {id:'pool',label:'Swimming pool',svg:poolFront(),walk:349,tap:()=>go('pool','left')},
+      {id:'play',label:'Playground',svg:playArch(),walk:350,tap:()=>go('play','left')},
+      {id:'fountain',label:'Fountain',svg:fountain(),walk:276,tap:tapFountain},
+      {id:'pigeons',label:'Pigeons',svg:pigeons(),walk:156,tap:chasePigeons},
+      {id:'go-city',label:'Back to the shops',svg:arrow('left','SHOP'),tap:()=>leave(-60,()=>go('city','right'))},
+      {id:'park',label:'Go to the park',svg:arrow('right','PARK'),tap:()=>leave(460,()=>go('park','left'))}
+    ],
+    goal:()=>{
+      const p=nextPick();
+      return S.fish==='carry'?{id:'go-city',hint:'Take your fish home ↖'}
+        :night()?{id:'go-city',hint:'It is night! Go home ↖'}
+        :p?{id:p,hint:p==='park'?'Let\'s go to the park! ↗':`Let's go to the ${PLACE[p]}! Tap it`}
+        :S.hearts>=FISH?{id:'go-city',hint:`You have ${FISH} hearts! Go and buy a fish ↖`}
+        :!S.wish?{id:'fountain',hint:'A fountain! Tap it'}
+        :{id:'pigeons',hint:`Chase the pigeons for hearts (${S.hearts} of ${FISH})`};
+    },
+    over:()=>SC.city.over(),
+    before:()=>{S.square=true;if(!S.picks)S.picks=dayPicks()},
+    enter:()=>say(night()?'The town square at night. Shh, everybody is asleep.'
+      :S.rain?'The town square in the rain. Pitter patter!'
+      :'The town square! A fountain, pigeons, and lots of places to go.')
+  },
+  cafe:{
+    draw:()=>`<rect width="400" height="520" fill="#fff1d9"/><rect width="400" height="450" fill="url(#heartpaper)" opacity=".5"/>
+      <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="106" y="40" width="130" height="92" rx="6" fill="${paneSky()}" ${K}/>
+      ${night()?nightPane(108,42,126,88):S.rain?windowDrops(106,40,130,92):seasonPane(108,42,126,88)}<path d="M171,40 V132" ${K}/>
+      <rect x="14" y="110" width="80" height="86" rx="4" fill="#2f6b4f" ${K}/>
+      <text x="54" y="136" text-anchor="middle" class="chalk" style="font-size:17px">MENU</text>
+      <text x="54" y="160" text-anchor="middle" class="chalk" style="font-size:14px">MILK ♥</text><text x="54" y="182" text-anchor="middle" class="chalk" style="font-size:14px">CAKE ★</text>
+      <rect x="284" y="186" width="112" height="10" fill="#a8652f" ${K}/><path d="M300,196 l10,14 M380,196 l-10,14" ${K}/>
+      ${SPOOKY?pumpkin(214,450,.55):''}`,
+    hots:()=>[
+      {id:'counter',label:'Café counter',svg:cafeCounter(),walk:196,tap:orderLatte},
+      ...[0,1,2].map(i=>({id:'ccat'+i,label:['Ginger cat','Black cat','Spotty cat'][i],svg:cafeCat(i),walk:[310,286,210][i],tap:()=>petCafeCat(i)})),
+      toSquare()
+    ],
+    goal:()=>placeGoal(()=>!S.latte?{id:'counter',hint:'Tap the counter for a drink'}
+      :S.cafeCats.length<3?{id:'ccat'+[0,1,2].find(i=>!S.cafeCats.includes(i)),hint:`Say hello to the café cats (${S.cafeCats.length} of 3)`}:null,
+      ()=>({id:'ccat'+(S.cafeN%3),hint:`Cuddle the café cats for hearts (${S.hearts} of ${FISH})`})),
+    landLeft:200,
+    enter:()=>say(S.latte?'The cat café! The café cats are happy to see you.':'The cat café! It is full of cats. A barista cat makes the drinks.')
+  },
+  rest:{
+    draw:()=>`<rect width="400" height="520" fill="#fff6e6"/>
+      <path d="${[...Array(10)].map((_,i)=>`M${i*44+10},0 V450`).join(' ')}" stroke="#fbe0c0" stroke-width="16"/>
+      <rect y="450" width="400" height="70" fill="url(#checks)"/><path d="M0,450 H400" ${K}/>
+      <rect x="30" y="112" width="340" height="160" rx="10" fill="#fff" ${K}/><rect x="38" y="120" width="324" height="144" rx="6" fill="none" stroke="#d8243c" stroke-width="2.5"/>
+      <text x="200" y="146" text-anchor="middle" class="sign" style="fill:#d8243c">MENU</text>
+      <path d="M200,0 V44" stroke="${INK}" stroke-width="2.5"/><path d="M180,64 Q200,32 220,64Z" fill="#f9a03f" ${K}/>
+      ${SPOOKY?pumpkin(40,452,.55):''}`,
+    hots:()=>[
+      ...DISH.map((d,i)=>({id:'dish'+i,label:d.name,svg:menuDish(i),tap:()=>orderDish(i)})),
+      {id:'table',label:'Table',svg:restTable(),walk:140,tap:eatDish},
+      {id:'waiter',label:'Penguin waiter',svg:penguin(),walk:300,tap:tapWaiter},
+      toSquare()
+    ],
+    goal:()=>placeGoal(()=>S.dish!==null?{id:'table',hint:`Tap the table to eat your ${DISH[S.dish].name}`}
+      :!S.ate.length?{id:'dish'+(S.day%3),hint:'Pick something yummy from the menu!'}:null,
+      ()=>{const i=[0,1,2].find(i=>!S.ate.includes(i));return {id:'dish'+(i===undefined?S.hearts%3:i),hint:`Try something else! (${S.hearts} of ${FISH} hearts)`}}),
+    enter:()=>say('The restaurant! The waiter is a penguin. What would you like to eat?')
+  },
+  pool:{
+    draw:()=>`<rect width="400" height="520" fill="#e3f3fb"/>
+      <path d="${[...Array(7)].map((_,i)=>`M0,${i*42+20} H400`).join(' ')} ${[...Array(10)].map((_,i)=>`M${i*42+20},0 V296`).join(' ')}" stroke="#c4e3f3" stroke-width="2"/>
+      ${bunting(['#2c8fd6','#fff','#e8473f'])}
+      <rect x="0" y="304" width="400" height="134" fill="#7cc6f0"/>
+      <path d="${[0,1,2].map(r=>[...Array(8)].map((_,i)=>`M${i*52+(r%2?26:0)},${328+r*36} q8,-6 16,0 t16,0`).join(' ')).join(' ')}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+      ${[...Array(17)].map((_,i)=>`<circle cx="${i*25}" cy="372" r="5" fill="${i%2?'#fff':'#e8473f'}" stroke="${INK}" stroke-width="1.5"/>`).join('')}
+      <rect x="-4" y="296" width="408" height="10" fill="#fff" ${K}/><rect x="-4" y="436" width="408" height="14" fill="#fff" ${K}/>
+      <path d="M314,440 V408 q0,-10 10,-10 M336,440 V408 q0,-10 10,-10" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M314,440 V408 q0,-10 10,-10 M336,440 V408 q0,-10 10,-10" fill="none" stroke="#cfd3dc" stroke-width="3.5" stroke-linecap="round"/>
+      <rect y="450" width="400" height="70" fill="url(#tiles)"/><path d="M0,450 H400" ${K}/>`,
+    hots:()=>[
+      {id:'board',label:'Diving board',svg:divingBoard(),walk:40,tap:dive},
+      {id:'ball',label:'Beach ball',svg:beachBall(),walk:262,tap:batBall},
+      {id:'guard',label:'Lifeguard duck',svg:lifeguard(),walk:330,tap:tapGuard},
+      toSquare()
+    ],
+    goal:()=>placeGoal(()=>S.ride==='dive'?{id:'',hint:''}:!S.swim?{id:'board',hint:'Jump in! Tap the diving board'}:null,
+      ()=>({id:'ball',hint:`Bat the beach ball for hearts (${S.hearts} of ${FISH})`})),
+    landLeft:200,
+    enter:()=>say(S.swim?'The swimming pool. Splish splash!':'The swimming pool! Cats do not like water… or do they?')
+  },
+  food:{
+    draw:()=>`<rect width="400" height="520" fill="#dff1fb"/><rect width="400" height="450" fill="url(#dots)"/>
+      <rect y="450" width="400" height="70" fill="url(#tiles)"/><path d="M0,450 H400" ${K}/>
+      <rect x="112" y="12" width="282" height="440" rx="18" fill="#fff" ${K}/>
+      <rect x="124" y="26" width="258" height="412" rx="10" fill="#eaf7ff" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="124" y="158" width="258" height="8" fill="#cfe9f7" stroke="${INK}" stroke-width="2.5"/><rect x="124" y="290" width="258" height="8" fill="#cfe9f7" stroke="${INK}" stroke-width="2.5"/>
+      <circle cx="253" cy="40" r="7" fill="#fff3b0" stroke="${INK}" stroke-width="2"/>`,
+    hots:()=>[
+      ...FOODS.map((f,k)=>S.eaten.includes(k)?null:{id:'food'+k,label:f.name,svg:foodHot(k),tap:()=>eatFood(k)}).filter(Boolean),
+      {id:'veg',label:'Vegetables',svg:vegDrawer(),tap:yuckVeg},
+      {id:'go-kitchen',label:'Back to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>go('kitchen',170)}
+    ],
+    goal:()=>{
+      if(S.tummy>=3) return {id:'go-kitchen',hint:'Your tummy is full! Go back ↖'};
+      // a different food glows first each day
+      const k=FOODS.map((_,i)=>(i+(S.day-1)*4)%FOODS.length).find(i=>!S.eaten.includes(i));
+      return k===undefined?{id:'go-kitchen',hint:'Go back ↖'}:{id:'food'+k,hint:`What do you want to eat? Tap some food (${S.tummy} of 3)`};
+    },
+    landLeft:60,
+    enter:()=>say(S.tummy>=3?'The fridge. Your tummy is full!':'You open the fridge. Wow, so much food! What do you want to eat?')
+  },
+  hall:{
+    draw:()=>`<rect width="400" height="520" fill="#e8f6ee"/><rect width="400" height="450" fill="url(#mintstars)" opacity=".55"/>
+      <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      <ellipse cx="72" cy="2" rx="40" ry="12" fill="#3a3346" ${K}/>
+      <circle cx="176" cy="112" r="36" fill="${night()?'#22306a':paneSky()}" ${K}/><path d="M176,76 V148 M140,112 H212" ${K}/>
+      <ellipse cx="186" cy="486" rx="78" ry="15" fill="#f38db5" ${K}/>
+      ${SPOOKY?pumpkin(30,452,.6):''}`,
+    hots:()=>[
+      {id:'photo',label:'Photo on the wall',svg:hallPhoto(),walk:166,tap:()=>{react('happy');say(S.pal?'A photo of you and your best friend! Poooourrr!':'A photo of you! So pretty. Poooourrr!')}},
+      {id:'stairs',label:'Stairs up to the bedroom',svg:stairs(),walk:300,tap:()=>{say('Up the stairs… one, two, three… seven!','');go('bed',364)}},
+      {id:'chute',label:'The bottom of the slide',svg:chuteArt(),walk:190,tap:()=>{sfx.boing();bubble(200,330,'WHEEE!','#f5891f');say('The slide comes down from your bedroom! Climb the stairs to slide again.')}},
+      {id:'go-kitchen',label:'Go to the kitchen',svg:arrow('right','KITCHEN'),tap:()=>leave(460,()=>go('kitchen','left'))}
+    ],
+    goal:()=>S.ride==='chute'?{id:'',hint:''}
+      :S.tour?{id:'stairs',hint:'Go upstairs and see your new bedroom ↑'}
+      :S.fish==='carry'?{id:'go-kitchen',hint:'Take your fish to the kitchen ↗'}
+      :S.tummy<3?{id:'go-kitchen',hint:'Breakfast time! Go to the kitchen ↗'}
+      :homeward()?{id:'stairs',hint:'It is night! Go upstairs to bed ↑'}
+      :{id:'go-kitchen',hint:'Go and explore ↗'},
+    enter:()=>say(S.ride==='chute'?'Wheee…'
+      :S.tour?'Your new house! This is the hall. The stairs go up to your bedroom.'
+      :'The hall of your big house. The stairs go up to your bedroom.')
+  },
+  moving:{
+    draw:()=>`<rect width="400" height="520" fill="${night()?'#22306a':paneSky()}"/>
+      ${night()?`<circle cx="70" cy="70" r="20" fill="#fff3b0" ${K}/>`:S.rain||snowy()?'':`<circle cx="70" cy="74" r="22" fill="#ffd34d" ${K}/>`}
+      <path d="${cloud(160,70,32,11,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,330 Q120,300 220,322 T400,312 V470 H0Z" fill="${snowy()?'#fbfdff':'#a8d98a'}" ${K}/>
+      <rect y="450" width="400" height="20" fill="${snowy()?'#fbfdff':'#eadfe6'}"/><path d="M0,450 H400 M0,470 H400" ${K}/>
+      <rect y="470" width="400" height="50" fill="#5d5866"/><path d="M10,496 H50 M90,496 H130 M170,496 H210 M250,496 H290 M330,496 H370" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      ${moveBox(158,414,38,36)}${moveBox(164,384,28,30)}${moveBox(368,420,30,30)}`,
+    hots:()=>[
+      {id:'van',label:'Moving van',svg:movingVan(),walk:160,tap:()=>{const v=$('.van');v&&restartClass(v,'shake',900);sfx.beep();bubble(70,320,'BEEP BEEP!','#2c8fd6');
+        react('happy');say('The moving van brought all your things. And your cloud bed!')}},
+      {id:'house',label:'Your new house',svg:`<rect x="170" y="176" width="196" height="276" fill="transparent"/>${bigHouse(268,452,.78)}`,walk:268,tap:()=>{
+        say('You open the door of your new house…','');go('hall','left')}}
+    ],
+    goal:()=>({id:'house',hint:'Tap your new house to go in!'}),
+    over:()=>SC.city.over(),
+    enter:()=>say(`Here is your new house, ${nm()}! It is so big. It has two floors!`)
   },
   stickers:{
     noCat:true,
@@ -1624,12 +2091,17 @@ function go(name,from){
   clearLater();S.busy=true;stage.classList.add('fade');const g=GEN;
   setTimeout(()=>{
     if(g!==GEN)return;
-    const at=typeof from==='number';
-    S.scene=name;S.x=at?from:from==='left'?-50:450;S.face=1;S.mood='normal';
-    S.palX=at?Math.max(30,from-62):from==='left'?-120:520;S.prints=[];S.lastKey=-1;
+    // 'chute': the cat comes down the big house slide into the hall
+    const at=typeof from==='number',chute=from==='chute';
+    S.scene=name;S.x=at?from:chute?200:from==='left'?-50:450;S.face=1;S.mood='normal';
+    S.palX=at?Math.max(30,from-62):chute?120:from==='left'?-120:520;S.prints=[];S.lastKey=-1;
+    if(chute)S.ride='chute';
+    // places in town remember that you went there today, and that you have ever been
+    if(PLACES.includes(name)){S.went.includes(name)||S.went.push(name);S.seen.includes(name)||S.seen.push(name)}
     SC[name].before&&SC[name].before();render();updateHud();
     stage.classList.remove('fade');SC[name].enter();
-    if(at){const an=$('#catAnim');an&&restartClass(an,'stretch',900);S.busy=false}
+    if(chute)chuteIn();
+    else if(at){const an=$('#catAnim');an&&restartClass(an,'stretch',900);S.busy=false}
     else walkTo(from==='left'?SC[name].landLeft||80:SC[name].landRight||320,()=>{});
     follow();
   },300);
@@ -1691,6 +2163,8 @@ function wake(){
   say(bday()?'You wake up. It is your birthday! Happy birthday, '+nm()+'!'
     :S.rain?(sea?`You wake up. ${sea} And it is raining!`:'You wake up. It is raining! And you are hungry…')
     :sea?`You wake up. ${sea} And you are hungry…`:'You wake up and you are hungry! Rumble rumble…');
+  // a cat with enough days and points is asked if it wants to move; saying not now asks again tomorrow
+  if(canMove()&&S.moveAsk!==S.day){const g=GEN;setTimeout(()=>{if(g===GEN&&ov.hidden&&CUR&&canMove()&&S.moveAsk!==S.day)offerMove()},2200)}
 }
 function pounce(){
   const d=S.dot,an=$('#catAnim'),el=$('.dot');if(d.hid||!el)return;
@@ -1879,6 +2353,8 @@ function nap(){
     S.sDone=false;S.stamps=0;S.piano=false;S.danced=false;S.songAt=0;
     S.hat='';S.bow=false;S.glasses=false;S.dressed=false;S.yarn=0;S.bath=false;S.pops=[];S.party=false;S.park=false;S.pondN=0;S.quackN=0;S.looked=false;
     S.playground=false;S.rides=[];S.school=false;S.q=null;S.qn=0;S.lessons=0;S.pumpkin=false;S.ghost=false;
+    S.square=false;S.picks=null;S.went=[];S.wish=false;S.pigeonN=0;S.latte=false;S.cafeCats=[];S.cafeN=0;S.dish=null;S.ate=[];
+    S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     // the bird only comes when it is not raining
@@ -1968,6 +2444,149 @@ function tapOwl(){
 function moreSchool(){
   S.qn=0;S.q=lesson(0);render();sfx.twinkle(3);
   say(`Another lesson! Hoo hoo! ${qStory()}`);
+}
+
+const faceLeft=()=>{S.face=-1;const f=$('#catFlip');f&&f.setAttribute('transform','scale(-1,1)')};
+function tapFountain(){
+  faceLeft();sfx.splash();splash(196,420);
+  if(!S.wish){S.wish=true;bubble(196,330,'PLOP!','#2c8fd6');say('You make a wish and dip your paw in the fountain. Plop!','');later(()=>{clearBubbles();react('happy');say('You make a wish… Poooourrr!')},700)}
+  else{react('happy');say('Splish splash! The fountain water is so cool.')}
+}
+function chasePigeons(){
+  faceLeft();S.pigeonN++;const an=$('#catAnim');an&&restartClass(an,'jump',700);sfx.pounce();
+  const p=$('.pgs');p&&restartClass(p,'flyoff',2400);later(()=>{sfx.whoosh();sfx.coo()},200);
+  bubble(90,380,'COO COO!','#8d8d9a');say('Pounce! Flap flap… the pigeons fly away!','');
+  later(()=>{clearBubbles();react('happy');say(S.pigeonN%2?'The pigeons come back. Coo coo! Catch them again!':'You can never catch a pigeon! Poooourrr!')},1300);
+}
+function orderLatte(){
+  faceLeft();
+  if(S.latte){sfx.slurp();react('happy');say('Another sip of warm milk. Mmm! Poooourrr!');return}
+  S.busy=true;sfx.psh();bubble(60,236,'PSSSHH!','#8d8d9a');say('The barista cat makes you a drink… Pssshh!','');
+  later(()=>{S.latte=true;render();faceLeft();sfx.sticker();bubble(140,250,'TA-DA!','#e0508a')},1300);
+  later(()=>{S.busy=false;sfx.slurp();react('happy');say('Warm milk with a heart on top! Slurp slurp! Poooourrr!')},2100);
+}
+function petCafeCat(i){
+  faceRight();S.cafeN++;
+  if(!S.cafeCats.includes(i)){S.cafeCats.push(i);render()}
+  const el=$('.cc'+i),[x,y,t,s]=CAFECATS[i];el&&restartClass(el,'wiggle',900);
+  i===1?sfx.meow(false):sfx.purr();bubble(x,y,t,'#8a6bd1');say(s,'');
+  later(()=>{clearBubbles();react('happy');say(s)},900);
+}
+function orderDish(i){
+  if(S.dish!==null){say(`Your ${DISH[S.dish].name} is on the table. Eat it first!`);return}
+  S.busy=true;const w=$('.pgw');w&&restartClass(w,'wiggle',900);sfx.squeak();bubble(300,290,'COMING!','#3a3346');
+  say(`${DISH[i].name.toUpperCase()}, please! The penguin waiter waddles off…`,'');
+  later(()=>{S.dish=i;S.busy=false;render();sfx.ding();bubble(236,280,'TA-DA!','#e0508a');say(`Here is your ${DISH[i].name}!`)},1300);
+}
+function eatDish(){
+  faceRight();
+  if(S.dish===null){say('Pick something yummy from the menu!');return}
+  const d=DISH[S.dish];S.ate.includes(S.dish)||S.ate.push(S.dish);S.dish=null;render();
+  d.slurp?sfx.slurp():sfx.crunch(true);react('happy');say(d.say);
+}
+function tapWaiter(){
+  faceRight();const w=$('.pgw');w&&restartClass(w,'wiggle',900);sfx.squeak();bubble(300,290,'WELCOME!','#3a3346');
+  say('The waiter is a penguin! He bows.','');
+  later(()=>{clearBubbles();react('happy');say('The penguin waiter bows: welcome to the restaurant! Poooourrr!')},900);
+}
+// off the diving board: up the ladder, along the board, a big dive, then a swim in the pink ring
+function dive(){
+  S.busy=true;S.ride='dive';clearTimeout(moodT);S.mood='normal';clearBubbles();render();
+  say('Up the ladder… to the diving board!','');
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none" transform="translate(41,452)"><g transform="scale(.6)">${rider()}</g></g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now();let swim=false;
+  [0,1,2].forEach(j=>later(()=>sfx.twinkle(j+1),150+j*300));
+  later(()=>{sfx.whee();bubble(160,150,'WHEEE!','#f5891f')},1500);
+  later(()=>{sfx.splash();splash(236,370);splash(250,380);bubble(240,280,'SPLASH!','#2c8fd6');say('SPLASH! You swim in your pink ring. Paddle paddle!','')},2200);
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const s=(t-t0)/1000;let x,y,r=0;
+    if(s<.9){x=41;y=452-228*(s/.9)}
+    else if(s<1.5){x=41+120*((s-.9)/.6);y=224}
+    else if(s<2.2){const q=(s-1.5)/.7;x=161+79*q;y=224+(390-224)*q-110*Math.sin(Math.PI*q);r=160*q}
+    else if(s<4.4){const q=(s-2.2)/2.2;if(!swim){swim=true;el.innerHTML=swimmer()}x=240+90*q;y=392+3*Math.sin(s*8)}
+    else{finishSwim();return}
+    el.setAttribute('transform',`translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${r.toFixed(1)})`);
+    requestAnimationFrame(step);
+  })(t0);
+}
+function finishSwim(){
+  S.ride=null;S.swim=true;S.x=340;S.face=1;clearBubbles();render();follow();
+  const an=$('#catAnim');an&&restartClass(an,'wetshake',900);sfx.shake();wetScreen();
+  bubble(S.x,headY(),'SHAKE SHAKE!','#2c8fd6');say('You climb out. Shake shake shake! Now everything is wet!','');
+  later(()=>{S.busy=false;react('happy');say('What a swim! Cats CAN swim! Poooourrr!')},1700);
+}
+function batBall(){
+  faceRight();S.ballN++;const b=$('.bb');b&&restartClass(b,'jump',700);sfx.boing();splash(262,352);
+  bubble(262,276,'BOING!','#e8473f');say('You bat the beach ball…','');
+  later(()=>{clearBubbles();react('happy');say(S.ballN%2?'Boing! The beach ball bounces on the water!':'Bat! The ball flies up… and splash!')},800);
+}
+function tapGuard(){
+  faceRight();const d=$('.lg');d&&restartClass(d,'wiggle',900);sfx.whistle();bubble(300,140,'TWEET!','#e8473f');
+  say('The lifeguard duck blows the whistle!','');
+  later(()=>{clearBubbles();react('happy');say('The lifeguard duck says: no running by the pool! Quack!')},900);
+}
+// a food flies from the fridge shelf into the cat's mouth
+function eatFood(k){
+  if(S.eaten.includes(k))return;
+  faceRight();
+  if(S.tummy>=3){react('happy',false);say('Your tummy is full! No more food today.');return}
+  const f=FOODS[k],[x,y]=foodAt(k);S.busy=true;S.eaten.push(k);render();
+  const id='e'+(++uid);stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none">${f.art(0,0)}</g>`);
+  const el=document.getElementById(id),tx=S.x+18,ty=FLOOR-86,t0=performance.now(),g=GEN;
+  (function step(t){
+    if(g!==GEN){el.remove();return}
+    const p=Math.min(1,(t-t0)/550),ex=x+(tx-x)*p,ey=y+(ty-y)*p-80*Math.sin(Math.PI*p);
+    el.setAttribute('transform',`translate(${ex.toFixed(1)},${ey.toFixed(1)}) scale(${(1-.6*p).toFixed(2)})`);
+    if(p<1){requestAnimationFrame(step);return}
+    el.remove();S.busy=false;S.tummy++;updateHud();f.slurp?sfx.slurp():sfx.crunch(true);react('happy');
+    say(f.say+(S.tummy<3?'':' Your tummy is full! Poooourrr!'));
+  })(t0);
+}
+function yuckVeg(){
+  faceRight();sfx.nope();bubble(252,330,'BLEH!','#1f8a4c');later(()=>react('scared'),300);
+  say('Carrots and broccoli? Bleh! Cats do not eat vegetables!');
+}
+// the big house: down the slide from the bedroom…
+function slideDown(){
+  S.busy=true;S.tour=false;faceRight();clearBubbles();sfx.boing();say('You hop on the slide… Wheee!','');
+  const cat=$('#cat'),g=GEN,t0=performance.now(),x0=S.x;
+  (function step(t){
+    if(g!==GEN||!cat||!cat.isConnected)return;
+    const p=Math.min(1,(t-t0)/650);
+    cat.setAttribute('transform',`translate(${(x0+6*p).toFixed(1)},${(FLOOR+70*p*p).toFixed(1)}) rotate(${(25*p).toFixed(1)})`);cat.style.opacity=1-p;
+    if(p<1)requestAnimationFrame(step);else go('hall','chute');
+  })(t0);
+}
+// …and out at the bottom in the hall
+function chuteIn(){
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none">${rider()}</g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now();sfx.whee();
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const p=Math.min(1,(t-t0)/1300),[x,y]=bez(CHUTE,p*p);
+    el.setAttribute('transform',`translate(${x.toFixed(1)},${(y-6).toFixed(1)}) rotate(${(-30*(1-p)).toFixed(1)})`);
+    if(p<1){requestAnimationFrame(step);return}
+    S.ride=null;S.slid=true;S.x=200;render();follow();
+    bubble(S.x,headY(),'WHEEE!','#f5891f');
+    later(()=>{S.busy=false;clearBubbles();react('happy');say('Wheee! You slide all the way down! Poooourrr!')},700);
+  })(t0);
+}
+// moving day: the offer, and the trip to the big house
+function offerMove(){
+  if(ov.hidden)PREV=[document.getElementById('story').textContent,document.getElementById('hint').textContent];
+  openOv('move',`<h2>Would you like to move?</h2>
+    <svg viewBox="-150 -350 300 360" style="height:clamp(110px,38vw,180px);align-self:center" aria-hidden="true">${bigHouse(0,0,1)}</svg>
+    <p>A big house with two floors and a slide!</p>
+    <button class="big pink" data-a="moveyes" data-focus>YES, LET'S MOVE! ▶</button>
+    <button class="big small" data-a="moveno">NOT NOW</button>`,
+    `Wow, ${nm()}! ${S.points} points! Would you like to move to a big house?`,'Tap YES or NOT NOW');
+}
+function moveHouse(){
+  S.moveAsk=S.day;S.big=true;S.tour=true;closeOv();reset();
+  if(!S.awake){S.awake=true;S.mood='normal'}
+  sfx.chord();say('Hooray! You pack all your things in boxes…','');
+  go('moving','left');
 }
 
 /* ---------- effects ---------- */
@@ -2121,6 +2740,10 @@ const sfx={
   hoo(){seq('sine',[[440,400,.22,.22],[420,370,.4,.2]])},
   whee(){seq('sine',[[420,980,.45,.16]])},
   nope(){seq('sine',[[330,250,.16,.14]])},
+  ding(){seq('triangle',[[1320,1320,.35,.12]])},
+  whistle(){seq('square',[[2100,2300,.1,.04],[2100,2300,.3,.04]])},
+  psh(){this.noise(.8,'highpass',2500,.3)},
+  coo(){seq('sine',[[400,330,.18,.16],[380,300,.25,.14]])},
   splash(){
     const a=ac();if(!a)return;const t=a.currentTime,d=.45,len=Math.floor(a.sampleRate*d);
     const b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
@@ -2193,6 +2816,7 @@ function showMenu(){
     <button class="big blue" data-a="save" id="saveBtn">✓ SAVE</button>
     <button class="big green" data-a="again">↺ START AGAIN</button>
     <button class="big gold" data-a="board">${TROPHY} TOP CATS</button>
+    ${canMove()?`<button class="big blue" data-a="move">${houseIcon} MOVE HOUSE</button>`:''}
     <button class="big orange" data-a="spooky" aria-pressed="${SPOOKY}">${spookyLabel()}</button>
     <button class="big" data-a="title">CHANGE CAT</button>`,
     'Paws! The game is waiting for you.','');
@@ -2253,6 +2877,9 @@ ov.addEventListener('click',e=>{
     setSpooky(!SPOOKY);b.innerHTML=spookyLabel();b.setAttribute('aria-pressed',SPOOKY);SPOOKY?sfx.boo():sfx.twinkle(2);
     if(!S.busy){render();if(PREV)PREV[1]=SC[S.scene].goal().hint}
   }
+  else if(a==='move') offerMove();
+  else if(a==='moveyes') moveHouse();
+  else if(a==='moveno'){S.moveAsk=S.day;save();resume()}
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
   else if(a==='again') confirmBox('Start again from day 1?','Your hearts, points and stickers start over.',startAgain,showMenu);
   else if(a==='del'){const c=DB.cats.find(c=>c.id===id);c&&confirmBox(`Say bye-bye to ${esc(c.name)}?`,'This cat goes away for good.',()=>{
