@@ -1,0 +1,4 @@
+# Netlify builds the installable app from the same you-are-a-cat.html (works with a private repo)
+[build]
+  command = "./pwa/build.sh _site"
+  publish = "_site"
