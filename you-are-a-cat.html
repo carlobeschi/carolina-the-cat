@@ -181,9 +181,14 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 /* town square: the pigeons fly off when the cat pounces, then come back */
 .flyoff{animation:flyoff 2.4s ease-in-out}
 @keyframes flyoff{0%{transform:none;opacity:1}35%{transform:translate(-40px,-230px);opacity:0}65%{transform:translate(40px,-230px);opacity:0}100%{transform:none;opacity:1}}
+/* holidays: a goal in Brazil, and the hills going by the sleeper train window */
+.kick{animation:kick 1.5s ease-out}
+@keyframes kick{0%{transform:none}40%{transform:translate(94px,-48px) rotate(300deg)}60%{transform:translate(96px,-8px) rotate(400deg)}85%{transform:translate(96px,-8px) rotate(400deg);opacity:1}92%{opacity:0}100%{transform:none;opacity:1}}
+.drift{animation:drift 4s linear infinite}
+@keyframes drift{to{transform:translateX(-140px)}}
 @media (prefers-reduced-motion:reduce){
-  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim{animation:none}
-  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff{animation-duration:.01s}
+  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift{animation:none}
+  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick{animation-duration:.01s}
 }
 </style>
 
@@ -237,7 +242,7 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   points:0,today:0,done:[],look:null,looked:false,
   playground:false,rides:[],ride:null,school:false,q:null,qn:0,lessons:0,fest:'',visit:'',
   square:false,picks:null,went:[],seen:[],wish:false,pigeonN:0,latte:false,cafeCats:[],cafeN:0,dish:null,ate:[],swim:false,ballN:0,eaten:[],
-  slid:false,big:false,tour:false,moveAsk:0};
+  slid:false,big:false,tour:false,moveAsk:0,trip:'',tp:{},trips:[],tripDay:0,souv:[]};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -261,10 +266,13 @@ const SANTA={id:'santa',slot:'hat',name:'Santa hat',c:[4,-152]};
 const EARS={id:'ears',slot:'hat',name:'bunny ears',c:[0,-160]};
 const JESTER={id:'jester',slot:'hat',name:'jester hat',c:[0,-156]};
 const LUCKY={id:'lucky',slot:'hat',name:'lucky hat',c:[0,-146]};
-const items=()=>{const h=party().hat;return h?[ITEMS[0],ITEMS[1],h,ITEMS[2],ITEMS[3]]:ITEMS};
+// hats brought home from holidays stay in the drawer
+const SUNHAT={id:'sunhat',slot:'hat',name:'sun hat',c:[0,-142]};
+const TAM={id:'tam',slot:'hat',name:'tartan hat',c:[0,-146]};
+const items=()=>{const h=party().hat,s=[SUNHAT,TAM].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
 const wearing=it=>it.slot==='hat'?S.hat===it.id:S[it.slot];
 // how high above the floor speech bubbles go for each hat
-const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224};
+const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226};
 // every nap moves the season on; day 1 is summer
 const SEASONS=['summer','autumn','winter','spring'];
 const season=()=>SEASONS[(S.day-1)%4];
@@ -379,7 +387,7 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['party',()=>S.party],['park',()=>S.park],['season',()=>S.sDone],['bath',()=>S.bath==='done'],
   ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
   ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['fest',()=>!!S.fest],['visit',()=>!!S.visit],
-  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid]];
+  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['trip',()=>S.tripDay===S.day]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -432,6 +440,14 @@ const WEAR={
   lucky:()=>`<path d="M-21,-128 Q-22,-162 0,-162 Q22,-162 21,-128Z" fill="#d8243c" ${K}/>
     <path d="M-10,-158 V-130 M10,-158 V-130" stroke="#ffd34d" stroke-width="2.5"/><rect x="-24" y="-136" width="48" height="10" rx="4" fill="#ffd34d" ${K} stroke-width="2.4"/>
     <circle cx="0" cy="-166" r="6" fill="#ffd34d" ${K} stroke-width="2.2"/><path d="M0,-160 q-8,14 -4,24 M0,-160 q8,14 4,24" fill="none" stroke="#d8243c" stroke-width="2.5" stroke-linecap="round"/>`,
+  sunhat:()=>`<g transform="rotate(-6 0 -130)"><path d="M-18,-131 Q-19,-162 0,-162 Q19,-162 18,-131Z" fill="#f1d27a" ${K}/>
+    <rect x="-19" y="-142" width="38" height="8" fill="#3cb8b0" stroke="${INK}" stroke-width="2"/>
+    <ellipse cx="0" cy="-130" rx="42" ry="8" fill="#f1d27a" ${K}/>${blossom(14,-139,'#e0508a',.8)}</g>`,
+  tam:()=>`<g transform="rotate(8 0 -130)"><path d="M-27,-133 Q-31,-160 1,-162 Q33,-160 29,-135Z" fill="#2f6b4f" ${K}/>
+    <path d="M-15,-155 V-136 M3,-159 V-135 M19,-155 V-136 M-27,-147 H29" stroke="#d8243c" stroke-width="2.5"/>
+    <path d="M-6,-158 V-135 M11,-158 V-135 M-28,-141 H29 M-24,-153 H25" stroke="#ffd34d" stroke-width="1.2"/>
+    <rect x="-24" y="-137" width="49" height="9" rx="4" fill="#1f5fa8" ${K} stroke-width="2.4"/>
+    <circle cx="2" cy="-167" r="7" fill="#d8243c" ${K} stroke-width="2.2"/></g>`,
   bow:()=>`<path d="M18,-127 L4,-138 L5,-116Z M18,-127 L32,-138 L31,-116Z" fill="#e0508a" ${K} stroke-width="2.2"/><circle cx="18" cy="-127" r="4.5" fill="#f38db5" stroke="${INK}" stroke-width="2"/>`,
   glasses:()=>`<path transform="translate(-11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
     <path transform="translate(11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
@@ -491,6 +507,8 @@ const DEFS=`<defs>
 <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="3.5" fill="#f9b36b"/><circle cx="30" cy="30" r="3.5" fill="#ef8f9c"/></pattern>
 <pattern id="tiles" width="36" height="36" patternUnits="userSpaceOnUse"><rect width="36" height="36" fill="#ffe873"/><path d="M9,4 v10 M4,9 h10 M27,22 v10 M22,27 h10 M25,6 l5,4 M6,25 l4,5" stroke="#e8473f" stroke-width="2" stroke-linecap="round"/></pattern>
 <pattern id="checks" width="36" height="36" patternUnits="userSpaceOnUse"><rect width="36" height="36" fill="#fff"/><rect width="18" height="18" fill="#f2a0a8"/><rect x="18" y="18" width="18" height="18" fill="#f2a0a8"/></pattern>
+<pattern id="tartan" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#2f6b4f"/><path d="M6,0 V24 M0,6 H24" stroke="#1f5fa8" stroke-width="5" opacity=".8"/><path d="M18,0 V24 M0,18 H24" stroke="#d8243c" stroke-width="3"/><path d="M12,0 V24 M0,12 H24" stroke="#ffd34d" stroke-width="1"/></pattern>
+${[100,206,312].map(x=>`<clipPath id="win${x}"><ellipse cx="${x}" cy="168" rx="24" ry="34"/></clipPath>`).join('')}<clipPath id="sleepWin"><rect x="236" y="128" width="140" height="120" rx="6"/></clipPath>
 <pattern id="mintstars"width="60" height="44" patternUnits="userSpaceOnUse"><rect width="60" height="44" fill="#cdeee2"/><path d="M14,6 v16 M6,14 h16 M8,8 l12,12 M20,8 l-12,12 M44,26 v14 M37,33 h14 M39,28 l10,10 M49,28 l-10,10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></pattern>
 </defs>`;
 
@@ -895,7 +913,7 @@ function dresser(){
 function itemHot(it,i,n){
   const w=348/n,x=26+(i+.5)*w,[cx,cy]=it.c;
   return `<rect x="${x-w/2}" y="124" width="${w}" height="92" fill="transparent"/>
-  <g opacity="${wearing(it)?.3:1}"><g transform="translate(${x},170) scale(${n>4?1.25:1.5}) translate(${-cx},${-cy})">${WEAR[it.id]()}</g></g>`;
+  <g opacity="${wearing(it)?.3:1}"><g transform="translate(${x},170) scale(${n>5?1:n>4?1.25:1.5}) translate(${-cx},${-cy})">${WEAR[it.id]()}</g></g>`;
 }
 function mirror(){
   return `<ellipse cx="110" cy="352" rx="72" ry="94" fill="#d6ad45" ${K}/><ellipse cx="110" cy="352" rx="62" ry="84" fill="#e6f6ff" stroke="${INK}" stroke-width="2.5"/>
@@ -1668,6 +1686,272 @@ const moveBox=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fil
 const houseIcon=`<svg width="30" height="30" viewBox="-150 -350 300 360" aria-hidden="true">${bigHouse(0,0,1)}</svg>`;
 
 /* ---------- scenes ---------- */
+/* ---------- holidays: the cat lives in London. A plane over the square says HOLIDAY!
+   Brazil: Heathrow airport, a plane, then the beach in Rio. Scotland: Euston station, the sleeper train, then Edinburgh ---------- */
+const TRIPS={brazil:{name:'Brazil',start:'airport'},scotland:{name:'Scotland',start:'station'}};
+// a holiday is offered on the square once each trip is new, and then every third day
+const tripDay=()=>!S.trip&&S.tripDay!==S.day&&S.day>=2&&(S.trips.length<2||S.day%3===0);
+const flagBR=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="40" height="28" rx="2" fill="#1f8a4c" stroke="${INK}" stroke-width="2"/>
+  <path d="M0,-11 L17,0 L0,11 L-17,0Z" fill="#ffd34d"/><circle r="6.5" fill="#1f5fa8"/><path d="M-6,-1 q6,-3 12,1" fill="none" stroke="#fff" stroke-width="1.4"/></g>`;
+const flagSC=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="40" height="28" rx="2" fill="#1f5fa8"/>
+  <path d="M-20,-14 L20,14 M20,-14 L-20,14" stroke="#fff" stroke-width="5"/><rect x="-20" y="-14" width="40" height="28" rx="2" fill="none" stroke="${INK}" stroke-width="2"/></g>`;
+// a little white plane flying left; the middle of its body is 0,0
+const planeArt=(s=1,c='#fff')=>`<g transform="scale(${s})"><path d="M30,-10 L42,-32 H52 L48,-8Z" fill="#e0508a" ${K} stroke-width="2.5"/>
+  <path d="M-42,0 Q-44,-12 -28,-12 H40 Q50,-12 50,-4 Q50,6 38,6 H-30 Q-42,6 -42,0Z" fill="${c}" ${K}/>
+  <path d="M-38,-4 q4,-6 12,-6 v6Z" fill="#9fd0ef" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  ${[-14,-4,6,16,26].map(x=>`<circle cx="${x}" cy="-4" r="2.6" fill="#9fd0ef" stroke="${INK}" stroke-width="1.4"/>`).join('')}
+  <path d="M-2,0 L14,20 H24 L14,0Z" fill="#e0508a" ${K} stroke-width="2.5"/></g>`;
+// over the square: a plane pulling a HOLIDAY banner
+function holidayPlane(){
+  return `<rect x="70" y="4" width="196" height="50" fill="transparent"/><g class="bob">
+  <path d="M136,26 L156,26" stroke="${INK}" stroke-width="1.5"/>
+  <path d="M156,14 H262 L254,26 L262,38 H156Z" fill="#fff3c4" ${K} stroke-width="2.5"/>
+  <text x="206" y="34" text-anchor="middle" class="sign" style="font-size:19px;fill:#e0508a">HOLIDAY!</text>
+  <g transform="translate(100,28)">${planeArt(.62)}</g></g>`;
+}
+const tripIcon=t=>`<svg width="46" height="34" viewBox="-23 -17 46 34" aria-hidden="true">${t==='brazil'?flagBR(0,0):flagSC(0,0)}</svg>`;
+function offerTrip(){
+  if(S.fish==='carry'){react('happy',false);say('Take your fish home first! Then you can go on holiday.');return}
+  if(ov.hidden)PREV=[document.getElementById('story').textContent,document.getElementById('hint').textContent];
+  sfx.whoosh();
+  openOv('trip',`<h2>Go on holiday!</h2><p>Where shall we go?</p>
+    <button class="big blue" data-a="trip" data-t="brazil" data-focus>${tripIcon('brazil')} <span>BRAZIL<span class="meta">BY PLANE ✈</span></span></button>
+    <button class="big green" data-a="trip" data-t="scotland">${tripIcon('scotland')} <span>SCOTLAND<span class="meta">BY SLEEPER TRAIN</span></span></button>
+    <button class="big small" data-a="close">NOT NOW</button>`,
+    `Holiday time, ${nm()}! Where shall we go?`,'Tap Brazil or Scotland');
+}
+function startTrip(t){
+  closeOv();S.trip=t;S.tp={};clearBubbles();sfx.chord();
+  say(t==='brazil'?'You pack your suitcase… and off to the airport!':'You pack your suitcase… and off to the train station!','');
+  go(TRIPS[t].start,'left');
+}
+function cancelTrip(){S.trip='';S.tp={};go('square',200)}
+// home again: the trip counts for today, and its hat stays in the dress-up drawer
+function endTrip(how){
+  const t=S.trip;S.trip='';S.tp={};S.tripDay=S.day;S.trips.includes(t)||S.trips.push(t);
+  sfx.chord();WELCOME=how;go('living','right');
+}
+const tripHome=()=>({id:'go-home',label:'Go home',svg:arrow('left','HOME'),tap:cancelTrip});
+
+/* the airport */
+function deskArt(){
+  return `<rect x="14" y="276" width="150" height="178" fill="transparent"/>
+  <rect x="34" y="282" width="110" height="26" rx="6" fill="#fff" ${K} stroke-width="2.5"/><text x="89" y="301" text-anchor="middle" class="sign" style="font-size:16px">CHECK-IN</text>
+  <g class="agent" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(88,400) scale(.6)">${catSVG('happy',false,false,CREAM)}</g></g>
+  <rect x="20" y="370" width="138" height="82" rx="4" fill="#9fd0ef" ${K}/><path d="M20,388 H158" ${K}/>
+  ${heart(89,420,1.4,'#e0508a',true)}
+  ${S.tp.ticket?'':`<g class="case"><rect x="168" y="396" width="44" height="54" rx="6" fill="#f9a03f" ${K}/><path d="M180,396 v-10 h20 v10" fill="none" ${K}/>
+    <path d="M168,414 H212" stroke="${INK}" stroke-width="2"/>${blossom(190,432,'#fff',.8)}<circle cx="176" cy="452" r="4" fill="${INK}"/><circle cx="204" cy="452" r="4" fill="${INK}"/></g>`}`;
+}
+function departBoard(lines,x=20,y=114,w=170){
+  return `<rect x="${x}" y="${y}" width="${w}" height="${16+lines.length*24}" rx="5" fill="#2b2f3a" ${K}/>
+  ${lines.map((l,i)=>`<text x="${x+10}" y="${y+28+i*24}" class="chalk" style="font-size:16px;fill:${i?'#ffe08a':'#7fe3a0'}">${l}</text>`).join('')}
+  <path d="M${x+30},${y} V${y-14} M${x+w-30},${y} V${y-14}" stroke="${INK}" stroke-width="2.5"/>`;
+}
+function bigPlane(){
+  return `<rect x="200" y="164" width="196" height="112" fill="transparent"/><g class="jet" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(300,236) scale(1.9)">${planeArt(1)}</g></g>`;
+}
+
+/* inside the plane: two seats under three round windows */
+const SEATX=[100,206];
+const planeWin=(x,v)=>{
+  const sky=v===1?'#7cc6f0':'#bfe3fa';
+  const land=v===0?`<rect x="${x-30}" y="186" width="60" height="30" fill="#a8d98a"/>${[-18,-4,10].map((d,i)=>`<rect x="${x+d}" y="${178-i%2*6}" width="10" height="${14+i%2*6}" fill="${['#f7b9d0','#ffd98a','#cfd3dc'][i]}" stroke="${INK}" stroke-width="1.4"/>`).join('')}<rect x="${x+20}" y="166" width="6" height="22" fill="#d6ad45" stroke="${INK}" stroke-width="1.4"/>`
+    :v===1?`<path d="${cloud(x-12,192,22,10,7)}" fill="#fff" stroke="${INK}" stroke-width="1.6"/><path d="${cloud(x+16,198,20,9,7)}" fill="#fff" stroke="${INK}" stroke-width="1.6"/>`
+    :v===2?`<rect x="${x-30}" y="170" width="60" height="50" fill="#2c8fd6"/><path d="M${x-22},180 q5,-4 10,0 M${x+4},196 q5,-4 10,0 M${x-14},206 q5,-4 10,0" fill="none" stroke="#fff" stroke-width="1.8"/>
+      <path d="M${x+8},186 q-4,-8 -10,-8 q4,-2 10,4 q6,-6 10,-4 q-6,0 -10,8Z" fill="#3a3346" stroke="${INK}" stroke-width="1.2"/>`
+    :`<rect x="${x-30}" y="184" width="60" height="36" fill="#3cb8b0"/><path d="M${x-30},190 Q${x-14},150 ${x+2},190Z" fill="#6f9d5b" stroke="${INK}" stroke-width="1.4"/><rect x="${x-30}" y="200" width="60" height="20" fill="#f6dc9a"/>`;
+  return `<ellipse cx="${x}" cy="168" rx="27" ry="37" fill="#fff" ${K} stroke-width="4"/>
+  <g clip-path="url(#win${x})"><rect x="${x-30}" y="128" width="60" height="80" fill="${sky}"/>${v<2?`<path d="${cloud(x+6,146,10,4,6)}" fill="#fff"/>`:''}${land}</g>
+  <ellipse cx="${x}" cy="168" rx="24" ry="34" fill="none" stroke="${INK}" stroke-width="2.5"/>`;
+};
+function seatBack(x){
+  return `<path d="M${x-48},450 V286 Q${x-48},254 ${x-16},254 H${x+16} Q${x+48},254 ${x+48},286 V450Z" fill="#2c8fd6" ${K}/>
+  <rect x="${x-34}" y="262" width="68" height="22" rx="8" fill="#fff" stroke="${INK}" stroke-width="2.5"/>`;
+}
+function seatFront(x){
+  return `<rect x="${x-50}" y="402" width="100" height="48" rx="10" fill="#3a7fc4" ${K}/><rect x="${x-58}" y="372" width="14" height="78" rx="6" fill="#1f5fa8" ${K} stroke-width="2.5"/>
+  <rect x="${x+44}" y="372" width="14" height="78" rx="6" fill="#1f5fa8" ${K} stroke-width="2.5"/>`;
+}
+function trolley(){
+  return `<rect x="270" y="300" width="128" height="156" fill="transparent"/>${penguin()}
+  <rect x="270" y="372" width="70" height="72" rx="5" fill="#cfd3dc" ${K}/><path d="M270,396 H340 M270,420 H340" stroke="${INK}" stroke-width="2"/>
+  <circle cx="282" cy="450" r="5" fill="${INK}"/><circle cx="328" cy="450" r="5" fill="${INK}"/>
+  <path d="M282,372 v-14 h10 v14 M300,372 v-18 h12 v18" fill="#f9a03f" stroke="${INK}" stroke-width="2"/><path d="M318,372 q4,-14 14,-10 l-2,10Z" fill="#7fc36b" stroke="${INK}" stroke-width="2"/>`;
+}
+function neckPillow(){
+  const [x,y]=S.pal?[150,268]:[206,330];
+  return `<circle cx="${x}" cy="${y}" r="30" fill="transparent"/><path d="M${x-22},${y-4} a22,20 0 1 0 44,0 l-10,0 a12,11 0 1 1 -24,0Z" fill="#f38db5" ${K} stroke-width="2.5"/>
+  <text x="${x}" y="${y-30}" text-anchor="middle" class="lbl">PILLOW</text>`;
+}
+
+/* the beach in Rio, with the Sugarloaf mountain in the sea */
+function sandcastle(){
+  const n=S.tp.castle||0;
+  let c=`<path d="M40,452 Q70,${n?440:420} 100,452Z" fill="#f1c76a" ${K} stroke-width="2.5"/>`;
+  if(n>=1)c+=`<path d="M38,450 V412 h10 v-8 h10 v8 h10 v-8 h10 v8 h10 v-8 h10 v8 h4 V450Z" fill="#f1c76a" ${K} stroke-width="2.5"/><path d="M62,450 v-14 q8,-8 16,0 v14" fill="#d9a066" stroke="${INK}" stroke-width="2"/>`;
+  if(n>=2)c+=`<path d="M50,404 V374 h8 v-7 h8 v7 h8 v-7 h8 v7 h8 V404Z" fill="#f1c76a" ${K} stroke-width="2.5"/>`;
+  if(n>=3)c+=`<path d="M70,367 V330" stroke="${INK}" stroke-width="2.5"/><path d="M70,330 L94,338 L70,346Z" fill="#e0508a" stroke="${INK}" stroke-width="2"/>`;
+  return `<rect x="20" y="320" width="110" height="136" fill="transparent"/>${c}
+  <path d="M114,452 L108,420 H134 L128,452Z" fill="#e8473f" ${K} stroke-width="2.5"/><path d="M110,420 q11,-14 22,0" fill="none" stroke="${INK}" stroke-width="2"/>
+  <text x="70" y="${n>=3?322:n>=2?360:396}" text-anchor="middle" class="lbl">SANDCASTLE</text>`;
+}
+function beachShade(){
+  return `<path d="M168,300 V452" stroke="${INK}" stroke-width="4"/>
+  <path d="M112,312 Q168,262 224,312 q-9.3,-8 -18.7,0 q-9.3,-8 -18.7,0 q-9.3,-8 -18.7,0 q-9.3,-8 -18.7,0 q-9.3,-8 -18.7,0 q-9.3,-8 -18.7,0Z" fill="#f38db5" ${K}/>
+  <path d="M168,272 Q154,290 149,308 M168,272 Q182,290 187,308" fill="none" stroke="#fff" stroke-width="3"/>
+  <path d="M140,446 L150,456 H226 L216,446Z" fill="#3cb8b0" ${K} stroke-width="2.5"/><path d="M160,446 l10,10 M180,446 l10,10 M200,446 l10,10" stroke="#ffd34d" stroke-width="3"/>`;
+}
+function sunHat(){
+  return `<rect x="166" y="404" width="60" height="44" fill="transparent"/><g transform="translate(196,440) scale(.7) translate(0,129)">${WEAR.sunhat()}</g>`;
+}
+function footballGoal(){
+  let net='';for(let x=294;x<=372;x+=13)net+=`M${x},382 V448 `;for(let y=394;y<=446;y+=13)net+=`M290,${y} H376 `;
+  return `<path d="${net}" stroke="#9aa3b5" stroke-width="1.5"/><path d="M290,450 V380 H376 V450" fill="none" stroke="#fff" stroke-width="7"/><path d="M290,450 V380 H376 V450" fill="none" ${K} stroke-width="2"/>`;
+}
+function football(){
+  return `<rect x="200" y="400" width="70" height="56" fill="transparent"/><g class="fb" style="transform-box:fill-box;transform-origin:50% 50%">
+  <circle cx="236" cy="438" r="14" fill="#fff" ${K} stroke-width="2.5"/><path d="M236,431 l6,4 l-2,7 h-8 l-2,-7Z" fill="${INK}"/>
+  <path d="M236,431 V424 M242,435 l7,-2 M240,442 l4,6 M232,442 l-4,6 M230,435 l-7,-2" stroke="${INK}" stroke-width="1.6"/></g>`;
+}
+function crab(){
+  return `<rect x="196" y="326" width="74" height="44" fill="transparent"/><g transform="translate(100,0)"><g class="swim"><g class="crab" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M112,352 l-10,8 M114,356 l-8,10 M152,352 l10,8 M150,356 l8,10" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M112,346 q-8,-10 -2,-18 M152,346 q8,-10 2,-18" fill="none" stroke="${INK}" stroke-width="2.5"/>
+  <path d="M104,326 q6,-8 12,0 l-6,4Z M148,326 q6,-8 12,0 l-6,4Z" fill="#e8473f" stroke="${INK}" stroke-width="2"/>
+  <ellipse cx="132" cy="350" rx="22" ry="12" fill="#e8473f" ${K} stroke-width="2.5"/>
+  <path d="M126,338 v-8 M138,338 v-8" stroke="${INK}" stroke-width="2"/><circle cx="126" cy="329" r="3" fill="#fff" stroke="${INK}" stroke-width="1.5"/><circle cx="138" cy="329" r="3" fill="#fff" stroke="${INK}" stroke-width="1.5"/>
+  <path d="M127,352 q5,4 10,0" fill="none" stroke="${INK}" stroke-width="1.8"/></g></g></g>`;
+}
+function palmTree(){
+  return `<path d="M392,452 Q378,340 352,244" fill="none" stroke="${INK}" stroke-width="16" stroke-linecap="round"/><path d="M392,452 Q378,340 352,244" fill="none" stroke="#a8652f" stroke-width="10" stroke-linecap="round"/>
+  <path d="M388,420 l-8,2 M384,390 l-8,2 M378,360 l-8,2 M371,330 l-8,2 M364,300 l-8,2 M358,272 l-8,2" stroke="${INK}" stroke-width="2"/>
+  ${[[-150,62],[-110,56],[-40,64],[-5,58],[30,48]].map(([a,l])=>{const r=a*Math.PI/180,x=352+l*Math.cos(r),y=244+l*Math.sin(r)*.55+18;
+    return `<path d="M352,244 Q${(352+x)/2},${Math.min(244,y)-22} ${x.toFixed(1)},${y.toFixed(1)} Q${(352+x)/2},${Math.min(244,y)-4} 352,244Z" fill="#4f9c45" ${K} stroke-width="2.5"/>`}).join('')}
+  <circle cx="346" cy="254" r="7" fill="#7a4a26" stroke="${INK}" stroke-width="2"/><circle cx="358" cy="256" r="7" fill="#7a4a26" stroke="${INK}" stroke-width="2"/>`;
+}
+function toucan(){
+  return `<rect x="318" y="262" width="58" height="62" fill="transparent"/><g class="tou" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M352,316 l10,10 l-14,-2Z" fill="#3a3346" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  <ellipse cx="348" cy="298" rx="14" ry="20" fill="#3a3346" ${K} stroke-width="2.5"/><ellipse cx="344" cy="292" rx="8" ry="10" fill="#fff" stroke="${INK}" stroke-width="1.8"/>
+  <path d="M338,284 Q314,276 316,290 Q326,296 340,292Z" fill="#f9a03f" ${K} stroke-width="2.2"/><path d="M316,290 q4,-4 8,-2" fill="none" stroke="#d8243c" stroke-width="2.4"/>
+  <circle cx="345" cy="284" r="3.6" fill="#7fc3e6" stroke="${INK}" stroke-width="1.5"/><circle cx="345" cy="284" r="1.4" fill="${INK}"/></g>`;
+}
+const OLA=[['OLÁ!','Olá! The toucan says hello. That is how you say hello in Brazil!'],['OBRIGADO!','Obrigado! That means thank you!'],['TCHAU!','Tchau! That means bye bye!']];
+
+/* the train station at night */
+function ticketWindow(){
+  return `<rect x="10" y="230" width="142" height="224" fill="transparent"/>
+  <rect x="16" y="240" width="130" height="212" fill="#f9b36b" ${K}/>${signBoard(81,250,112,'TICKETS',17)}
+  <rect x="34" y="292" width="94" height="84" rx="6" fill="#fff3c4" ${K}/>
+  <g transform="translate(81,388) scale(.5)">${catSVG('happy',false,false,SOOT,{glasses:true})}</g>
+  <rect x="16" y="376" width="130" height="16" fill="#e09a78" ${K} stroke-width="2.5"/>
+  ${S.tp.ticket?'':`<rect x="66" y="364" width="30" height="16" rx="2" fill="#ffd34d" stroke="${INK}" stroke-width="2" transform="rotate(-8 81 372)"/>`}`;
+}
+function stationClock(){
+  return `<rect x="150" y="100" width="100" height="170" fill="transparent"/><path d="M200,96 V122" stroke="${INK}" stroke-width="3"/>
+  <circle cx="200" cy="148" r="26" fill="#fff" ${K} stroke-width="3.5"/><path d="M200,148 V130 M200,148 L190,140" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+  ${[0,1,2,3].map(i=>`<circle cx="${200+20*Math.cos(i*Math.PI/2)}" cy="${148+20*Math.sin(i*Math.PI/2)}" r="2" fill="${INK}"/>`).join('')}
+  ${departBoard(['SLEEPER','EDINBURGH','23:50'],150,192,100)}`;
+}
+function sleeperTrain(){
+  return `<rect x="252" y="196" width="148" height="262" fill="transparent"/>
+  <path d="M254,440 V226 Q254,208 272,208 H404 V440Z" fill="#23345a" ${K}/><path d="M254,250 H404 M254,404 H404" stroke="#d6ad45" stroke-width="4"/>
+  ${[284,372].map(x=>`<rect x="${x-20}" y="266" width="40" height="34" rx="6" fill="#ffe08a" stroke="${INK}" stroke-width="2.5"/><path d="M${x-14},292 h28 v-6 h-28Z" fill="#f38db5" stroke="${INK}" stroke-width="1.4"/>`).join('')}
+  <rect x="312" y="270" width="40" height="166" rx="5" fill="#2f4775" ${K} stroke-width="2.5"/><rect x="320" y="282" width="24" height="40" rx="4" fill="#ffe08a" stroke="${INK}" stroke-width="2"/>
+  <circle cx="345" cy="360" r="3" fill="#d6ad45" stroke="${INK}" stroke-width="1.4"/>
+  <text x="330" y="236" text-anchor="middle" class="chalk" style="font-size:18px;fill:#ffe08a">SLEEPER</text>
+  <circle cx="290" cy="446" r="11" fill="${INK}"/><circle cx="370" cy="446" r="11" fill="${INK}"/>`;
+}
+
+/* in the sleeper cabin: a bunk with a tartan blanket, a window and a little table */
+function bunk(){
+  const asleep=S.ride==='bunk';
+  return `<rect x="10" y="300" width="214" height="150" fill="transparent"/>
+  <rect x="14" y="380" width="208" height="70" rx="6" fill="#a8652f" ${K}/>
+  <ellipse cx="50" cy="370" rx="32" ry="14" fill="#fff" ${K}/>
+  ${asleep?`<g transform="translate(142,388) rotate(-84) scale(.8)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep')}</g></g>`:''}
+  <path d="M${asleep?70:84},${asleep?362:372} Q150,${asleep?352:366} 222,372 V406 H${asleep?70:84}Z" fill="url(#tartan)" ${K}/>
+  ${asleep?`<g class="zzz" pointer-events="none"><text x="70" y="300">Z</text><text x="94" y="280">z</text><text x="112" y="262">z</text></g>`:''}`;
+}
+function sleeperWin(){
+  const am=S.tp.morning;
+  const view=am?`<rect x="236" y="128" width="140" height="120" fill="#ffe2c6"/><circle cx="350" cy="168" r="16" fill="#ffd34d" ${K} stroke-width="2"/>
+    <g class="drift"><path d="M220,248 Q262,176 304,210 Q340,160 390,206 Q430,180 460,248Z M360,248 Q402,176 444,210 Q480,160 530,206 V248Z" fill="#7fae6b" stroke="${INK}" stroke-width="2"/>
+    ${[262,320,402,460].map((x,i)=>`<g transform="translate(${x},${228+i%2*8})"><ellipse rx="9" ry="6" fill="#fff" stroke="${INK}" stroke-width="1.5"/><circle cx="8" cy="-2" r="3.4" fill="${INK}"/></g>`).join('')}</g>`
+    :`<rect x="236" y="128" width="140" height="120" fill="#22306a"/><circle cx="262" cy="156" r="12" fill="#fff3b0" stroke="${INK}" stroke-width="2"/>
+    <g class="drift">${[250,300,350,400,450,500].map((x,i)=>`<rect x="${x}" y="${200-i%3*16}" width="16" height="${48+i%3*16}" fill="#3a3346"/><rect x="${x+4}" y="${206-i%3*16}" width="5" height="6" fill="#ffe08a"/>`).join('')}</g>`;
+  return `<rect x="226" y="118" width="160" height="140" rx="12" fill="#cfd3dc" ${K}/>
+  <g clip-path="url(#sleepWin)">${view}</g><rect x="236" y="128" width="140" height="120" rx="6" fill="none" stroke="${INK}" stroke-width="2.5"/>
+  <path d="M226,118 h16 v140 h-16Z M370,118 h16 v140 h-16Z" fill="#d8243c" stroke="${INK}" stroke-width="2"/>`;
+}
+function breakfast(){
+  return `<rect x="250" y="296" width="120" height="56" fill="transparent"/>
+  <ellipse cx="290" cy="320" rx="22" ry="7" fill="#fff" ${K} stroke-width="2.5"/><path d="M268,320 q22,24 44,0" fill="#fff" ${K} stroke-width="2.5"/><ellipse cx="290" cy="320" rx="18" ry="5" fill="#f3e6d3"/>
+  ${[0,1,2].map(i=>`<rect x="${326+i*4}" y="${306+i*7}" width="32" height="10" rx="2" fill="#f1c76a" stroke="${INK}" stroke-width="1.8" transform="rotate(${-8+i*6} ${342} ${311+i*7})"/>`).join('')}`;
+}
+
+/* Edinburgh: the Royal Mile, and the castle on its rock */
+function tenement(x,w,h,c){
+  const top=FLOOR-h,step=w/6;
+  // crow-stepped gables, like the old houses on the Royal Mile
+  const d=`M${x},${FLOOR} V${top+30} h${step*.5} v-10 h${step*.5} v-10 h${step*.5} v-10 h${step*2} v10 h${step*.5} v10 h${step*.5} v10 h${step*.5} V${FLOOR}Z`;
+  let win='';for(let r=0;r*40+top+50<FLOOR-80;r++)for(let k=0;k<2;k++)win+=`<rect x="${x+w*(k?.6:.18)}" y="${top+50+r*40}" width="${w*.22}" height="24" fill="#fff3c4" stroke="${INK}" stroke-width="2"/>`;
+  return `<path d="${d}" fill="${c}" ${K}/>${win}<rect x="${x+w*.62}" y="${top-8}" width="10" height="16" fill="${c}" stroke="${INK}" stroke-width="2"/>`;
+}
+function tartanShop(){
+  return `<rect x="8" y="196" width="128" height="258" fill="transparent"/>
+  <rect x="14" y="250" width="116" height="200" fill="#2f6b4f" ${K}/>${signBoard(72,262,100,'TARTAN',18)}
+  <rect x="24" y="300" width="58" height="62" fill="url(#tartan)" stroke="${INK}" stroke-width="2.5"/>
+  ${S.souv.includes('tam')?'':`<g transform="translate(53,350) scale(.7) translate(0,129)">${WEAR.tam()}</g>`}
+  <path d="M90,450 V380 q0,-14 15,-14 q15,0 15,14 V450Z" fill="#d8243c" ${K}/>`;
+}
+function piper(){
+  return `<rect x="236" y="250" width="100" height="206" fill="transparent"/><g class="pipe" style="transform-box:fill-box;transform-origin:50% 100%">
+  <g transform="translate(284,450) scale(.72)">${catSVG('happy',false,false,GINGER,{hat:'tam'})}</g>
+  <path d="M269,416 H299 L303,438 H265Z" fill="url(#tartan)" ${K} stroke-width="2.5"/>
+  <path d="M260,370 L238,300 M266,368 L254,296 M272,368 L272,300" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M260,370 L238,300 M266,368 L254,296 M272,368 L272,300" stroke="#3a3346" stroke-width="2.5" stroke-linecap="round"/>
+  <ellipse cx="268" cy="384" rx="18" ry="14" fill="url(#tartan)" ${K} stroke-width="2.5"/><path d="M286,380 L302,366" stroke="${INK}" stroke-width="4" stroke-linecap="round"/></g>
+  <text x="286" y="272" text-anchor="middle" class="lbl">PIPER</text>`;
+}
+function scottie(){
+  return `<rect x="320" y="380" width="80" height="76" fill="transparent"/><g transform="translate(166,0)"><g class="sdog" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M160,418 l-8,-12" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>
+  <rect x="158" y="414" width="50" height="28" rx="10" fill="#3a3346" ${K} stroke-width="2.5"/><path d="M160,442 v10 M172,442 v10 M196,442 v10 M206,442 v10" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M200,420 V398 l6,-10 l4,10 h6 l4,-10 l4,12 Q230,416 222,420Z" fill="#3a3346" ${K} stroke-width="2.5"/>
+  <path d="M212,420 q4,8 14,4" fill="#3a3346" stroke="${INK}" stroke-width="2"/><circle cx="214" cy="406" r="2.2" fill="#fff"/><circle cx="226" cy="410" r="3" fill="${INK}"/>
+  <rect x="198" y="418" width="16" height="6" rx="2" fill="#d8243c" stroke="${INK}" stroke-width="1.5"/></g></g>`;
+}
+function castleRock(){
+  return `<rect x="110" y="96" width="210" height="200" fill="transparent"/>
+  <path d="M90,300 Q120,220 160,206 L280,200 Q330,220 350,300Z" fill="#8f8577" ${K}/>
+  <path d="M140,210 V160 h12 v-8 h10 v8 h10 v-8 h10 v8 h12 V210Z M196,210 V140 h10 v-8 h10 v8 h10 v-8 h10 v8 h10 V210Z M262,210 V170 h10 v-8 h10 v8 h10 v-8 h10 v8 h6 V210Z" fill="#b5ab9a" ${K}/>
+  ${[150,174,210,232,272,296].map(x=>`<rect x="${x}" y="182" width="8" height="14" fill="#3a3346"/>`).join('')}
+  <path d="M226,132 V98" stroke="${INK}" stroke-width="2.5"/>${flagSC(240,106,.55)}
+  <text x="200" y="88" text-anchor="middle" class="lbl">CASTLE</text>`;
+}
+function unicorn(){
+  return `<rect x="100" y="296" width="96" height="160" fill="transparent"/>
+  <rect x="108" y="400" width="80" height="50" fill="#cfd3dc" ${K}/><rect x="102" y="392" width="92" height="12" fill="#e5e7ec" ${K} stroke-width="2.5"/>
+  <g class="uni" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M124,392 v-26 M136,392 v-24 M160,392 v-24 M172,392 v-26" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M124,392 v-26 M136,392 v-24 M160,392 v-24 M172,392 v-26" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="148" cy="362" rx="32" ry="16" fill="#fff" ${K}/><path d="M118,356 q-14,6 -10,24" fill="none" stroke="#f38db5" stroke-width="5" stroke-linecap="round"/>
+  <path d="M168,356 L178,322 Q182,312 194,318 L198,330 Q196,336 188,334 L182,358Z" fill="#fff" ${K} stroke-width="2.5"/>
+  <path d="M184,318 L194,290 L190,320Z" fill="#ffd34d" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/>
+  <path d="M178,322 q-8,8 -6,22 M176,330 q-8,6 -8,16" fill="none" stroke="#8a6bd1" stroke-width="3.5" stroke-linecap="round"/><circle cx="189" cy="323" r="2" fill="${INK}"/></g>
+  <text x="148" y="290" text-anchor="middle" class="lbl">UNICORN</text>`;
+}
+function squirrelTree(){
+  const hid=(S.tp.squirrel||0)%2===1;
+  return `<rect x="300" y="200" width="98" height="256" fill="transparent"/>
+  <rect x="340" y="300" width="22" height="152" fill="#a8652f" ${K}/><path d="${cloud(350,260,48,54,9)}" fill="#7fae6b" ${K}/>
+  <g class="sq" style="transform-box:fill-box;transform-origin:50% 100%" transform="translate(${hid?0:-24},${hid?-60:0})">
+  <path d="M332,330 q-22,-6 -18,-30 q10,-6 16,8 q4,10 10,14Z" fill="#c4562a" ${K} stroke-width="2.2"/>
+  <ellipse cx="342" cy="334" rx="10" ry="12" fill="#d9682e" ${K} stroke-width="2.2"/><circle cx="348" cy="318" r="7" fill="#d9682e" ${K} stroke-width="2.2"/>
+  <path d="M344,312 l2,-8 l4,7" fill="#d9682e" stroke="${INK}" stroke-width="1.6"/><circle cx="351" cy="317" r="1.6" fill="${INK}"/>
+  <circle cx="352" cy="334" r="4" fill="#a8652f" stroke="${INK}" stroke-width="1.4"/></g>`;
+}
+
 const SC={
   bed:{
     draw:()=>`<rect width="400" height="520" fill="${S.big?'#efe4f7':'#fde6ee'}"/><rect width="400" height="450" fill="url(#heartpaper)"/>
@@ -1799,7 +2083,7 @@ const SC={
     // walk in past the little piano so it stays in sight
     landLeft:160,
     before:()=>{S.dot={x:300,y:478,n:0,hid:false}},
-    enter:()=>say(bday()&&!S.party&&!homeward()?'You go around the house. Surprise! A birthday cake for you!'
+    enter:()=>WELCOME?(say(WELCOME),WELCOME=''):say(bday()&&!S.party&&!homeward()?'You go around the house. Surprise! A birthday cake for you!'
       :party().big&&S.fest!==THEME&&!homeward()?'You go around the house. '+party().big.enter
       :S.box==='door'?'You go around the house. A box came! And a red dot!':'You go around the house. Look, a red dot!')
   },
@@ -2060,6 +2344,7 @@ const SC={
       {id:'play',label:'Playground',svg:playArch(),walk:350,tap:()=>go('play','left')},
       {id:'fountain',label:'Fountain',svg:fountain(),walk:276,tap:tapFountain},
       {id:'pigeons',label:'Pigeons',svg:pigeons(),walk:156,tap:chasePigeons},
+      ...(night()?[]:[{id:'holiday',label:'Holiday plane',svg:holidayPlane(),tap:offerTrip}]),
       {id:'go-city',label:'Back to the shops',svg:arrow('left','SHOP'),tap:()=>leave(-60,()=>go('city','right'))},
       {id:'park',label:'Go to the park',svg:arrow('right','PARK'),tap:()=>leave(460,()=>go('park','left'))}
     ],
@@ -2068,6 +2353,7 @@ const SC={
       return S.fish==='carry'?{id:'go-city',hint:'Take your fish home ↖'}
         :night()?{id:'go-city',hint:'It is night! Go home ↖'}
         :p?{id:p,hint:p==='park'?'Let\'s go to the park! ↗':`Let's go to the ${PLACE[p]}! Tap it`}
+        :tripDay()?{id:'holiday',hint:'A plane says HOLIDAY! Tap it'}
         :S.hearts>=FISH?{id:'go-city',hint:`You have ${FISH} hearts! Go and buy a fish ↖`}
         :!S.wish?{id:'fountain',hint:'A fountain! Tap it'}
         :{id:'pigeons',hint:`Chase the pigeons for hearts (${S.hearts} of ${FISH})`};
@@ -2201,6 +2487,165 @@ const SC={
     over:()=>SC.city.over(),
     enter:()=>say(`Here is your new house, ${nm()}! It is so big. It has two floors!`)
   },
+  airport:{
+    draw:()=>`<rect width="400" height="520" fill="#e9eef5"/>
+      <rect y="104" width="400" height="176" fill="#bfe3fa"/>
+      <path d="${cloud(250,132,30,10,7)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/><path d="${cloud(360,158,22,8,6)}" fill="#fff" stroke="${INK}" stroke-width="2"/>
+      <rect y="250" width="400" height="30" fill="#9aa3b5"/><path d="M214,266 h28 M282,266 h28 M350,266 h28" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <path d="M0,104 H400 M0,280 H400 M100,104 V280 M200,104 V280 M300,104 V280" ${K}/>
+      <rect y="450" width="400" height="70" fill="#dfe4ec"/><path d="M0,450 H400 M0,485 H400 M100,450 V485 M260,450 V485 M180,485 V520 M330,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      ${signBoard(200,18,150,'HEATHROW',18)}${deco(340,452,.55)}`,
+    hots:()=>[
+      {id:'jet',label:'Your plane',svg:bigPlane(),walk:300,tap:tapJet},
+      {id:'board',label:'Departures board',svg:`<rect x="20" y="100" width="170" height="104" fill="transparent"/>${departBoard(['RIO ✈ BOARDING','PARIS 10:40','NEW YORK 11:05'])}`,walk:130,tap:readBoard},
+      {id:'desk',label:'Check-in desk',svg:deskArt(),walk:240,tap:checkIn},
+      tripHome(),
+      {id:'gate',label:'Go to the gate',svg:arrow('right','GATE'),tap:toGate}
+    ],
+    goal:()=>!S.tp.ticket?{id:'desk',hint:'Check in your suitcase at the desk'}:{id:'gate',hint:'You have your ticket! Go to the gate ↗'},
+    landLeft:250,
+    enter:()=>say('London Heathrow airport! Big planes everywhere. Your plane goes to Rio de Janeiro, in Brazil.')
+  },
+  plane:{
+    noCat:true,
+    draw:()=>{const v=S.tp.landed?3:S.tp.view||0;
+      return `<rect width="400" height="520" fill="#f4efe6"/>
+      <path d="M0,0 H400 V96 Q200,72 0,96Z" fill="#e6dfd2" ${K}/><path d="M0,62 Q200,40 400,62" fill="none" stroke="${INK}" stroke-width="2"/>
+      <rect x="176" y="74" width="48" height="20" rx="5" fill="#2b2f3a" stroke="${INK}" stroke-width="2"/><path d="M190,84 h20" stroke="${S.tp.nap||S.tp.landed?'#7fe3a0':'#ffe08a'}" stroke-width="3.5" stroke-linecap="round"/>
+      ${planeWin(206,v)}${planeWin(312,v)}
+      <rect y="450" width="400" height="70" fill="#5d6f9a"/><path d="M0,450 H400" ${K}/><path d="M0,486 h400" stroke="#8a9bc4" stroke-width="3" stroke-dasharray="14 10"/>
+      ${seatBack(SEATX[0])}${seatBack(SEATX[1])}
+      <g transform="translate(${SEATX[0]},446)"><g id="catAnim">${catArt(S.mood)}</g></g>
+      ${S.pal?`<g transform="translate(${SEATX[1]},446) scale(.86)">${catSVG(S.tp.nap?'sleep':'happy',false,false,GREY)}</g>`:''}
+      ${seatFront(SEATX[0])}${seatFront(SEATX[1])}
+      ${S.tp.nap?`<g class="zzz" pointer-events="none"><text x="150" y="250">Z</text><text x="170" y="230">z</text><text x="186" y="214">z</text></g>`:''}`},
+    hots:()=>[
+      {id:'window',label:'Window',svg:`<rect x="70" y="126" width="60" height="86" fill="transparent"/>${planeWin(100,S.tp.landed?3:S.tp.view||0)}`,tap:lookOut},
+      {id:'trolley',label:'Penguin with the snack trolley',svg:trolley(),tap:planeSnack},
+      S.tp.landed?{id:'land',label:'Get off the plane',svg:arrow('right','BRAZIL'),tap:()=>go('beach','left')}
+        :{id:'pillow',label:'Pillow',svg:neckPillow(),tap:planeNap}
+    ],
+    goal:()=>S.tp.nap?{id:'',hint:''}
+      :S.tp.landed?{id:'land',hint:'We are in Brazil! Get off the plane ↗'}
+      :(S.tp.view||0)<2?{id:'window',hint:'Look out of the window!'}
+      :!S.tp.snack?{id:'trolley',hint:'Snack time! Tap the trolley'}
+      :{id:'pillow',hint:'It is a long way. Tap the pillow for a nap'},
+    before:()=>{S.x=SEATX[0];S.face=1;if(S.tp.nap){S.tp.nap=false;S.tp.landed=true}},
+    enter:()=>{if(S.tp.landed){say('The plane has landed in Brazil!');return}
+      sfx.whoosh();say('Click! Seat belt on. Whoosh… the plane takes off! Bye bye, London!')}
+  },
+  beach:{
+    draw:()=>{let prom='';for(let r=0;r<3;r++)prom+=`M-20,${480+r*16} `+'q12.5,-9 25,0 t25,0 '.repeat(17);
+      return `<rect width="400" height="520" fill="#bfe3fa"/><circle cx="300" cy="64" r="24" fill="#ffd34d" ${K}/>
+      <path d="${cloud(160,60,30,11,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M186,262 Q232,176 262,150 Q292,176 336,262Z" fill="#6f9d5b" ${K}/>
+      <path d="M262,148 V130 M252,136 H272" stroke="${INK}" stroke-width="6.5" stroke-linecap="round"/><path d="M262,148 V130 M252,136 H272" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="262" cy="126" r="4" fill="#fff" stroke="${INK}" stroke-width="1.6"/>
+      <path d="M-10,262 Q14,170 62,150 Q104,152 116,262Z" fill="#7f9b6a" ${K}/><path d="M104,262 Q120,218 148,212 Q170,222 178,262Z" fill="#7f9b6a" ${K}/>
+      <path d="M64,150 L146,212" stroke="${INK}" stroke-width="1.5"/><rect x="98" y="176" width="12" height="10" rx="2" fill="#e8473f" stroke="${INK}" stroke-width="1.5"/>
+      <rect y="250" width="400" height="90" fill="#3cb8b0"/><path d="M0,250 H400" stroke="${INK}" stroke-width="2"/>
+      <path d="${[0,1,2].map(r=>[...Array(8)].map((_,i)=>`M${i*52+(r%2?26:0)},${272+r*22} q8,-6 16,0 t16,0`).join(' ')).join(' ')}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+      <path d="M0,334 Q100,322 200,334 T400,330 V520 H0Z" fill="#f6dc9a" ${K}/><path d="M0,334 Q100,322 200,334 T400,330" fill="none" stroke="#fff" stroke-width="5" opacity=".9"/>
+      ${palmTree()}${beachShade()}${footballGoal()}
+      <rect y="468" width="400" height="52" fill="#fff"/><path d="${prom}" fill="none" stroke="${INK}" stroke-width="5"/><path d="M0,468 H400" ${K}/>`},
+    hots:()=>[
+      {id:'castle',label:'Sandcastle',svg:sandcastle(),walk:150,tap:buildCastle},
+      {id:'crab',label:'Crab',svg:crab(),walk:300,tap:tapCrab},
+      ...(S.souv.includes('sunhat')?[]:[{id:'hat',label:'Sun hat',svg:sunHat(),walk:150,tap:takeSunHat}]),
+      {id:'ball',label:'Football',svg:football(),walk:196,tap:kickBall},
+      {id:'toucan',label:'Toucan in the palm tree',svg:toucan(),walk:290,tap:tapToucan},
+      {id:'go-home',label:'Fly home',svg:arrow('left','FLY HOME'),tap:flyHome}
+    ],
+    goal:()=>!S.souv.includes('sunhat')?{id:'hat',hint:'A sun hat! Put it on'}
+      :(S.tp.castle||0)<3?{id:'castle',hint:`Build a sandcastle! (${S.tp.castle||0} of 3)`}
+      :!S.tp.goals?{id:'ball',hint:'Football! Kick the ball in the goal'}
+      :!S.tp.tou?{id:'toucan',hint:'A toucan in the palm tree! Tap it'}
+      :!S.tp.crab?{id:'crab',hint:'A little crab! Say hello'}
+      :{id:'go-home',hint:`What a holiday! Play more for hearts (${S.hearts}), or fly home ↖`},
+    landLeft:310,
+    enter:()=>say('Brazil! The beach in Rio de Janeiro. The sun is hot and the sea is warm!')
+  },
+  station:{
+    draw:()=>`<rect width="400" height="520" fill="#e7e1d6"/>
+      <path d="M0,0 H400 V96 H0Z" fill="#22306a"/><circle cx="330" cy="40" r="14" fill="#fff3b0" stroke="${INK}" stroke-width="2"/>
+      <circle cx="90" cy="70" r="2.2" fill="#fff"/><circle cx="270" cy="76" r="2" fill="#fff"/><circle cx="370" cy="80" r="2" fill="#fff"/>
+      <path d="M0,96 H400 M0,96 Q100,30 200,96 Q300,30 400,96 M100,63 V96 M300,63 V96" fill="none" stroke="${INK}" stroke-width="4"/>
+      <rect y="450" width="400" height="70" fill="#cfc6b8"/><path d="M0,450 H400" ${K}/><path d="M250,462 H400" stroke="#ffd34d" stroke-width="5"/>
+      ${signBoard(200,18,130,'EUSTON',18)}${deco(176,452,.55)}`,
+    hots:()=>[
+      {id:'tickets',label:'Ticket window',svg:ticketWindow(),walk:186,tap:buyTicket},
+      {id:'clock',label:'Station clock and board',svg:stationClock(),walk:200,tap:tapClock},
+      {id:'train',label:'The sleeper train',svg:sleeperTrain(),walk:300,tap:boardTrain},
+      tripHome()
+    ],
+    goal:()=>!S.tp.ticket?{id:'tickets',hint:'Buy a ticket at the ticket window'}:{id:'train',hint:'Get on the sleeper train!'},
+    landLeft:200,
+    enter:()=>say('Euston station in London. It is night! The sleeper train goes to Scotland while you sleep.')
+  },
+  sleeper:{
+    draw:()=>`<rect width="400" height="520" fill="#f3e6d3"/><rect width="400" height="36" fill="url(#tartan)"/><path d="M0,36 H400" ${K}/>
+      <rect y="450" width="400" height="70" fill="#5d6f9a"/><path d="M0,450 H400" ${K}/><path d="M0,486 h400" stroke="#8a9bc4" stroke-width="3" stroke-dasharray="14 10"/>
+      <rect x="240" y="350" width="148" height="12" rx="4" fill="#a8652f" ${K}/><path d="M314,362 V450" stroke="${INK}" stroke-width="7"/><path d="M314,362 V450" stroke="#a8652f" stroke-width="3"/>
+      <path d="M100,100 V140" stroke="${INK}" stroke-width="2.5"/><path d="M82,160 L88,140 H112 L118,160Z" fill="#ffd34d" ${K} stroke-width="2.5"/>
+      <rect x="14" y="300" width="10" height="150" fill="#a8652f" ${K} stroke-width="2.5"/>${deco(370,452,.5)}`,
+    hots:()=>[
+      {id:'window',label:'Window',svg:sleeperWin(),walk:300,tap:trainWindow},
+      {id:'bunk',label:'Bunk bed',svg:bunk(),walk:240,tap:sleepTrain},
+      ...(S.tp.morning?[{id:'tray',label:'Breakfast',svg:breakfast(),walk:236,tap:eatBreakfast},
+        {id:'off',label:'Get off the train',svg:arrow('right','EDINBURGH'),tap:()=>leave(460,()=>go('mile','left'))}]:[])
+    ],
+    goal:()=>S.ride==='bunk'?{id:'',hint:''}
+      :!S.tp.morning?{id:'bunk',hint:'Bedtime! Tap the bunk bed'}
+      :!S.tp.view?{id:'window',hint:'Good morning! Look out of the window'}
+      :!S.tp.ate?{id:'tray',hint:'Breakfast time! Tap the tray'}
+      :{id:'off',hint:'We are in Edinburgh! Get off the train ↗'},
+    landLeft:250,
+    enter:()=>say(S.tp.morning?'Your cabin on the sleeper train. Good morning, Scotland!':'Your little cabin on the sleeper train! A bunk bed with a tartan blanket. Chugga chugga…')
+  },
+  mile:{
+    draw:()=>{let cob='';for(let r=0;r<7;r++)for(let c=0;c<11;c++)cob+=`M${c*40+(r%2?20:0)-14},${462+r*12} q14,-5 28,0 `;
+      return `<rect width="400" height="520" fill="#d6e2ee"/>
+      <path d="${cloud(200,52,40,13,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/><path d="${cloud(300,110,26,9,7)}" fill="#fff" stroke="${INK}" stroke-width="2"/>
+      ${tenement(140,96,270,'#c9bfae')}${tenement(240,92,330,'#b5ab9a')}${tenement(334,70,250,'#d8cdb8')}
+      <rect x="180" y="226" width="92" height="24" rx="4" fill="#1f5fa8" ${K} stroke-width="2.5"/><text x="226" y="244" text-anchor="middle" class="chalk" style="font-size:15px">ROYAL MILE</text>
+      <rect y="450" width="400" height="70" fill="#a9a29a"/><path d="${cob}" fill="none" stroke="#8d867e" stroke-width="2.5" stroke-linecap="round"/><path d="M0,450 H400" ${K}/>
+      ${deco(126,452,.55)}`},
+    hots:()=>[
+      {id:'shop',label:'Tartan shop',svg:tartanShop(),walk:166,tap:tartanHat},
+      {id:'piper',label:'Bagpiper',svg:piper(),walk:196,tap:tapPiper},
+      {id:'dog',label:'Scottie dog',svg:scottie(),walk:300,tap:tapScottie},
+      {id:'go-home',label:'Take the train home',svg:arrow('left','TRAIN HOME'),tap:trainHome},
+      {id:'go-castle',label:'Walk up to the castle',svg:arrow('right','CASTLE'),tap:()=>leave(460,()=>go('castle','left'))}
+    ],
+    goal:()=>!S.tp.piper?{id:'piper',hint:'A bagpiper! Tap the piper'}
+      :!S.souv.includes('tam')?{id:'shop',hint:'A tartan shop! Tap it'}
+      :!S.tp.dog?{id:'dog',hint:'A little Scottie dog! Say hello'}
+      :!S.tp.went?{id:'go-castle',hint:'Walk up to the castle ↗'}
+      :{id:'go-home',hint:`What a holiday! Play more for hearts (${S.hearts}), or take the train home ↖`},
+    landLeft:170,
+    enter:()=>say(S.tp.went?'Back on the Royal Mile. Listen to the bagpipes!':'Edinburgh! You walk up from the station to the Royal Mile. Listen… bagpipes!')
+  },
+  castle:{
+    draw:()=>`<rect width="400" height="520" fill="#d6e2ee"/>
+      <path d="${cloud(90,140,30,10,7)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,306 Q200,286 400,306 V450 H0Z" fill="#a8d98a" ${K}/>
+      ${[[40,330,'#e8473f'],[220,320,'#ffd34d'],[268,336,'#8a6bd1'],[30,420,'#f38db5'],[236,420,'#fff']].map(([x,y,c])=>blossom(x,y,c,.9)).join('')}
+      <path d="M40,300 V200 L52,120 L64,200 V300Z M30,300 V240 H74 V300Z" fill="#8d867e" ${K} stroke-width="2.5"/><path d="M44,240 v-24 q8,-10 16,0 v24" fill="#3a3346"/>
+      <rect y="450" width="400" height="70" fill="#d9cdb4"/><path d="M0,450 H400" ${K}/><path d="M30,486 h18 M120,498 h14 M210,480 h20 M300,496 h16" stroke="#b5a585" stroke-width="4" stroke-linecap="round"/>
+      ${deco(380,452,.55)}`,
+    hots:()=>[
+      {id:'castle',label:'Edinburgh Castle',svg:castleRock(),walk:220,tap:oneGun},
+      {id:'unicorn',label:'Unicorn statue',svg:unicorn(),walk:244,tap:tapUnicorn},
+      {id:'squirrel',label:'Red squirrel',svg:squirrelTree(),walk:280,tap:tapSquirrel},
+      {id:'go-mile',label:'Back to the Royal Mile',svg:arrow('left','ROYAL MILE'),tap:()=>leave(-60,()=>go('mile','right'))}
+    ],
+    goal:()=>!S.tp.boom?{id:'castle',hint:'Edinburgh Castle! Tap it'}
+      :!S.tp.uni?{id:'unicorn',hint:'A unicorn! Tap it'}
+      :!S.tp.squirrel?{id:'squirrel',hint:'A red squirrel in the tree! Tap it'}
+      :{id:'go-mile',hint:'Walk back down the Royal Mile ↖'},
+    before:()=>{S.tp.went=true},
+    landLeft:250,
+    enter:()=>say('Edinburgh Castle sits on top of a big old rock! There are gardens down below.')
+  },
   stickers:{
     noCat:true,
     draw:()=>`<rect width="400" height="520" fill="#dff1fb"/><rect width="400" height="450" fill="url(#dots)"/>
@@ -2258,7 +2703,7 @@ function palLayer(){
   if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)||S.ride==='seesaw') return '';
   return `<g class="hot" data-id="pal" role="button" tabindex="0" aria-label="Your grey cat friend"><g id="pal" transform="translate(${S.palX.toFixed(1)},${FLOOR}) scale(.82)"><g id="palFlip" transform="scale(${S.palFace},1)"><g id="palAnim">${catSVG('normal',false,false,GREY,{hat:S.party?'party2':''})}</g></g></g></g>`;
 }
-let HOTS={};
+let HOTS={}, WELCOME='';
 function render(){
   const sc=SC[S.scene], p=sc.goal().id, hs=sc.hots();
   HOTS={};hs.forEach(h=>HOTS[h.id]=h);
@@ -2816,6 +3261,139 @@ function moveHouse(){
   go('moving','left');
 }
 
+
+/* ---------- holidays ---------- */
+function readBoard(){sfx.ding();setTimeout(()=>sfx.ding(),350);bubble(110,250,'BING BONG!','#2c8fd6');say('The board says: RIO DE JANEIRO, BRAZIL. Boarding now!')}
+function tapJet(){faceRight();const j=$('.jet');j&&restartClass(j,'wiggle',900);sfx.whoosh();react('happy');say('Look! That is your plane. It is so big! Poooourrr!')}
+function checkIn(){
+  faceLeft();
+  if(S.tp.ticket){react('happy');say('The check-in cat waves. Have a lovely holiday!');return}
+  S.busy=true;const c=$('.case');c&&restartClass(c,'shake',900);sfx.beep();bubble(89,300,'BEEP!','#2c8fd6');
+  say('Your suitcase goes on the belt… beep!','');
+  later(()=>{S.tp.ticket=true;S.busy=false;render();sfx.coin();react('happy');say('Here is your ticket to Brazil! The check-in cat says: have fun!')},1200);
+}
+function toGate(){
+  if(!S.tp.ticket){bubble(S.x,headY(),'TICKET?','#2c8fd6');say('You need a ticket first! Go to the check-in desk.');return}
+  leave(460,()=>go('plane','left'));
+}
+const VIEWS=['Bye bye, London! The houses look so small.','We are up above the clouds! So fluffy.','The big blue sea! Look… a whale!'];
+function lookOut(){
+  if(S.tp.landed){react('happy');say('Brazil! Sea, sand and a big green mountain!');return}
+  const v=S.tp.view||0;
+  if(v<2){S.tp.view=v+1;render()}
+  sfx.whoosh();react('happy');say(v<2?VIEWS[v+1]:'The sea goes on and on. Brazil is far away!');
+}
+function planeSnack(){
+  const first=!S.tp.snack;S.tp.snack=true;
+  const w=$('.pgw');w&&restartClass(w,'wiggle',900);sfx.squeak();bubble(300,280,'SNACK?','#3a3346');
+  say(first?'The penguin brings the snack trolley. Orange juice and fish crackers!':'The penguin has more fish crackers!','');
+  later(()=>{clearBubbles();sfx.crunch(true);react('happy');say('Crunch crunch! Yummy fish crackers! Poooourrr!')},900);
+}
+// a nap on the plane, and when you wake up you are in Brazil
+function planeNap(){
+  S.busy=true;S.tp.nap=true;S.mood='sleep';clearTimeout(moodT);clearBubbles();render();sfx.purr();
+  say('You snuggle into your pillow. Zzz… The plane flies over the sea all night…','');
+  later(()=>{sfx.ding();setTimeout(()=>sfx.ding(),350);bubble(200,130,'DING DONG!','#2c8fd6')},2600);
+  later(()=>{S.tp.nap=false;S.tp.landed=true;S.mood='normal';S.busy=false;render();sfx.whee();react('happy');
+    say('Good morning! The plane has landed in Brazil!')},3800);
+}
+function takeSunHat(){
+  S.souv.push('sunhat');S.hat='sunhat';S.dressed=true;clearBubbles();render();sfx.sticker();react('happy');
+  say('You put on a sun hat! You can keep it. It goes in your dress-up drawer.');
+}
+function buildCastle(){
+  faceLeft();
+  const n=S.tp.castle||0;
+  if(n>=3){react('happy');say('Your sandcastle is so tall! A castle for a cat queen!');return}
+  S.tp.castle=n+1;render();sfx.crunch(true);
+  if(n+1<3){react('happy');say(n?'Pat pat! Another tower!':'Pat pat pat! You start a sandcastle.')}
+  else{burst(70,330,(x,y,j)=>`<path d="${starPath(x,y,8)}" fill="${KEYC[(j*3)%8]}" stroke="${INK}" stroke-width="1.4"/>`);react('happy');say('Ta-da! Your sandcastle has a flag on top!')}
+}
+function kickBall(){
+  faceRight();S.busy=true;const b=$('.fb');b&&restartClass(b,'kick',1500);sfx.pounce();say('You kick the ball…','');
+  later(()=>{S.tp.goals=(S.tp.goals||0)+1;sfx.chord();bubble(330,330,'GOOOL!','#1f8a4c')},600);
+  later(()=>{S.busy=false;react('happy');say(S.tp.goals>1?`Another goal! That makes ${S.tp.goals}!`:'GOOOL! In Brazil everybody loves football! Poooourrr!')},1500);
+}
+function tapCrab(){
+  faceLeft();S.tp.crab=(S.tp.crab||0)+1;const c=$('.crab');c&&restartClass(c,'shake',900);sfx.squeak();bubble(232,280,'SNIP SNAP!','#e8473f');
+  say('Snip snap! The crab waves its claws!','');
+  later(()=>react('scared'),300);
+  later(()=>{clearBubbles();react('happy');say('The crab is friendly. It just likes to wave! Poooourrr!')},1400);
+}
+function tapToucan(){
+  faceRight();const i=(S.tp.tou||0)%OLA.length;S.tp.tou=(S.tp.tou||0)+1;
+  const t=$('.tou');t&&restartClass(t,'wiggle',900);sfx.chirp(4);setTimeout(()=>sfx.chirp(6),160);bubble(300,220,OLA[i][0],'#f5891f');say(OLA[i][1],'');
+  later(()=>{clearBubbles();react('happy');say(OLA[i][1])},1100);
+}
+function flyHome(){leave(-60,()=>endTrip(`You fly all the way home to London. Home sweet home! What a holiday, ${nm()}!`))}
+
+function buyTicket(){
+  faceLeft();
+  if(S.tp.ticket){react('happy');say('The ticket cat says: sleep well!');return}
+  S.busy=true;sfx.coin();bubble(81,250,'ONE TICKET!','#3a3346');say('One ticket to Edinburgh, please!','');
+  later(()=>{S.tp.ticket=true;S.busy=false;render();sfx.sticker();react('happy');say('Here is your ticket to Edinburgh! The ticket cat says: sleep well!')},1100);
+}
+function tapClock(){sfx.ding();setTimeout(()=>sfx.ding(),400);bubble(200,90,'TICK TOCK!','#3a3346');say('Ten to twelve! Way past bedtime. The sleeper train leaves at 23:50.')}
+function boardTrain(){
+  if(!S.tp.ticket){bubble(S.x,headY(),'TICKET?','#2c8fd6');say('You need a ticket first! Go to the ticket window.');return}
+  S.busy=true;sfx.whistle();bubble(330,190,'ALL ABOARD!','#23345a');say('All aboard! Toot toot!','');
+  later(()=>{S.busy=false;go('sleeper','left')},900);
+}
+// a night on the sleeper train: the window goes from city lights to hills and sheep
+function sleepTrain(){
+  if(S.tp.morning){faceLeft();react('happy');say('The bunk is so cosy. But it is morning now!');return}
+  S.busy=true;S.ride='bunk';clearTimeout(moodT);clearBubbles();render();sfx.purr();
+  say('You snuggle under the tartan blanket. Chugga chugga, chugga chugga… Zzz','');
+  [0,1,2,3].forEach(j=>later(()=>sfx.chug(),500+j*600));
+  later(()=>{S.tp.morning=true;render()},2700);
+  later(()=>{S.ride=null;S.x=240;S.face=1;S.busy=false;render();follow();sfx.whistle();react('happy');
+    say('Toot toot! Good morning! The train went all night. Now you are in Scotland!')},3900);
+}
+function trainWindow(){
+  faceRight();
+  if(!S.tp.morning){sfx.whoosh();react('happy',false);say('The lights of London whoosh past in the dark. Bedtime soon!');return}
+  S.tp.view=true;sfx.chirp(2);bubble(306,96,'BAA!','#4f9c45');react('happy');say('Green hills and sheep! Baa! This is Scotland!');
+}
+function eatBreakfast(){
+  faceRight();const first=!S.tp.ate;S.tp.ate=true;sfx.slurp();react('happy');
+  say(first?'Porridge and shortbread for breakfast! Yum yum! Poooourrr!':'Mmm, more shortbread! Crunch crunch!');
+}
+function tapPiper(){
+  faceRight();S.tp.piper=true;S.busy=true;const p=$('.pipe');p&&restartClass(p,'wiggle',900);sfx.pipes();bubble(286,236,'♪ DEE DEE DOO ♪','#2f6b4f');
+  say('The piper plays the bagpipes… Hmmmmm, dee dee doo!','');
+  later(()=>{const an=$('#catAnim');an&&restartClass(an,'dance',1800)},400);
+  later(()=>{S.busy=false;clearBubbles();react('happy');say('You dance to the bagpipes! Bagpipes come from Scotland. Poooourrr!')},2300);
+}
+function tartanHat(){
+  faceLeft();
+  if(S.souv.includes('tam')){react('happy');say('So much tartan! Red, green and blue checks. So pretty!');return}
+  S.souv.push('tam');S.hat='tam';S.dressed=true;clearBubbles();render();sfx.sticker();react('happy');
+  say('You get a tartan hat with a red pompom! You can keep it. It goes in your dress-up drawer.');
+}
+function tapScottie(){
+  faceRight();S.tp.dog=true;const d=$('.sdog');d&&restartClass(d,'jump',700);sfx.woof();bubble(300,340,'WOOF!','#3a3346');
+  say('Woof! A little Scottie dog with a red collar.','');
+  later(()=>{clearBubbles();react('happy');say('The Scottie dog wags its tail. It likes you! Poooourrr!')},900);
+}
+function trainHome(){leave(-60,()=>endTrip(`You take the train all the way home to London. Home sweet home! What a holiday, ${nm()}!`))}
+// the castle fires a big gun at one o'clock every day
+function oneGun(){
+  S.busy=true;S.tp.boom=true;sfx.boom();bubble(130,190,'BOOM!','#3a3346');
+  burst(128,236,(x,y)=>`<circle cx="${x}" cy="${y}" r="9" fill="#fff" stroke="${INK}" stroke-width="1.5"/>`);
+  later(()=>react('scared'),250);
+  say('BOOM! The castle has a big gun. It goes BOOM at one o\'clock every day!','');
+  later(()=>{S.busy=false;clearBubbles();react('happy');say('Phew! It is only the one o\'clock gun. Now everybody knows the time!')},1800);
+}
+function tapUnicorn(){
+  faceLeft();S.tp.uni=true;const u=$('.uni');u&&restartClass(u,'wiggle',900);sfx.twinkle(4);
+  burst(150,320,(x,y,j)=>`<path d="${starPath(x,y,7)}" fill="${KEYC[(j*2)%8]}" stroke="${INK}" stroke-width="1.2"/>`);
+  react('happy');say('A unicorn! The unicorn is the animal of Scotland. Sparkle sparkle!');
+}
+function tapSquirrel(){
+  faceRight();S.tp.squirrel=(S.tp.squirrel||0)+1;render();sfx.chatter();react('happy');
+  say(S.tp.squirrel%2?'The red squirrel runs up the tree and hides! Where is it?':'Peekaboo! The red squirrel comes back down.');
+}
+
 /* ---------- effects ---------- */
 function bubble(x,y,text,color){
   x=Math.max(92,Math.min(308,x));const id='b'+(++uid),rx=Math.round(text.length*7.6+20);
@@ -2970,6 +3548,15 @@ const sfx={
   hoo(){seq('sine',[[440,400,.22,.22],[420,370,.4,.2]])},
   whee(){seq('sine',[[420,980,.45,.16]])},
   nope(){seq('sine',[[330,250,.16,.14]])},
+  pipes(){
+    // a drone underneath and a little tune on top, like bagpipes
+    const a=ac();if(!a)return;const t=a.currentTime,o=a.createOscillator(),g=a.createGain();o.type='sawtooth';o.frequency.value=110;
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.04,t+.1);g.gain.setValueAtTime(.04,t+1.7);g.gain.exponentialRampToValueAtTime(.0001,t+2);
+    o.connect(g).connect(a.destination);o.start(t);o.stop(t+2.05);
+    seq('square',[[440,440,.2,.04],[494,494,.2,.04],[554,554,.3,.04],[494,494,.2,.04],[440,440,.25,.04],[659,659,.4,.04]]);
+  },
+  chug(){this.noise(.09,'lowpass',500,.3);setTimeout(()=>this.noise(.09,'lowpass',380,.22),190)},
+  boom(){seq('sine',[[120,40,.7,.4]]);this.noise(.8,'lowpass',300,.6)},
   ding(){seq('triangle',[[1320,1320,.35,.12]])},
   whistle(){seq('square',[[2100,2300,.1,.04],[2100,2300,.3,.04]])},
   psh(){this.noise(.8,'highpass',2500,.3)},
@@ -3122,6 +3709,7 @@ ov.addEventListener('click',e=>{
     else{ov.querySelectorAll('[data-a="party"]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.t===t));ov.querySelector('.partyName').textContent=party().name.toUpperCase()}
   }
   else if(a==='move') offerMove();
+  else if(a==='trip') startTrip(b.dataset.t);
   else if(a==='moveyes') moveHouse();
   else if(a==='moveno'){S.moveAsk=S.day;save();resume()}
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
