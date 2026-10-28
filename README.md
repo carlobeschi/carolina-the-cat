@@ -55,7 +55,7 @@ https://claude.ai/artifact/1z3SQodhS5wFZKTUsx8c7k
 
 The game is also an installable web app (a PWA): it gets its own icon on the home screen, opens full screen like an app and works offline. There is no second copy of the game to look after: `pwa/build.sh` wraps the same `you-are-a-cat.html` with an app manifest, icons and a small service worker, and writes the site to `_site/`. Every change to the game goes into the app the next time the site is built.
 
-To host it, connect the repo to Netlify (free, works with a private repo; `netlify.toml` already has the build settings), or use GitHub Pages with `.github/workflows/pages.yml`. On Android, open the site in Chrome, tap ⋮ and then **Add to Home screen** (or **Install app**). On an iPhone, open it in Safari, tap Share and then **Add to Home Screen**. When the phone is online the app picks up the newest version by itself.
+Every merge to `main` publishes it to GitHub Pages (`.github/workflows/pages.yml`) at https://carlobeschi.github.io/carolina-the-cat/. On Android, open the site in Chrome, tap ⋮ and then **Add to Home screen** (or **Install app**). On an iPhone, open it in Safari, tap Share and then **Add to Home Screen**. When the phone is online the app picks up the newest version by itself.
 
 Saves stay on the phone, as before. The app lives at a different web address from the claude.ai version, so cats saved there don't carry over to it.
 

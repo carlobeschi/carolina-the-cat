@@ -1,8 +1,10 @@
 name: Publish installable app
 
-# GitHub Pages option (needs a public repo or GitHub Pro). Manual for now; add
-# `push: branches: [main]` once Pages is switched on with Source: GitHub Actions.
+# Publishes the installable app to GitHub Pages on every merge to main
+# (Settings > Pages > Source: GitHub Actions).
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
