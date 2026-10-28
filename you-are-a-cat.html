@@ -177,6 +177,10 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .partyName{color:var(--hot)}
 .big.party{justify-content:flex-start}
 .big.party[aria-pressed=true]{background:var(--pink)}
+.years{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.years button{border:2.5px solid var(--ink);border-radius:999px;background:#fff;font-size:1.05rem;padding:2px 10px;min-height:44px}
+.years button[aria-pressed=true]{background:var(--pink);box-shadow:0 0 0 3px var(--hot)}
+.big.year[aria-pressed=true]{background:var(--pink)}
 /* playground: the swing swings from its top bar, the seesaw rocks on its middle */
 .swingy{animation:swingy 1.2s ease-in-out 3}
 @keyframes swingy{25%{transform:rotate(-28deg)}75%{transform:rotate(28deg)}}
@@ -295,7 +299,7 @@ const keyAt=x=>x<KEY0||x>=KEY0+8*KEYW?-1:Math.floor((x-KEY0)/KEYW);
 // where paw prints go in the patch of fresh snow
 const PAWS=[[362,446],[374,452],[384,440],[392,450],[370,436],[386,456]];
 const STARS=[[60,84],[150,48],[222,146],[96,206],[364,214]];
-const WORDS=['One','Two','Three','Four','Five'];
+const WORDS=['One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten'];
 // the cup slides along the kitchen counter, one push at a time; the counter ends at x=304
 const CUPX=[290,297,303];
 // every time the total of hearts ever earned reaches one of these, a new sticker unlocks
@@ -1295,44 +1299,150 @@ function seesaw(){
 }
 
 /* ---------- cat school: Miss Owl's lessons for little cats ---------- */
-// every lesson is four questions: count, find a colour, find a shape, find a letter
-const LESSON=['count','colour','shape','letter'];
+// every lesson is four questions; which four depends on the cat's school year, Reception up to Year 3
+const YEARS=[
+  {name:'Reception',short:'R',l:['count','colour','shape','letter']},
+  {name:'Year 1',short:'Y1',l:['count10','add','read','shape2']},
+  {name:'Year 2',short:'Y2',l:['sum20','steps','clock','sides']},
+  {name:'Year 3',short:'Y3',l:['times','big','frac','spell']}];
+const yr=()=>Math.max(0,Math.min(3,(curCat()||{}).yr|0));
 const COLS=[['RED','#d8243c'],['BLUE','#2c8fd6'],['YELLOW','#ffd34d'],['GREEN','#1f8a4c'],['ORANGE','#f5891f'],['PINK','#f38db5'],['PURPLE','#8a6bd1']];
-const SHAPES=['CIRCLE','SQUARE','TRIANGLE','STAR','HEART'];
+// Reception finds the first five shapes; Year 1 finds them all, Year 2 counts the sides
+const SHAPES=['CIRCLE','SQUARE','TRIANGLE','STAR','HEART','RECTANGLE','OVAL','PENTAGON','HEXAGON','OCTAGON'];
+const SIDES={TRIANGLE:3,SQUARE:4,PENTAGON:5,HEXAGON:6,OCTAGON:8};
 const ABC=[['C','CAT'],['F','FISH'],['M','MOON'],['S','SUN'],['B','BIRD'],['D','DUCK'],['H','HEART']];
+// Year 1 reads the word for a picture; the others look a bit like it
+const LOOKS={CAT:['HAT','MAT','CAN'],FISH:['DISH','WISH','FIST'],MOON:['SPOON','NOON','MOAN'],SUN:['BUN','RUN','SIT'],
+  BIRD:['BIN','BID','HERD'],DUCK:['DOCK','LUCK','DUST'],HEART:['HEAT','PART','HURT']};
+// Year 3 spelling: the right way first, then two ways that sound the same
+const SPELL=[['FRIEND','FREIND','FREND'],['BECAUSE','BECOZ','BECORSE'],['SAID','SED','SAYD'],['PEOPLE','PEEPLE','PEPOLE'],
+  ['WATER','WORTER','WOTER'],['SCHOOL','SKOOL','SCOOL'],['LITTLE','LITTEL','LITLE'],['THOUGHT','THORT','THOUT'],
+  ['EARLY','ERLY','URLY'],['BUSY','BIZZY','BISY'],['ANSWER','ANSER','ARNSER'],['MINUTE','MINIT','MINNIT'],
+  ['ISLAND','ILAND','IGHLAND'],['GUARD','GARD','GAURD'],['CIRCLE','SURCLE','CIRKLE'],['ENOUGH','ENUFF','ENUF']];
+const FRACS=[[1,2,'ONE HALF'],[1,3,'ONE THIRD'],[2,3,'TWO THIRDS'],[1,4,'ONE QUARTER'],[3,4,'THREE QUARTERS'],[1,5,'ONE FIFTH']];
+const TABLES=[2,3,4,5,8,10];
 const NOUN={fish:['fish','fish'],stars:['star','stars'],hearts:['heart','hearts'],pumpkins:['pumpkin','pumpkins'],bats:['bat','bats'],
   trees:['tree','trees'],presents:['present','presents'],eggs:['egg','eggs'],balloons:['balloon','balloons'],lanterns:['lantern','lanterns']};
 const CARDX=[92,200,308];
 const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
-function lesson(n){
-  const t=LESSON[n%4],pool=t==='count'?[1,2,3,4,5]:[...Array((t==='colour'?COLS:t==='shape'?SHAPES:ABC).length).keys()];
-  const things=['fish','stars',...(party().count||['hearts'])];
-  return {t,opts:shuffle(pool).slice(0,3),ans:Math.floor(Math.random()*3),k:things[Math.floor(Math.random()*things.length)],c:shuffle([...KEYC.keys()]).slice(0,3)};
+const rnd=n=>Math.floor(Math.random()*n);
+const anyOf=a=>a[rnd(a.length)];
+const things=()=>['fish','stars',...(party().count||['hearts'])];
+// three cards from a pool of picks, one of them right
+const pick3=(t,pool,x={})=>({t,opts:shuffle(pool).slice(0,3),ans:rnd(3),...x});
+// a sum: the right number and two near misses that a little cat might say
+function sumQ(t,r,near,x){
+  const miss=shuffle([...new Set(near)].filter(n=>n>=0&&n!==r)).slice(0,2),opts=shuffle([r,...miss]);
+  return {t,opts,ans:opts.indexOf(r),...x};
 }
+const plus=q=>`${q.a} ${q.op||'+'} ${q.b}`;
+const said=q=>`${q.a} ${q.op==='−'?'take away':q.op==='×'?'times':'add'} ${q.b}`;
+const tname=v=>{const h=Math.floor(v/60),m=v%60;return m===0?`${h} O'CLOCK`:m===30?`HALF PAST ${h}`:m===15?`QUARTER PAST ${h}`:`QUARTER TO ${h%12+1}`};
+const lc=s=>s.toLowerCase();
+// each kind of question: how to make one, say it, draw it, and what Miss Owl says to each card
+const QT={
+  count:{make:()=>pick3('count',[1,2,3,4,5],{k:anyOf(things())}),
+    story:q=>`Miss Owl draws some ${NOUN[q.k][1]}. How many?`,hint:q=>`How many ${NOUN[q.k][1]}? Tap the number`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Count the ${NOUN[q.k][1]} again!`,
+    yes:(q,r)=>`Yes! ${WORDS[r-1]} ${r>1?NOUN[q.k][1]:NOUN[q.k][0]}! Well done!`},
+  colour:{make:()=>pick3('colour',[...COLS.keys()]),
+    story:(q,o)=>`Miss Owl has balls of yarn. Which one is ${lc(COLS[o][0])}?`,hint:(q,o)=>`Find ${COLS[o][0]}!`,
+    name:o=>COLS[o]&&COLS[o][0],no:(q,o,r)=>`That one is ${lc(COLS[o][0])}. Find ${lc(COLS[r][0])}!`,
+    yes:(q,r)=>`Yes! That is ${lc(COLS[r][0])}! Well done!`},
+  shape:{make:()=>pick3('shape',[0,1,2,3,4],{c:shuffle([...KEYC.keys()]).slice(0,3)}),
+    story:()=>'Miss Owl draws some shapes.',hint:(q,o)=>`Find the ${SHAPES[o]}!`,
+    name:o=>SHAPES[o],no:(q,o,r)=>`That is a${/^[AEIOU]/.test(SHAPES[o])?'n':''} ${lc(SHAPES[o])}. Find the ${lc(SHAPES[r])}!`,
+    yes:(q,r)=>`Yes! That is a${/^[AEIOU]/.test(SHAPES[r])?'n':''} ${lc(SHAPES[r])}! Well done!`},
+  letter:{make:()=>pick3('letter',[...ABC.keys()]),
+    story:(q,o)=>`Miss Owl writes a word: ${ABC[o][1]}.`,hint:(q,o)=>`${ABC[o][1]} starts with ${ABC[o][0]}. Find ${ABC[o][0]}!`,
+    name:o=>ABC[o]&&ABC[o][0],no:(q,o,r)=>`That is ${ABC[o][0]}. Find ${ABC[r][0]}!`,
+    yes:(q,r)=>`Yes! ${ABC[r][0]} is for ${lc(ABC[r][1])}! Well done!`},
+  count10:{make:()=>{const r=4+rnd(7);return sumQ('count10',r,[r-1,r+1,r-2,r+2],{k:anyOf(things())})},
+    story:q=>`Miss Owl draws lots of ${NOUN[q.k][1]}. How many?`,hint:q=>`How many ${NOUN[q.k][1]}? Count them all!`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Count the ${NOUN[q.k][1]} again!`,
+    yes:(q,r)=>`Yes! ${WORDS[r-1]} ${NOUN[q.k][1]}! Well done!`},
+  add:{make:()=>{const a=1+rnd(5),b=1+rnd(5),r=a+b;return sumQ('add',r,[r-1,r+1,r+2,r-2],{a,b,k:anyOf(things())})},
+    story:q=>`Miss Owl has ${q.a} ${NOUN[q.k][q.a>1?1:0]} and ${q.b} more. How many altogether?`,hint:q=>`What is ${plus(q)}? Count them all!`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Count all the ${NOUN[q.k][1]} again!`,
+    yes:(q,r)=>`Yes! ${plus(q)} is ${r}! Well done!`},
+  read:{make:()=>{const w=anyOf(Object.keys(LOOKS)),opts=shuffle([w,...shuffle(LOOKS[w]).slice(0,2)]);return {t:'read',opts,ans:opts.indexOf(w)}},
+    story:()=>'Miss Owl draws a picture. Which word goes with it?',hint:()=>'What is the picture? Find its word!',
+    name:o=>o,no:o=>'',yes:(q,r)=>`Yes! That says ${r}! Well done!`},
+  shape2:{make:()=>pick3('shape2',[...SHAPES.keys()],{c:shuffle([...KEYC.keys()]).slice(0,3)})},
+  sum20:{make:()=>{
+      if(rnd(2)){const a=2+rnd(12),b=1+rnd(Math.min(9,20-a)),r=a+b;return sumQ('sum20',r,[r-1,r+1,r-10,r+10,r-2],{a,b})}
+      const a=8+rnd(13),b=1+rnd(Math.min(9,a-1)),r=a-b;return sumQ('sum20',r,[r-1,r+1,a+b,r+2],{a,b,op:'−'})},
+    story:q=>`Miss Owl writes a sum. What is ${said(q)}?`,hint:q=>`What is ${plus(q)}?`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Try ${plus(q)} again!`,yes:(q,r)=>`Yes! ${plus(q)} = ${r}! Well done!`},
+  steps:{make:()=>{const s=anyOf([2,3,5,10]),a=s*rnd(4),r=a+3*s;return sumQ('steps',r,[r-s,r+s,r+1,r-1],{a,s})},
+    story:q=>`Miss Owl counts in ${q.s}s. What comes next?`,hint:q=>`Count in ${q.s}s! What comes next?`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Count on ${q.s} more!`,yes:(q,r)=>`Yes! ${r-q.s}, then ${r}! Well done!`},
+  clock:{make:()=>{
+      // a near miss with the same hour, and one with the hands mixed up or another hour
+      const h=1+rnd(12),m=anyOf([0,30,15,45]),r=h*60+m,h2=(h+rnd(10))%12+1;
+      const opts=shuffle([r,h*60+anyOf([0,30,15,45].filter(x=>x!==m)),h2*60+m]);return {t:'clock',opts,ans:opts.indexOf(r)}},
+    story:(q,o)=>`Miss Owl has three clocks. Which one says ${lc(tname(o))}?`,hint:(q,o)=>`Find ${lc(tname(o))}! The long hand shows the minutes.`,
+    name:o=>tname(o),no:(q,o,r)=>`That clock says ${lc(tname(o))}. Find ${lc(tname(r))}!`,yes:(q,r)=>`Yes! That is ${lc(tname(r))}! Well done!`},
+  sides:{make:()=>pick3('sides',Object.keys(SIDES).map(n=>SHAPES.indexOf(n)),{c:shuffle([...KEYC.keys()]).slice(0,3)}),
+    story:(q,o)=>`Miss Owl draws some shapes. Which one has ${SIDES[SHAPES[o]]} sides?`,hint:(q,o)=>`Find the shape with ${SIDES[SHAPES[o]]} sides! Count them.`,
+    name:o=>SHAPES[o],no:(q,o,r)=>`That ${lc(SHAPES[o])} has ${SIDES[SHAPES[o]]} sides. Find ${SIDES[SHAPES[r]]}!`,
+    yes:(q,r)=>`Yes! A ${lc(SHAPES[r])} has ${SIDES[SHAPES[r]]} sides! Well done!`},
+  times:{make:()=>{const a=anyOf(TABLES),b=2+rnd(11),r=a*b;return sumQ('times',r,[r-a,r+a,r+1,r-1],{a,b,op:'×'})},
+    story:q=>`Miss Owl says a times table. What is ${said(q)}?`,hint:q=>`What is ${plus(q)}? Count in ${q.a}s!`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Count in ${q.a}s: ${plus(q)}!`,yes:(q,r)=>`Yes! ${plus(q)} = ${r}! Well done!`},
+  big:{make:()=>{
+      if(rnd(2)){const a=11+rnd(68),b=10+rnd(89-a),r=a+b;return sumQ('big',r,[r-10,r+10,r-1,r+1],{a,b})}
+      const a=30+rnd(70),b=10+rnd(a-19),r=a-b;return sumQ('big',r,[r-10,r+10,r-1,r+1],{a,b,op:'−'})},
+    story:q=>`Miss Owl writes a big sum. What is ${said(q)}?`,hint:q=>`What is ${plus(q)}? Tens first, then ones!`,
+    name:o=>''+o,no:(q,o)=>`That says ${o}. Try ${plus(q)} again: tens, then ones!`,yes:(q,r)=>`Yes! ${plus(q)} = ${r}! Well done!`},
+  frac:{make:()=>pick3('frac',[...FRACS.keys()],{c:anyOf(KEYC)}),
+    story:(q,o)=>`Miss Owl cuts up some pies. Which one shows ${lc(FRACS[o][2])}?`,hint:(q,o)=>`Find ${lc(FRACS[o][2])}! Look at the coloured parts.`,
+    name:o=>FRACS[o][2],no:(q,o,r)=>`That is ${lc(FRACS[o][2])}. Find ${lc(FRACS[r][2])}!`,yes:(q,r)=>`Yes! That is ${lc(FRACS[r][2])}! Well done!`},
+  spell:{make:()=>{const w=anyOf(SPELL),opts=shuffle(w);return {t:'spell',opts,ans:opts.indexOf(w[0])}},
+    story:()=>'Miss Owl writes a word three ways. Which one is right?',hint:()=>'Which word is spelled right?',
+    name:o=>o,no:o=>'',yes:(q,r)=>`Yes! ${r} is spelled ${r.split('').join('-')}! Well done!`}
+};
+QT.shape2={...QT.shape,make:QT.shape2.make};
+QT.read.no=(q,o)=>`That says ${o}. Look at the picture again!`;
+QT.spell.no=(q,o)=>`Not quite! We don't spell it ${o}. Try again!`;
+function lesson(n){return QT[YEARS[yr()].l[n%4]].make()}
 const qRight=()=>S.q.opts[S.q.ans];
-function qHint(){
-  const q=S.q,o=qRight();
-  return q.t==='count'?`How many ${NOUN[q.k][1]}? Tap the number`
-    :q.t==='colour'?`Find ${COLS[o][0]}!`
-    :q.t==='shape'?`Find the ${SHAPES[o]}!`
-    :`${ABC[o][1]} starts with ${ABC[o][0]}. Find ${ABC[o][0]}!`;
+const qt=()=>QT[S.q.t]||QT.count;
+const qHint=()=>qt().hint(S.q,qRight());
+const qStory=()=>qt().story(S.q,qRight());
+const optName=o=>qt().name(o,S.q);
+// a new school year starts the lesson again with the new kind of questions
+function setYear(y){
+  const c=curCat();if(!c)return;
+  c.yr=y;S.qn=0;S.q=lesson(0);save();
 }
-function qStory(){
-  const q=S.q,o=qRight();
-  return q.t==='count'?`Miss Owl draws some ${NOUN[q.k][1]}. How many?`
-    :q.t==='colour'?`Miss Owl has balls of yarn. Which one is ${COLS[o][0].toLowerCase()}?`
-    :q.t==='shape'?'Miss Owl draws some shapes.'
-    :`Miss Owl writes a word: ${ABC[o][1]}.`;
-}
-const optName=o=>({count:''+o,colour:COLS[o]&&COLS[o][0],shape:SHAPES[o],letter:ABC[o]&&ABC[o][0]})[S.q.t];
 function shapeSVG(n,x,y,r,fill,line=INK,w=3){
   const st=`fill="${fill}" stroke="${line}" stroke-width="${w}" stroke-linejoin="round"`;
+  const poly=k=>`<path d="M${[...Array(k)].map((_,i)=>{const a=Math.PI*2*i/k-Math.PI/2+(k%2?0:Math.PI/k);return `${(x+r*1.1*Math.cos(a)).toFixed(1)},${(y+r*1.1*Math.sin(a)).toFixed(1)}`}).join(' L')}Z" ${st}/>`;
   if(n==='CIRCLE') return `<circle cx="${x}" cy="${y}" r="${r}" ${st}/>`;
   if(n==='SQUARE') return `<rect x="${x-r*.88}" y="${y-r*.88}" width="${r*1.76}" height="${r*1.76}" rx="2" ${st}/>`;
+  if(n==='RECTANGLE') return `<rect x="${x-r*1.3}" y="${y-r*.7}" width="${r*2.6}" height="${r*1.4}" rx="2" ${st}/>`;
+  if(n==='OVAL') return `<ellipse cx="${x}" cy="${y}" rx="${r*1.3}" ry="${r*.8}" ${st}/>`;
   if(n==='TRIANGLE') return `<path d="M${x},${y-r} L${x+r*1.08},${y+r*.85} H${x-r*1.08}Z" ${st}/>`;
+  if(n==='PENTAGON') return poly(5);
+  if(n==='HEXAGON') return poly(6);
+  if(n==='OCTAGON') return poly(8);
   if(n==='STAR') return `<path d="${starPath(x,y+2,r*1.2)}" ${st}/>`;
   const s=r/11;
   return `<path transform="translate(${x},${y+3}) scale(${s.toFixed(2)})" d="${HEART}" fill="${fill}" stroke="${line}" stroke-width="${(w/s).toFixed(2)}" stroke-linejoin="round"/>`;
+}
+// a clock with an hour hand and a long minute hand
+function clockSVG(v,x,y,r){
+  const h=Math.floor(v/60)%12,m=v%60,hand=(deg,len,w)=>{const a=(deg-90)*Math.PI/180;return `<path d="M${x},${y} L${(x+len*Math.cos(a)).toFixed(1)},${(y+len*Math.sin(a)).toFixed(1)}" stroke="${INK}" stroke-width="${w}" stroke-linecap="round"/>`};
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" ${K}/>`+[...Array(12)].map((_,i)=>{const a=i*Math.PI/6,q=i%3===0;
+      return `<path d="M${(x+r*.92*Math.sin(a)).toFixed(1)},${(y-r*.92*Math.cos(a)).toFixed(1)} L${(x+r*(q?.72:.8)*Math.sin(a)).toFixed(1)},${(y-r*(q?.72:.8)*Math.cos(a)).toFixed(1)}" stroke="${INK}" stroke-width="${q?2.6:1.4}"/>`}).join('')
+    +hand((h+m/60)*30,r*.5,4)+hand(m*6,r*.78,2.6)+`<circle cx="${x}" cy="${y}" r="3" fill="${INK}"/>`;
+}
+// a pie cut into d slices with n of them coloured in
+function pieSVG(n,d,x,y,r,fill){
+  const pt=i=>{const a=Math.PI*2*i/d-Math.PI/2;return `${(x+r*Math.cos(a)).toFixed(1)},${(y+r*Math.sin(a)).toFixed(1)}`};
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff" ${K}/>`+[...Array(d)].map((_,i)=>
+    `<path d="M${x},${y} L${pt(i)} A${r},${r} 0 0 1 ${pt(i+1)}Z" fill="${i<n?fill:'none'}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>`).join('');
 }
 // the things to count on the blackboard
 function thing(k,x,y){
@@ -1347,6 +1457,9 @@ function thing(k,x,y){
   if(k==='lanterns') return lantern(x,y+22,.66);
   return bat(x,y,.9);
 }
+const small=(k,x,y,s)=>`<g transform="translate(${x},${y}) scale(${s}) translate(${-x},${-y})">${thing(k,x,y)}</g>`;
+// a row of things to count, smaller when there are lots
+const row=(k,n,cx,y,gap,s)=>[...Array(n)].map((_,i)=>small(k,Math.round(cx+(i-(n-1)/2)*gap),y,s)).join('');
 // a picture for each letter word
 function wordPic(w,x,y){
   const stk=n=>`<g transform="translate(${x},${y}) scale(1.3)">${STK.find(s=>s.name===n).svg}</g>`;
@@ -1358,19 +1471,38 @@ function board(){
   if(S.qn>=4||!S.q) return '';
   const q=S.q,o=qRight(),big=(x,y,f,t,a='middle')=>`<text x="${x}" y="${y}" text-anchor="${a}" class="chalk" style="font-size:${f}px">${t}</text>`;
   if(q.t==='count') return big(200,144,24,'HOW MANY?')+[...Array(o)].map((_,i)=>thing(q.k,200+(i-(o-1)/2)*48,174)).join('');
+  // more than five go in two rows of five, like a ten frame
+  if(q.t==='count10') return big(200,138,18,'HOW MANY?')+(o>5?row(q.k,5,200,158,46,.78)+row(q.k,o-5,200-(10-o)*23,190,46,.78):row(q.k,o,200,176,48,.9));
+  if(q.t==='add'){const g=32,w=(q.a+q.b)*g+30,x0=200-w/2;
+    return big(200,142,26,plus(q)+' = ?')+row(q.k,q.a,x0+q.a*g/2,182,g,.66)+big(x0+q.a*g+15,192,28,'+')+row(q.k,q.b,x0+q.a*g+30+q.b*g/2,182,g,.66)}
   if(q.t==='colour') return big(200,144,24,'FIND')+`<rect x="126" y="152" width="148" height="42" rx="6" fill="#fff" ${K} stroke-width="2.5"/>
     <text x="200" y="185" text-anchor="middle" class="sign" style="font-size:34px;fill:${COLS[o][1]};stroke:${INK};stroke-width:1.2px">${COLS[o][0]}</text>`;
-  if(q.t==='shape') return big(184,144,24,'FIND THE')+big(184,184,34,SHAPES[o])+shapeSVG(SHAPES[o],326,166,17,'none','#fff',3);
+  if(q.t==='shape'||q.t==='shape2') return big(184,144,24,'FIND THE')+big(184,184,SHAPES[o].length>7?28:34,SHAPES[o])+shapeSVG(SHAPES[o],334,166,17,'none','#fff',3);
+  if(q.t==='sides') return big(200,146,22,'FIND THE SHAPE WITH')+big(200,186,34,`${SIDES[SHAPES[o]]} SIDES`);
+  if(q.t==='read') return wordPic(o,130,166)+big(250,162,24,'WHICH')+big(250,190,24,'WORD?');
+  if(q.t==='sum20'||q.t==='times'||q.t==='big') return big(200,184,44,plus(q)+' = ?');
+  if(q.t==='steps') return big(200,144,20,`COUNT IN ${q.s}s`)+big(200,188,40,[q.a,q.a+q.s,q.a+2*q.s,'?'].join(',  '));
+  if(q.t==='clock') return big(200,144,22,'WHICH CLOCK SAYS')+big(200,186,tname(o).length>12?30:34,tname(o)+'?');
+  if(q.t==='frac'){const [n,d]=FRACS[o];return big(160,184,30,'FIND')+big(240,164,28,n)+`<path d="M226,172 H254" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`+big(240,197,28,d)}
+  if(q.t==='spell') return big(200,156,24,'WHICH ONE IS')+big(200,188,24,'SPELLED RIGHT?');
   const [l,w]=ABC[o];
   return wordPic(w,104,166)+`<text x="160" y="188" class="chalk" style="font-size:46px"><tspan fill="#ffd34d">${l}</tspan>${w.slice(1)}</text>`;
 }
+// a word or number on a card, smaller when it is long so it still fits
+function cardText(x,t,fill){
+  const n=(''+t).length,f=n<=2?54:n<=3?42:n<=4?30:n<=5?26:24;
+  return `<text x="${x}" y="${n<=3?260:251}" text-anchor="middle" class="sign" style="font-size:${f}px;fill:${fill}"${n>=6?' textLength="82" lengthAdjust="spacingAndGlyphs"':''}>${t}</text>`;
+}
 // an answer card on the bottom of the blackboard
 function card(i){
-  const q=S.q,x=CARDX[i],o=q.opts[i];
-  const face=q.t==='count'?`<text x="${x}" y="260" text-anchor="middle" class="sign" style="font-size:54px;fill:var(--hot)">${o}</text>`
-    :q.t==='colour'?`<circle cx="${x}" cy="240" r="25" fill="${COLS[o][1]}" ${K}/><path d="M${x-17},${236} Q${x},${250} ${x+17},${234} M${x-12},${224} Q${x+4},${238} ${x+20},${244}" fill="none" stroke="${INK}" stroke-width="1.5" opacity=".35"/><path d="M${x-13},${231} q3,-9 12,-11" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".75"/>`
-    :q.t==='shape'?shapeSVG(SHAPES[o],x,240,24,KEYC[q.c[i]])
-    :`<text x="${x}" y="260" text-anchor="middle" class="sign" style="font-size:54px;fill:var(--pen)">${ABC[o][0]}</text>`;
+  const q=S.q,x=CARDX[i],o=q.opts[i],t=q.t;
+  const face=t==='colour'?`<circle cx="${x}" cy="240" r="25" fill="${COLS[o][1]}" ${K}/><path d="M${x-17},${236} Q${x},${250} ${x+17},${234} M${x-12},${224} Q${x+4},${238} ${x+20},${244}" fill="none" stroke="${INK}" stroke-width="1.5" opacity=".35"/><path d="M${x-13},${231} q3,-9 12,-11" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".75"/>`
+    :t==='shape'||t==='shape2'||t==='sides'?shapeSVG(SHAPES[o],x,240,SHAPES[o]==='RECTANGLE'||SHAPES[o]==='OVAL'?22:24,KEYC[q.c[i]])
+    :t==='letter'?cardText(x,ABC[o][0],'var(--pen)')
+    :t==='clock'?clockSVG(o,x,240,33)
+    :t==='frac'?pieSVG(FRACS[o][0],FRACS[o][1],x,240,30,q.c)
+    :t==='read'||t==='spell'?cardText(x,o,'var(--pen)')
+    :cardText(x,o,'var(--hot)');
   return `<g class="cd${i}" style="transform-box:fill-box;transform-origin:50% 50%"><rect x="${x-46}" y="200" width="92" height="80" rx="10" fill="#fffaf6" ${K}/>${face}</g>`;
 }
 // after four right answers, a gold star fills the blackboard; tap it for another lesson
@@ -3446,18 +3578,11 @@ function answer(i){
   if(i!==q.ans){
     // a gentle try again, saying what this one is
     el&&restartClass(el,'shake',900);sfx.nope();bubble(CARDX[i],172,'HMM…','#8a6bd1');
-    say(q.t==='count'?`That says ${o}. Count the ${NOUN[q.k][1]} again!`
-      :q.t==='colour'?`That one is ${COLS[o][0].toLowerCase()}. Find ${COLS[r][0].toLowerCase()}!`
-      :q.t==='shape'?`That is a ${SHAPES[o].toLowerCase()}. Find the ${SHAPES[r].toLowerCase()}!`
-      :`That is ${ABC[o][0]}. Find ${ABC[r][0]}!`);
+    say(qt().no(q,o,r));
     return;
   }
   S.busy=true;S.qn++;el&&restartClass(el,'jump',700);sfx.sticker();bubble(CARDX[i],172,'YES!','#1f8a4c');
-  const n=NOUN[q.k];
-  say(q.t==='count'?`Yes! ${WORDS[r-1]} ${r>1?n[1]:n[0]}! Well done!`
-    :q.t==='colour'?`Yes! That is ${COLS[r][0].toLowerCase()}! Well done!`
-    :q.t==='shape'?`Yes! That is a ${SHAPES[r].toLowerCase()}! Well done!`
-    :`Yes! ${ABC[r][0]} is for ${ABC[r][1].toLowerCase()}! Well done!`,'');
+  say(qt().yes(q,r),'');
   later(()=>react('happy'),500);
   later(()=>{
     S.busy=false;
@@ -4033,7 +4158,7 @@ const MAXCATS=8;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
 const miniCat=(s,m='normal')=>`<svg class="mini" viewBox="-56 -196 112 202" aria-hidden="true">${catSVG(m,false,false,PINK,s?{hat:s.hat,bow:s.bow,glasses:s.glasses}:{})}</svg>`;
 const TROPHY=`<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M6,5 H3 Q3,11 8,11 M18,5 H21 Q21,11 16,11" fill="none" stroke="${INK}" stroke-width="2"/><path d="M6,3 H18 V8 A6,6 0 0 1 6,8Z" fill="#ffd34d" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M12,14 V18" stroke="${INK}" stroke-width="2.4"/><rect x="7" y="18" width="10" height="4" rx="1" fill="#e0508a" stroke="${INK}" stroke-width="2"/></svg>`;
-const metaOf=c=>c.s?`DAY ${c.s.day||1} · ★ ${c.s.points||0}`:'NEW!';
+const metaOf=c=>(c.s?`DAY ${c.s.day||1} · ★ ${c.s.points||0}`:'NEW!')+(c.yr?` · ${YEARS[c.yr].short}`:'');
 // the parties to pick from: a row of round buttons on the first screens, big ones in the menu
 const partyIcon=(t,w=34)=>`<svg width="${w}" height="${w}" viewBox="-28 -32 56 56" aria-hidden="true">${PARTY[t].icon()}</svg>`;
 const partyRow=()=>`<p>PARTY: <span class="partyName">${party().name.toUpperCase()}</span></p>
@@ -4043,6 +4168,18 @@ function showParties(){
     ${PARTIES.map(t=>`<button class="big party" data-a="party" data-t="${t}" aria-pressed="${t===THEME}">${partyIcon(t,40)} ${PARTY[t].name.toUpperCase()}</button>`).join('')}
     <button class="big small" data-a="menu" data-focus>← BACK</button>`,
     'Which party is it today?','Tap a party to dress up the game');
+}
+// the school year for Miss Owl's lessons: a row of buttons on the name screen, big ones in the menu
+const bagIcon=`<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M8,7 V5 Q8,2 12,2 Q16,2 16,5 V7" fill="none" stroke="${INK}" stroke-width="2"/><rect x="4" y="7" width="16" height="15" rx="4" fill="#f38db5" stroke="${INK}" stroke-width="2"/><rect x="8" y="13" width="8" height="5" rx="1.5" fill="#ffd34d" stroke="${INK}" stroke-width="1.6"/></svg>`;
+const yearRow=y=>`<p>SCHOOL YEAR</p>
+    <div class="years">${YEARS.map((Y,i)=>`<button data-a="yr" data-y="${i}" aria-pressed="${i===y}">${Y.name.toUpperCase()}</button>`).join('')}</div>`;
+function showYears(){
+  const y=yr();
+  openOv('years',`<h2>${bagIcon} School year?</h2>
+    <p>${esc(nm())} goes to cat school</p>
+    ${YEARS.map((Y,i)=>`<button class="big year" data-a="yr" data-y="${i}" aria-pressed="${i===y}">${Y.name.toUpperCase()}</button>`).join('')}
+    <button class="big small" data-a="menu" data-focus>← BACK</button>`,
+    'Which year are you in at school?','Miss Owl picks lessons for your year');
 }
 let ovKind='';
 function openOv(kind,html,story,hint){
@@ -4068,6 +4205,7 @@ function showName(){
   openOv('name',`<h2>Your cat's name?</h2>
     <svg viewBox="-60 -196 120 202" width="60" height="96" style="align-self:center" aria-hidden="true">${catSVG('happy')}</svg>
     <input id="nameIn" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Cat name" value="${first}">
+    ${yearRow(0)}
     <button class="big pink" data-a="go" data-focus>GO! ▶</button>
     <div class="sugg">${(pick.length?pick:NAMES).slice(0,6).map(n=>`<button data-a="sugg" data-n="${n}">${n}</button>`).join('')}</div>
     ${partyRow()}
@@ -4085,6 +4223,7 @@ function showMenu(){
     <button class="big gold" data-a="board">${TROPHY} TOP CATS</button>
     ${canMove()?`<button class="big blue" data-a="move">${houseIcon} MOVE HOUSE</button>`:''}
     <button class="big orange" data-a="parties">${partyIcon(THEME,30)} PARTY: ${party().name.toUpperCase()}</button>
+    <button class="big blue" data-a="years">${bagIcon} SCHOOL: ${YEARS[yr()].name.toUpperCase()}</button>
     <button class="big" data-a="title">CHANGE CAT</button>`,
     'Paws! The game is waiting for you.','');
 }
@@ -4115,8 +4254,8 @@ function startCat(c){
   if(!S.awake){render();updateHud();say(c.s?`Welcome back, ${c.name}! You are asleep.`:`You are a cat called ${c.name}. You are asleep.`)}
   else{render();updateHud();go(S.scene,200);later(()=>{const s=document.getElementById('story');s.textContent=`Welcome back, ${c.name}! `+s.textContent},360)}
 }
-function newCat(name){
-  const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,best:0,at:Date.now(),s:null};
+function newCat(name,y=0){
+  const c={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,yr:y,best:0,at:Date.now(),s:null};
   DB.cats.push(c);startCat(c);
 }
 function startAgain(){
@@ -4136,10 +4275,17 @@ ov.addEventListener('click',e=>{
   else if(a==='sugg'){const i=document.getElementById('nameIn');i.value=b.dataset.n;sfx.twinkle(2)}
   else if(a==='go'){
     const v=(document.getElementById('nameIn').value||'').trim().toUpperCase().replace(/\s+/g,' ').slice(0,10);
-    sfx.sticker();newCat(v||NAMES[0]);
+    const y=ov.querySelector('[data-a="yr"][aria-pressed="true"]');
+    sfx.sticker();newCat(v||NAMES[0],y?+y.dataset.y:0);
   }
   else if(a==='snd'){S.sound=!S.sound;b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
   else if(a==='parties') showParties();
+  else if(a==='years') showYears();
+  else if(a==='yr'){
+    const y=+b.dataset.y;sfx.twinkle(y+2);ov.querySelectorAll('[data-a="yr"]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+    // in the menu the year changes now, and a lesson in the middle starts again with the new questions
+    if(ovKind==='years'){setYear(y);if(!S.busy&&S.scene==='school'){render();if(PREV)PREV=[`Miss Owl has ${YEARS[y].name} lessons now! ${qStory()}`,qHint()]}resume()}
+  }
   else if(a==='party'){
     // a new party redraws the scene behind, so the hint on return matches it
     const t=b.dataset.t;setTheme(t);t==='none'?sfx.twinkle(2):party().sound();
