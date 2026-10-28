@@ -32,6 +32,7 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .frame{background:var(--sky);background-image:radial-gradient(circle,var(--sky-dot) 0 5px,transparent 6px);background-size:56px 56px;padding:8px;border-radius:6px;border:2.5px solid var(--ink)}
 #stage{display:block;width:100%;height:auto;background:var(--paper);border-radius:14px;border:2.5px solid var(--ink);touch-action:manipulation;transition:opacity .3s;-webkit-tap-highlight-color:transparent;user-select:none}
 #stage.fade{opacity:0}
+#stage.drawing{touch-action:none}
 .story{background:var(--paper);border:2.5px solid var(--ink);border-radius:14px;padding:10px 14px;color:var(--pen);min-height:4.4em}
 #story{font-size:1.35rem;letter-spacing:.06em;text-transform:uppercase;line-height:1.35;margin:0}
 #hint{font-size:1.1rem;letter-spacing:.05em;text-transform:uppercase;color:var(--hot);margin:6px 0 0}
@@ -248,7 +249,8 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   playground:false,rides:[],ride:null,school:false,q:null,qn:0,lessons:0,fest:'',visit:'',
   square:false,picks:null,went:[],seen:[],wish:false,pigeonN:0,latte:false,cafeCats:[],cafeN:0,dish:null,ate:[],swim:false,ballN:0,eaten:[],
   slid:false,big:false,tour:false,moveAsk:0,trip:'',tp:{},trips:[],tripDay:0,souv:[],
-  sweets:0,ache:false,teeth:0,nag:false,meds:false};
+  sweets:0,ache:false,teeth:0,nag:false,meds:false,
+  paper:[],wall:[],brush:0,tool:'brush',fat:false,clearAsk:false,mos:null,mosN:0,drew:false,mosDone:false,hung:''};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -355,7 +357,7 @@ function setTheme(t){
 }
 document.documentElement.dataset.theme=THEME;
 // things that only matter while a scene is on screen are not saved
-const NOSAVE=['busy','sound','fly','dot','lastKey','lastNote','noteT','prints','ride'];
+const NOSAVE=['busy','sound','fly','dot','lastKey','lastNote','noteT','prints','ride','clearAsk','hung'];
 let DB={cats:[]}, CUR=null, GEN=0;
 const curCat=()=>DB.cats.find(c=>c.id===CUR);
 const nm=()=>(curCat()||{name:'cat'}).name;
@@ -393,7 +395,7 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['party',()=>S.party],['park',()=>S.park],['season',()=>S.sDone],['bath',()=>S.bath==='done'],
   ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
   ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['fest',()=>!!S.fest],['visit',()=>!!S.visit],
-  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['trip',()=>S.tripDay===S.day],
+  ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['paint',()=>S.drew],['mosaic',()=>S.mosDone],['trip',()=>S.tripDay===S.day],
   ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done']];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
@@ -511,6 +513,7 @@ function arrow(side,label){
 const DEFS=`<defs>
 <filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter>
 <clipPath id="catClip"><path d="${BODY}"/></clipPath>
+<clipPath id="paperClip"><rect width="368" height="290"/></clipPath>
 <clipPath id="wallClip"><rect x="200" y="0" width="200" height="337"/></clipPath>
 <clipPath id="mirClip"><ellipse cx="110" cy="352" rx="62" ry="84"/></clipPath>
 <pattern id="heartpaper" width="48" height="48" patternUnits="userSpaceOnUse">${[[12,14],[36,38]].map(([x,y])=>`<path transform="translate(${x},${y}) scale(.55)" d="${HEART}" fill="#f6b3cb"/><path d="M${x-2.5},${y-2.5} v1.5 M${x+2.5},${y-2.5} v1.5 M${x-2.5},${y+.5} q2.5,2.5 5,0" fill="none" stroke="#e27fa3" stroke-width="1.1" stroke-linecap="round"/>`).join('')}</pattern>
@@ -1856,6 +1859,89 @@ function movingVan(){
 const moveBox=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#d9a066" ${K} stroke-width="2.5"/><rect x="${x+w/2-4}" y="${y}" width="8" height="${h}" fill="#f1e05a" opacity=".85"/>`;
 const houseIcon=`<svg width="30" height="30" viewBox="-150 -350 300 360" aria-hidden="true">${bigHouse(0,0,1)}</svg>`;
 
+/* ---------- the art room (big house only): paint with your finger on the easel, make mosaics, hang them on the wall ---------- */
+const PAPER={x:16,y:110,w:368,h:290};
+const PAINT=[['RED','#e5383b'],['ORANGE','#f9a03f'],['YELLOW','#ffd34d'],['GREEN','#3fae5a'],['BLUE','#2c8fd6'],['PURPLE','#8e5bd0'],['PINK','#f38db5'],['BLACK',INK]];
+// the last pot is a rainbow: the colour changes as you go
+const RAINBOW=PAINT.length, RBC=PAINT.slice(0,7).map(c=>c[1]);
+const INKW=11, FATW=26, INKMAX=40000, WALLMAX=4;
+let RB=0;
+const nextRb=()=>RBC[RB++%RBC.length];
+const brushCol=()=>S.brush===RAINBOW?nextRb():PAINT[S.brush][1];
+function inkSVG(items){
+  return items.map(it=>it.paw?`<g transform="translate(${it.paw[0]},${it.paw[1]}) scale(2.8)">${pawSVG(0,0,0,it.c)}</g>`
+    :`<path d="${it.d}" fill="none" stroke="${it.c}" stroke-width="${it.w||INKW}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+}
+// a painting at any size: the paper is 368 by 290
+const picSVG=(items,x,y,w)=>`<g transform="translate(${x},${y}) scale(${(w/PAPER.w).toFixed(4)})"><rect width="${PAPER.w}" height="${PAPER.h}" fill="#fff"/><g clip-path="url(#paperClip)">${inkSVG(items)}</g></g>`;
+// mosaic pictures: # is a tile, . is a gap
+const MOSAICS=[
+  {name:'heart',g:['.#.#.','#####','#####','.###.','..#..']},
+  {name:'fish',g:['...##.','#.####','######','#.####','...##.']},
+  {name:'cat',g:['#...#','#####','#.#.#','#####','.###.']},
+  {name:'house',g:['..#..','.###.','#####','#.#.#','#####']}
+];
+const mosCells=k=>{const c=[];MOSAICS[k].g.forEach((r,y)=>[...r].forEach((ch,x)=>ch==='#'&&c.push([x,y])));return c};
+const mosNow=()=>MOSAICS[S.mos.k];
+// where the mosaic sits: fit the grid in a box, centred
+function mosFit(k,bx,by,bw,bh){
+  const g=MOSAICS[k].g,cols=g[0].length,rows=g.length,s=Math.min(bw/cols,bh/rows);
+  return {s,x:bx+(bw-cols*s)/2,y:by+(bh-rows*s)/2};
+}
+function tileSVG(x,y,s,c){
+  const p=Math.max(1.5,s*.06),w=s-2*p,r=(s*.16).toFixed(1);
+  return c?`<rect x="${(x+p).toFixed(1)}" y="${(y+p).toFixed(1)}" width="${w.toFixed(1)}" height="${w.toFixed(1)}" rx="${r}" fill="${c}" stroke="${INK}" stroke-width="${Math.max(1,s*.05).toFixed(1)}"/><rect x="${(x+s*.22).toFixed(1)}" y="${(y+s*.2).toFixed(1)}" width="${(s*.22).toFixed(1)}" height="${(s*.12).toFixed(1)}" rx="${(s*.06).toFixed(1)}" fill="#fff" opacity=".55"/>`
+    :`<rect x="${(x+p).toFixed(1)}" y="${(y+p).toFixed(1)}" width="${w.toFixed(1)}" height="${w.toFixed(1)}" rx="${r}" fill="#f6efe2" stroke="#b9ab94" stroke-width="2" stroke-dasharray="5 4"/>`;
+}
+const mosSVG=(k,cols,bx,by,bw,bh)=>{const f=mosFit(k,bx,by,bw,bh);return mosCells(k).map(([cx,cy],i)=>tileSVG(f.x+cx*f.s,f.y+cy*f.s,f.s,cols[i])).join('')};
+// what hangs on the art room wall: paintings and mosaics, newest first
+const WALLX=[22,116,210,304], WALLW=76, WALLH=60;
+function wallItem(it,x,y){
+  return it.t==='pic'?picSVG(it.s,x,y,WALLW):`<rect x="${x}" y="${y}" width="${WALLW}" height="${WALLH}" fill="#fff"/>${mosSVG(it.k,it.c,x+4,y+4,WALLW-8,WALLH-8)}`;
+}
+function wallFrame(i){
+  const x=WALLX[i],y=118,it=S.wall[i],c=['#e0508a','#2c8fd6','#f9a03f','#3fae5a'][i];
+  if(!it) return `<rect x="${x}" y="${y}" width="${WALLW}" height="${WALLH}" rx="3" fill="#fff" opacity=".6" stroke="#b9ab94" stroke-width="2.5" stroke-dasharray="6 5"/><text x="${x+WALLW/2}" y="${y+40}" text-anchor="middle" class="sign" style="fill:#b9ab94">?</text>`;
+  return `<g class="wf${i}"><rect x="${x-7}" y="${y-7}" width="${WALLW+14}" height="${WALLH+14}" rx="4" fill="${c}" ${K}/>${wallItem(it,x,y)}<rect x="${x}" y="${y}" width="${WALLW}" height="${WALLH}" fill="none" stroke="${INK}" stroke-width="2"/>
+    <rect x="${x+WALLW/2-5}" y="${y-16}" width="10" height="18" rx="2" fill="#d6ad45" stroke="${INK}" stroke-width="2"/></g>`;
+}
+function easel(){
+  return `<rect x="252" y="216" width="136" height="236" fill="transparent"/>
+  <path d="M276,446 L306,232 M364,446 L334,232 M320,232 V446" stroke="${INK}" stroke-width="12" stroke-linecap="round"/><path d="M276,446 L306,232 M364,446 L334,232 M320,232 V446" stroke="#c98a50" stroke-width="7" stroke-linecap="round"/>
+  <rect x="262" y="242" width="116" height="92" rx="3" fill="#fff" ${K}/>${S.paper.length?picSVG(S.paper,264,244,112):`<text x="320" y="296" text-anchor="middle" class="lbl">PAINT!</text>`}
+  <rect x="256" y="334" width="128" height="12" rx="3" fill="#c98a50" ${K}/>
+  <ellipse cx="282" cy="444" rx="18" ry="6" fill="#2c8fd6" ${K} stroke-width="2"/><path d="M296,440 l18,-30" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M312,412 l5,-8" stroke="#e5383b" stroke-width="7" stroke-linecap="round"/>`;
+}
+function craftTable(){
+  const k=S.mos?S.mos.k:S.mosN%MOSAICS.length,c=S.mos?S.mos.c:[];
+  return `<rect x="14" y="300" width="186" height="152" fill="transparent"/>
+  <path d="M34,374 V450 M180,374 V450" stroke="${INK}" stroke-width="11" stroke-linecap="round"/><path d="M34,374 V450 M180,374 V450" stroke="#c98a50" stroke-width="6" stroke-linecap="round"/>
+  <rect x="18" y="360" width="178" height="16" rx="4" fill="#e8b47a" ${K}/>
+  <rect x="58" y="304" width="96" height="56" rx="5" fill="#fffaf6" ${K}/>${mosSVG(k,c,62,308,88,48)}
+  ${PAINT.slice(0,5).map(([,col],i)=>tileSVG(24+i*12-(i%2)*4,346-(i%2)*6,11,col)).join('')}${PAINT.slice(4,7).map(([,col],i)=>tileSVG(160+i*11,348-(i%2)*5,11,col)).join('')}`;
+}
+// the door in the hall, with paint splashed on it
+function artDoor(){
+  return `<rect x="4" y="290" width="62" height="162" fill="transparent"/>
+  <path d="M8,450 V346 q0,-22 26,-22 q26,0 26,22 V450Z" fill="#8e5bd0" ${K}/>
+  <circle cx="22" cy="362" r="6" fill="#ffd34d"/><circle cx="44" cy="384" r="5" fill="#f38db5"/><circle cx="26" cy="410" r="7" fill="#3fae5a"/><circle cx="46" cy="430" r="4" fill="#f9a03f"/>
+  <circle cx="50" cy="400" r="4" fill="#d6ad45" stroke="${INK}" stroke-width="2"/>
+  <path d="M10,296 h50 v22 h-50Z" fill="#fffaf6" ${K} stroke-width="2.5"/><text x="35" y="314" text-anchor="middle" class="sign" style="font-size:17px">ART</text>`;
+}
+// a pot of paint, or the rainbow pot; the one you are using sits up high with a ring
+function potSVG(i){
+  const x=26+i*43.5,on=S.brush===i,y=on?426:434,r=17;
+  const blob=i===RAINBOW?RBC.map((c,j)=>{const a=j/7*Math.PI*2,b=(j+1)/7*Math.PI*2;return `<path d="M${x},${y} L${(x+r*Math.cos(a)).toFixed(1)},${(y+r*Math.sin(a)).toFixed(1)} A${r},${r} 0 0 1 ${(x+r*Math.cos(b)).toFixed(1)},${(y+r*Math.sin(b)).toFixed(1)}Z" fill="${c}"/>`}).join('')+`<circle cx="${x}" cy="${y}" r="${r}" fill="none" ${K}/>`
+    :`<circle cx="${x}" cy="${y}" r="${r}" fill="${PAINT[i][1]}" ${K}/>`;
+  return `<rect x="${x-22}" y="404" width="44" height="58" fill="transparent"/>${on?`<circle cx="${x}" cy="${y}" r="${r+5}" fill="#fff" ${K}/><path d="M${x-7},458 l7,-6 l7,6" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`:''}${blob}
+  <path d="M${x-6},${y-8} q4,-4 9,-3" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>`;
+}
+const pots=()=>[...PAINT.map((c,i)=>i),RAINBOW].map(i=>({id:'pot'+i,label:i===RAINBOW?'Rainbow paint':PAINT[i][0].toLowerCase()+' paint',svg:potSVG(i),tap:()=>pickPot(i)}));
+const toolBtn=(x,w,on,inner)=>`<rect x="${x}" y="470" width="${w}" height="42" rx="12" fill="${on?'#ffd34d':'#fffaf6'}" ${K}/>${inner}`;
+function hangBtn(){
+  return `<rect x="226" y="20" width="164" height="60" rx="16" fill="#3fae5a" ${K}/><text x="308" y="58" text-anchor="middle" class="sign" style="fill:#fff;font-size:21px">HANG IT UP ✓</text>`;
+}
+
 /* ---------- scenes ---------- */
 /* ---------- holidays: the cat lives in London. A plane over the square says HOLIDAY!
    Brazil: Heathrow airport, a plane, then the beach in Rio. Scotland: Euston station, the sleeper train, then Edinburgh ---------- */
@@ -2225,6 +2311,7 @@ const SC={
       :!homeward()&&S.bird==='here'?{id:'bird',hint:'A bird at the window! Tap it'}
       :!homeward()&&typeof S.cup==='number'?{id:'cup',hint:'A cup on the edge… push it!'}
       :homeward()?{id:'go-bed',hint:S.big?'It is night! Go upstairs to bed ↖':'It is night! Go to the bedroom ↖'}
+      :S.big&&!S.drew&&!homeward()?{id:'go-bed',hint:'Your art room is by the stairs! ↖'}
       :{id:'go-living',hint:'Go to the house ↗'},
     enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. The fridge is full of yummy food…'
       :S.bird==='here'&&!night()?'This is the kitchen. Look, a little bird!':'This is the kitchen. Your tummy is full.')
@@ -2657,6 +2744,7 @@ const SC={
       <ellipse cx="186" cy="486" rx="78" ry="15" fill="#f38db5" ${K}/>
       ${deco(30,452,.6)}`,
     hots:()=>[
+      {id:'artdoor',label:'Door to the art room',svg:artDoor(),walk:40,tap:()=>{say('You open the door with paint on it…','');go('studio','right')}},
       {id:'photo',label:'Photo on the wall',svg:hallPhoto(),walk:166,tap:()=>{react('happy');say(S.pal?'A photo of you and your best friend! Poooourrr!':'A photo of you! So pretty. Poooourrr!')}},
       {id:'stairs',label:'Stairs up to the bedroom',svg:stairs(),walk:300,tap:()=>{say('Up the stairs… one, two, three… seven!','');go('bed',364)}},
       {id:'chute',label:'The bottom of the slide',svg:chuteArt(),walk:190,tap:()=>{sfx.boing();bubble(200,330,'WHEEE!','#f5891f');say('The slide comes down from your bedroom! Climb the stairs to slide again.')}},
@@ -2668,10 +2756,74 @@ const SC={
       :S.tummy<3&&S.ache?{id:'stairs',hint:'Medicine first! Go upstairs to the bathroom ↑'}
       :S.tummy<3?{id:'go-kitchen',hint:'Breakfast time! Go to the kitchen ↗'}
       :homeward()?{id:'stairs',hint:'It is night! Go upstairs to bed ↑'}
+      :!S.drew?{id:'artdoor',hint:'Your art room! Tap the door ↙'}
       :{id:'go-kitchen',hint:'Go and explore ↗'},
     enter:()=>say(S.ride==='chute'?'Wheee…'
       :S.tour?'Your new house! This is the hall. The stairs go up to your bedroom.'
       :'The hall of your big house. The stairs go up to your bedroom.')
+  },
+  studio:{
+    draw:()=>`<rect width="400" height="520" fill="#fdf3d8"/>
+      ${[[40,250,'#f38db5'],[190,230,'#7cc6f0'],[150,300,'#ffd34d'],[230,64,'#3fae5a'],[100,40,'#f9a03f'],[370,200,'#8e5bd0']].map(([x,y,c])=>`<circle cx="${x}" cy="${y}" r="12" fill="${c}" opacity=".45"/><circle cx="${x+16}" cy="${y-9}" r="5" fill="${c}" opacity=".45"/><circle cx="${x-12}" cy="${y+13}" r="4" fill="${c}" opacity=".45"/>`).join('')}
+      <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      <ellipse cx="120" cy="492" rx="22" ry="7" fill="#e5383b" opacity=".8"/><ellipse cx="262" cy="502" rx="14" ry="5" fill="#2c8fd6" opacity=".8"/><ellipse cx="330" cy="470" rx="10" ry="4" fill="#ffd34d" opacity=".9"/>
+      <path d="M6,104 Q200,124 394,104" fill="none" stroke="${INK}" stroke-width="2.5"/>
+      ${[0,1,2,3].filter(i=>!S.wall[i]).map(wallFrame).join('')}
+      <text x="200" y="232" text-anchor="middle" class="lbl">${nm().toUpperCase()}'S ART ROOM</text>${deco(370,452,.55)}`,
+    hots:()=>[
+      ...S.wall.map((_,i)=>({id:'wall'+i,label:'Your art on the wall',svg:wallFrame(i),walk:WALLX[i]+WALLW/2,tap:()=>admireArt(i)})),
+      {id:'table',label:'Mosaic table',svg:craftTable(),walk:150,tap:()=>go('mosaic')},
+      {id:'easel',label:'Easel for painting',svg:easel(),walk:240,tap:()=>go('paint')},
+      {id:'go-hall',label:'Back to the hall',svg:arrow('right','HALL'),tap:()=>leave(460,()=>go('hall','left'))}
+    ],
+    goal:()=>homeward()?{id:'go-hall',hint:'It is night! Go back to the hall ↗'}
+      :!S.drew?{id:'easel',hint:'Paint a picture! Tap the easel'}
+      :!S.mosDone?{id:'table',hint:'Make a mosaic! Tap the table'}
+      :{id:'go-hall',hint:'Tap your art, or go and explore ↗'},
+    enter:()=>{const h=S.hung;S.hung='';
+      if(h){const i=0;later(()=>{const f=$('.wf'+i);f&&restartClass(f,'swing',900);sfx.sticker();bubble(WALLX[i]+60,90,'TA-DA!','#e0508a');react('happy',false)},500);
+        say(h==='pic'?`You hang your painting on the wall. You are a real artist, ${nm()}!`:`You hang your mosaic ${MOSAICS[S.wall[0].k].name} on the wall. So many colours!`);return}
+      say(S.wall.length?'Your art room! Look at all your art on the wall.':'Your very own art room! Paint, brushes and lots of colourful tiles.')},
+    // stop between the table and the easel so both stay in sight
+    landRight:210
+  },
+  paint:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#fdf3d8"/><rect y="404" width="400" height="116" fill="#e8b47a"/><path d="M0,404 H400" ${K}/>
+      <rect x="${PAPER.x}" y="${PAPER.y}" width="${PAPER.w}" height="${PAPER.h}" fill="#fff" ${K}/>
+      <rect x="6" y="104" width="30" height="12" fill="#f3e3b0" opacity=".9" transform="rotate(-30 21 110)"/><rect x="364" y="104" width="30" height="12" fill="#f3e3b0" opacity=".9" transform="rotate(30 379 110)"/>`,
+    hots:()=>[
+      {id:'go-back',label:'Back to the art room',svg:arrow('left','ART ROOM'),tap:()=>go('studio',210)},
+      {id:'done',label:'Hang it up',svg:hangBtn(),tap:hangPic},
+      ...pots(),
+      {id:'paw',label:'Paw print stamp',svg:toolBtn(14,118,S.tool==='paw',`<g transform="translate(46,494) scale(2.2)">${pawSVG(0,0,0,'#e0508a')}</g><text x="${86}" y="500" text-anchor="middle" class="sign" style="font-size:19px">PAW</text>`),tap:()=>pickTool('paw')},
+      {id:'fat',label:'Big brush',svg:toolBtn(142,116,S.fat,`<path d="M162,491 H180" stroke="${INK}" stroke-width="${S.fat?16:8}" stroke-linecap="round"/><text x="${222}" y="500" text-anchor="middle" class="sign" style="font-size:19px">BIG</text>`),tap:()=>pickTool('fat')},
+      {id:'clear',label:'Clear the paper',svg:toolBtn(268,118,S.clearAsk,`<path d="M284,482 h22 l-3,22 h-16Z M281,482 h28 M290,478 h10" fill="#cfd3dc" ${K} stroke-width="2.5"/><text x="${348}" y="500" text-anchor="middle" class="sign" style="font-size:19px;${S.clearAsk?'fill:#d9363e':''}">${S.clearAsk?'SURE?':'CLEAR'}</text>`),tap:clearPaper}
+    ],
+    goal:()=>S.paper.length>=6?{id:'done',hint:'Draw more, or tap HANG IT UP ✓'}:{id:'',hint:'Draw with your finger! Pick a colour ↓'},
+    over:()=>`<g id="ink" pointer-events="none" transform="translate(${PAPER.x},${PAPER.y})"><g clip-path="url(#paperClip)">${inkSVG(S.paper)}</g></g>`,
+    enter:()=>say(S.paper.length?'Your painting is waiting for you. Paint some more!':'A big white paper! Paint with your finger.')
+  },
+  mosaic:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#fdf3d8"/><rect y="404" width="400" height="116" fill="#e8b47a"/><path d="M0,404 H400" ${K}/>
+      <rect x="${PAPER.x}" y="${PAPER.y}" width="${PAPER.w}" height="${PAPER.h}" rx="14" fill="#fffaf6" ${K}/>
+      <text x="200" y="488" text-anchor="middle" class="lbl">PICK A COLOUR, TAP A SQUARE</text>`,
+    before:()=>{if(!S.mos){const k=S.mosN%MOSAICS.length;S.mos={k,c:mosCells(k).map(()=>null)}}},
+    hots:()=>{
+      const k=S.mos.k,f=mosFit(k,PAPER.x+20,PAPER.y+16,PAPER.w-40,PAPER.h-32),full=!S.mos.c.includes(null);
+      return [
+        {id:'go-back',label:'Back to the art room',svg:arrow('left','ART ROOM'),tap:()=>go('studio',210)},
+        ...(full?[{id:'hang',label:'Hang it up',svg:hangBtn(),tap:hangMos}]:[]),
+        ...mosCells(k).map(([cx,cy],i)=>({id:'tile'+i,label:'Mosaic square',svg:tileSVG(f.x+cx*f.s,f.y+cy*f.s,f.s,S.mos.c[i]),tap:()=>putTile(i)})),
+        ...pots()
+      ];
+    },
+    goal:()=>{
+      const c=S.mos.c,i=c.indexOf(null),n=c.length-c.filter(x=>x===null).length;
+      return i<0?{id:'hang',hint:'Ta-da! Tap HANG IT UP ✓'}:{id:'tile'+i,hint:`Tap the squares to fill the ${mosNow().name} (${n} of ${c.length})`};
+    },
+    enter:()=>say(S.mos.c.includes(null)?`A mosaic! Little tiles make a ${mosNow().name}. Pick a colour and fill the squares.`:`Your mosaic ${mosNow().name} is finished!`)
   },
   moving:{
     draw:()=>`<rect width="400" height="520" fill="${night()?'#22306a':paneSky()}"/>
@@ -2916,6 +3068,7 @@ function render(){
   if(S.pal) HOTS.pal={id:'pal',tap:petPal};
   const ae=document.activeElement, fid=stage.contains(ae)&&ae.dataset?ae.dataset.id:null;
   const prints=outside()&&snowy()?`<g id="prints" pointer-events="none">${S.prints.map(p=>pawSVG(p.x,p.y,p.f,'#b9cde0')).join('')}</g>`:'';
+  stage.classList.toggle('drawing',S.scene==='paint');
   stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+prints+palLayer()+
     hs.map(h=>`<g class="hot${p===h.id?' pulse':''}" data-id="${h.id}" role="button" tabindex="0" aria-label="${h.label}">${h.svg}</g>`).join('')+
     catLayer()+(sc.over?sc.over():'');
@@ -3230,7 +3383,7 @@ function nap(){
     S.hat='';S.bow=false;S.glasses=false;S.dressed=false;S.yarn=0;S.bath=false;S.pops=[];S.party=false;S.park=false;S.pondN=0;S.quackN=0;S.looked=false;
     S.playground=false;S.rides=[];S.school=false;S.q=null;S.qn=0;S.lessons=0;S.fest='';S.visit='';
     S.square=false;S.picks=null;S.went=[];S.wish=false;S.pigeonN=0;S.latte=false;S.cafeCats=[];S.cafeN=0;S.dish=null;S.ate=[];
-    S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;S.sweets=0;S.teeth=0;S.nag=false;S.meds=false;
+    S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;S.sweets=0;S.teeth=0;S.nag=false;S.meds=false;S.drew=false;S.mosDone=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     // the bird only comes when it is not raining
@@ -3769,6 +3922,92 @@ const sfx={
     s.connect(f).connect(g).connect(a.destination);s.start(t);s.stop(t+d);
   }
 };
+
+/* the art room */
+function admireArt(i){
+  const f=$('.wf'+i);f&&restartClass(f,'swing',900);sfx.twinkle(3);bubble(WALLX[i]+WALLW/2,90,'SO PRETTY!','#e0508a');react('happy',false);
+  const it=S.wall[i];say(it.t==='pic'?`Your painting! You are a real artist, ${nm()}!`:`Your mosaic ${MOSAICS[it.k].name}! Tile by tile. So pretty!`);
+}
+function pickPot(i){
+  S.brush=i;S.clearAsk=false;if(S.tool==='paw'&&S.scene==='paint')S.tool='brush';sfx.stick();render();
+  say(i===RAINBOW?'Rainbow! All the colours!':`${PAINT[i][0][0]+PAINT[i][0].slice(1).toLowerCase()}!`);
+}
+function pickTool(t){
+  S.clearAsk=false;
+  if(t==='paw'){S.tool=S.tool==='paw'?'brush':'paw';say(S.tool==='paw'?'Paw prints! Tap the paper to stamp.':'Back to painting with your finger!')}
+  else{S.fat=!S.fat;say(S.fat?'A big fat brush!':'A little thin brush.')}
+  sfx.stick();render();
+}
+function clearPaper(){
+  if(!S.paper.length){say('The paper is already empty. Paint something!');return}
+  if(!S.clearAsk){S.clearAsk=true;render();say('Clear all the paper? Tap SURE? to start again.');return}
+  S.clearAsk=false;S.paper=[];sfx.whoosh();render();say('Swoosh! A clean white paper.');
+}
+function hangPic(){
+  if(!S.paper.length){say('Paint something first! Use your finger.');return}
+  S.wall.unshift({t:'pic',s:S.paper});S.wall=S.wall.slice(0,WALLMAX);S.paper=[];S.hung='pic';
+  if(!S.drew){S.drew=true;earnHeart()}
+  go('studio',200);
+}
+function putTile(i){
+  const c=S.mos.c,was=c.includes(null);
+  c[i]=brushCol();sfx.stick();render();
+  if(was&&!c.includes(null)){
+    sfx.sticker();bubble(200,90,'TA-DA!','#e0508a');hearts(200,250);
+    if(!S.mosDone){S.mosDone=true;earnHeart()}
+    say(`Ta-da! A mosaic ${mosNow().name}! Hang it on the wall.`);
+  }
+  else say(c.includes(null)?`Click! A ${S.brush===RAINBOW?'rainbow':PAINT[S.brush][0].toLowerCase()} tile.`:'You change the colour. Click!');
+}
+function hangMos(){
+  S.wall.unshift({t:'mos',k:S.mos.k,c:S.mos.c});S.wall=S.wall.slice(0,WALLMAX);S.mos=null;S.mosN++;S.hung='mos';
+  go('studio',210);
+}
+// finger painting: each finger stroke becomes a line on the paper; with the paw stamp a tap leaves a paw print
+let PEN=null;
+function paperPt(e){
+  const m=stage.getScreenCTM();if(!m)return null;
+  const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m.inverse());
+  return {x:Math.round(p.x-PAPER.x),y:Math.round(p.y-PAPER.y)};
+}
+const onPaper=p=>p&&p.x>=0&&p.y>=0&&p.x<=PAPER.w&&p.y<=PAPER.h;
+const inkSize=()=>S.paper.reduce((n,it)=>n+(it.d?it.d.length:12),0);
+function newStroke(p,q){
+  const it={c:brushCol(),d:`M${p.x},${p.y}`+(q?`L${q.x},${q.y}`:'l.1,0')};if(S.fat)it.w=FATW;
+  S.paper.push(it);
+  const g=$('#ink g');g&&g.insertAdjacentHTML('beforeend',inkSVG([it]));
+  return {it,el:g&&g.lastElementChild,n:1};
+}
+stage.addEventListener('pointerdown',e=>{
+  if(S.scene!=='paint'||S.busy||PEN)return;
+  const p=paperPt(e);if(!onPaper(p))return;
+  e.preventDefault();ac();
+  if(S.clearAsk){S.clearAsk=false;render()}
+  if(inkSize()>INKMAX){say('The paper is full! Hang it up ✓');return}
+  if(S.tool==='paw'){
+    const it={c:brushCol(),paw:[p.x,p.y]};S.paper.push(it);
+    const g=$('#ink g');g&&g.insertAdjacentHTML('beforeend',inkSVG([it]));sfx.stick();refreshGoal();save();return;
+  }
+  try{stage.setPointerCapture(e.pointerId)}catch(err){}
+  PEN=Object.assign(newStroke(p),{id:e.pointerId,last:p});
+});
+stage.addEventListener('pointermove',e=>{
+  if(!PEN||e.pointerId!==PEN.id)return;
+  const r=paperPt(e);if(!r)return;
+  const p={x:Math.max(0,Math.min(PAPER.w,r.x)),y:Math.max(0,Math.min(PAPER.h,r.y))};
+  if(Math.hypot(p.x-PEN.last.x,p.y-PEN.last.y)<3)return;
+  // the rainbow brush starts a new colour every few dabs
+  if(S.brush===RAINBOW&&PEN.n>=5){Object.assign(PEN,newStroke(PEN.last,p))}
+  else{PEN.it.d+=`L${p.x},${p.y}`;PEN.el&&PEN.el.setAttribute('d',PEN.it.d);PEN.n++}
+  PEN.last=p;
+});
+function penUp(e){
+  if(!PEN||e.pointerId!==PEN.id)return;
+  PEN=null;
+  const h=document.getElementById('hint'),g=SC.paint.goal();h.textContent=g.hint;refreshGoal();save();
+}
+stage.addEventListener('pointerup',penUp);
+stage.addEventListener('pointercancel',penUp);
 
 /* ---------- input ---------- */
 function activate(el){
