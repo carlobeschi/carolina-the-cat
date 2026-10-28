@@ -37,6 +37,13 @@ Halloween is one of five parties. Pick one on the "Who is playing?" screen (the 
 
 Each party comes on by itself at its time of year. A party picked by hand stays until the calendar moves on to the next one.
 
+The cat's house is in London, and it can go on holiday. A little plane pulling a HOLIDAY! banner flies over the town square in the daytime; tap it and pick where to go (the square points you to it once each trip is new, then every third day):
+
+- **Brazil, by plane.** At Heathrow airport, check in your suitcase at the desk to get a ticket, then go to the gate. On the plane, look out of the window (London, then the clouds, then the sea and a whale), get fish crackers from the penguin's snack trolley, and nap on your pillow until you land. On the beach in Rio, under the Sugarloaf mountain, put on a sun hat, build a sandcastle with a flag, kick a football into the goal (GOOOL!), learn Olá, Obrigado and Tchau from a toucan in the palm tree and say hello to a crab. Then fly home.
+- **Scotland, by sleeper train.** At Euston station at night, buy a ticket and get on the sleeper. In your cabin, snuggle under the tartan blanket; the city lights in the window turn into green hills and sheep by morning, and there is porridge and shortbread for breakfast. In Edinburgh, dance to the bagpiper on the Royal Mile, get a tartan hat in the tartan shop, meet a Scottie dog, then walk up to the castle, where the one o'clock gun goes BOOM, a unicorn statue sparkles and a red squirrel plays peekaboo. Then take the train home.
+
+Every game on holiday earns hearts, the trip counts as a fun thing for the day, and the sun hat and tartan hat stay in the dress-up drawer.
+
 Everyone who plays gets their own cat. Give it a name (tap one of the ideas or type your own) and the game saves as you play, on that device, so you can come back and continue from the "Who is playing?" screen. Tap your cat's name at the top any time to save, start again from day 1 (it asks first), see the top cats or change cat. You earn points as you play: one for every heart, 3 for each fun thing you do that day (milk, the box hat, the cup, the bath, the moon, all three playground rides, a school lesson and so on) and 5 more for every nap. The Top Cats board ranks all the cats on the device by their best score.
 
 ## Play
