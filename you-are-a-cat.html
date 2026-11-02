@@ -2457,7 +2457,48 @@ function speak(t){
     });
   }catch(e){}
 }
-function hush(){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
+function hush(){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}lullaby(false)}
+/* ---------- night music: a quiet music-box lullaby under the bedtime story ---------- */
+// An original slow waltz (3 beats a bar) over soft chords. Each melody entry is [note, beats]; 0 is a rest.
+const LULL_TUNE=[[64,2],[67,1],[69,2],[67,1],[64,3],[62,3],[60,2],[62,1],[64,2],[67,1],[62,3],[0,3],
+  [64,2],[67,1],[72,2],[71,1],[69,3],[67,3],[65,2],[64,1],[62,2],[64,1],[60,3],[0,3]];
+const LULL_CHORDS=[[48,55,64],[45,52,60],[41,48,57],[43,50,59],[48,55,64],[41,48,57],[43,50,55],[48,52,55]];
+const LULL_BEAT=.9; // seconds per beat, slow and sleepy
+let LULL=null;
+function lullaby(on){
+  if(!on){
+    if(!LULL)return;const L=LULL;LULL=null;clearInterval(L.timer);
+    try{const t=L.a.currentTime;L.out.gain.cancelScheduledValues(t);L.out.gain.setValueAtTime(L.out.gain.value,t);L.out.gain.linearRampToValueAtTime(0,t+.8);
+      setTimeout(()=>{try{L.out.disconnect()}catch(e){}},1000)}catch(e){}
+    return;
+  }
+  if(LULL)return;const a=ac();if(!a)return;
+  const out=a.createGain(),soft=a.createBiquadFilter();soft.type='lowpass';soft.frequency.value=1800;
+  out.gain.setValueAtTime(0,a.currentTime);out.gain.linearRampToValueAtTime(1,a.currentTime+2.5);
+  soft.connect(out).connect(a.destination);
+  const hz=m=>440*Math.pow(2,(m-69)/12);
+  const bell=(m,t,d)=>{ // a music-box note: a soft sine with a faint octave sparkle, fading away
+    [[1,.09],[2,.018]].forEach(([k,v])=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=hz(m)*k;
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+Math.max(1.4,d));
+      o.connect(g).connect(soft);o.start(t);o.stop(t+Math.max(1.4,d)+.05)});
+  };
+  const pad=(ns,t,d)=>ns.forEach(m=>{const o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.value=hz(m);
+    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.02,t+.9);g.gain.setValueAtTime(.02,t+d-.9);g.gain.linearRampToValueAtTime(.0001,t+d);
+    o.connect(g).connect(soft);o.start(t);o.stop(t+d+.05)});
+  const L=LULL={a,out,i:0,beat:0,next:a.currentTime+.3,timer:0};
+  const tick=()=>{
+    if(LULL!==L)return;
+    while(L.next<a.currentTime+1.2){
+      const [m,b]=LULL_TUNE[L.i];
+      if(L.beat%3===0)pad(LULL_CHORDS[(L.beat/3)%LULL_CHORDS.length],L.next,LULL_BEAT*3);
+      if(m)bell(m,L.next,b*LULL_BEAT);
+      // the melody fills each bar exactly, so chords and tune stay together
+      for(let k=1;k<b;k++){L.beat++;if(L.beat%3===0)pad(LULL_CHORDS[(L.beat/3)%LULL_CHORDS.length],L.next+k*LULL_BEAT,LULL_BEAT*3)}
+      L.beat++;L.next+=b*LULL_BEAT;L.i=(L.i+1)%LULL_TUNE.length;
+    }
+  };
+  tick();L.timer=setInterval(tick,300);
+}
 // names are typed in capitals; the voice reads them better as Luna than LUNA
 const nmT=()=>{const n=nm();return n.split(' ').map(w=>w[0]+w.slice(1).toLowerCase()).join(' ')};
 
@@ -4062,7 +4103,7 @@ Object.assign(SC,{
         <text x="${last?288:306}" y="492" text-anchor="middle" class="sign" style="fill:#fff;font-size:21px">${last?'GOOD NIGHT ☾':'NEXT ▶'}</text>`,tap:nextTale}
     ]},
     goal:()=>({id:'next',hint:S.tale&&S.tpg===S.tale.length-1?'Tap GOOD NIGHT to go to sleep':'Tap NEXT for the next page'}),
-    enter:()=>talePage()
+    enter:()=>{lullaby(true);talePage()}
   },
   pets:{
     draw:()=>`<rect width="400" height="520" fill="#fdeedd"/>${[[40,60],[140,40],[250,70],[350,44],[90,150],[200,130],[310,160],[40,220],[370,230]].map(([x,y],i)=>`<g transform="translate(${x},${y}) scale(1.4)" opacity=".35">${pawSVG(0,0,i%4,'#e8b47a')}</g>`).join('')}
@@ -5559,7 +5600,7 @@ ov.addEventListener('click',e=>{
     const y=ov.querySelector('[data-a="yr"][aria-pressed="true"]');
     sfx.sticker();newCat(v||NAMES[0],y?+y.dataset.y:0);
   }
-  else if(a==='snd'){S.sound=!S.sound;S.sound||hush();b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
+  else if(a==='snd'){S.sound=!S.sound;S.sound?(S.scene==='tale'&&lullaby(true)):hush();b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
   else if(a==='parties') showParties();
   else if(a==='years') showYears();
   else if(a==='yr'){
@@ -5591,7 +5632,7 @@ ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nameIn'){e.
 document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():CUR?resume():0});
 // saving when the page goes away too, in case the last tap did not tell a story
 addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>document.visibilityState==='hidden'&&save());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();lullaby(false)}else if(S.scene==='tale')lullaby(true)});
 
 render();updateHud();showTitle();
 </script>
