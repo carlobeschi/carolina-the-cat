@@ -2423,18 +2423,38 @@ function squirrelTree(){
 
 /* ---------- reading aloud: the bedtime story and the diary are read by the device's own voice ---------- */
 let VOICE=null;
-function pickVoice(){
-  try{const vs=speechSynthesis.getVoices();if(!vs.length)return null;
-    return vs.find(v=>/en[-_]GB/i.test(v.lang)&&/female|libby|sonia|serena|kate|martha|stephanie|google uk english female/i.test(v.name))
-      ||vs.find(v=>/en[-_]GB/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null}catch(e){return null}
+// Pick the softest voice the device has. Child voices come first (Maisie and Ana on Edge and Windows),
+// then natural or enhanced voices, then gentle English voices; old robotic ones are pushed to the back.
+const KIDV=/maisie|\bana\b|child/i;
+function voiceScore(v){
+  let n=v.name, sc=0;
+  if(!/^en/i.test(v.lang))return -99;
+  if(KIDV.test(n))sc+=60;
+  if(/natural|neural|online|enhanced|premium|siri/i.test(n))sc+=25;
+  if(/libby|sonia|serena|kate|stephanie|martha|fiona|moira|tessa|karen|samantha|ava|allison|susan|hazel|aria|jenny|emma|google uk english female|female/i.test(n))sc+=15;
+  if(/en[-_]GB/i.test(v.lang))sc+=10;
+  if(/espeak|compact|zarvox|trinoids|bad news|bells|boing|bubbles|cellos|whisper|wobble|albert|fred|ralph|bahh|junior|organ|superstar|jester|\bmale\b|george|daniel|ryan|thomas|oliver|arthur|david|mark|rishi/i.test(n))sc-=30;
+  if(v.localService===false&&!/natural|online|google/i.test(n))sc-=5;
+  return sc;
 }
+function pickVoice(){
+  try{const vs=speechSynthesis.getVoices().filter(v=>/^en/i.test(v.lang));if(!vs.length)return null;
+    return vs.slice().sort((a,b)=>voiceScore(b)-voiceScore(a))[0]}catch(e){return null}
+}
+try{window.speechSynthesis&&speechSynthesis.addEventListener('voiceschanged',()=>{VOICE=null})}catch(e){}
+// Read gently: a little slower and higher than an adult voice, one sentence at a time with small pauses between.
 function speak(t){
   try{
     if(!S.sound||!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
     speechSynthesis.cancel();VOICE=VOICE||pickVoice();
-    const u=new SpeechSynthesisUtterance(t.replace(/…/g,', '));
-    if(VOICE)u.voice=VOICE;u.lang=VOICE?VOICE.lang:'en-GB';u.rate=.88;u.pitch=1.12;
-    speechSynthesis.speak(u);
+    const kid=VOICE&&KIDV.test(VOICE.name);
+    const bits=t.replace(/…/g,', ').split(/(?<=[.!?])\s+/).filter(x=>x.trim());
+    bits.forEach(b=>{
+      const u=new SpeechSynthesisUtterance(b);
+      if(VOICE)u.voice=VOICE;u.lang=VOICE?VOICE.lang:'en-GB';
+      u.rate=kid?.85:.8;u.pitch=kid?1.1:1.35;u.volume=.85;
+      speechSynthesis.speak(u);
+    });
   }catch(e){}
 }
 function hush(){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
