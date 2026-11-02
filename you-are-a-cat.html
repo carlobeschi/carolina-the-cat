@@ -257,7 +257,8 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   square:false,picks:null,went:[],seen:[],wish:false,pigeonN:0,latte:false,cafeCats:[],cafeN:0,dish:null,ate:[],swim:false,ballN:0,eaten:[],
   slid:false,big:false,tour:false,moveAsk:0,trip:'',tp:{},trips:[],tripDay:0,souv:[],
   sweets:0,ache:false,teeth:0,nag:false,meds:false,
-  paper:[],wall:[],brush:0,tool:'brush',fat:false,clearAsk:false,mos:null,mosN:0,drew:false,mosDone:false,hung:''};
+  paper:[],wall:[],brush:0,tool:'brush',fat:false,clearAsk:false,mos:null,mosN:0,drew:false,mosDone:false,hung:'',
+  garden:false,bloom:0,watered:false,gswim:false,lounge:false,tramp:0,hogN:0,hog:false};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -315,7 +316,7 @@ function later(fn,ms){T.push(setTimeout(fn,ms))}
 function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
-const outside=()=>['city','park','play','square','moving'].includes(S.scene);
+const outside=()=>['city','park','play','square','moving','garden','gpool'].includes(S.scene);
 // after three days and 500 points a cat can move to the big house with two floors
 const MOVE_DAY=3, MOVE_PTS=500;
 const canMove=()=>!S.big&&S.day>=MOVE_DAY&&S.points>=MOVE_PTS;
@@ -403,7 +404,7 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
   ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['fest',()=>!!S.fest],['visit',()=>!!S.visit],
   ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['paint',()=>S.drew],['mosaic',()=>S.mosDone],['trip',()=>S.tripDay===S.day],
-  ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done']];
+  ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done'],['garden',()=>S.watered],['gpool',()=>S.gswim],['tramp',()=>S.tramp>0]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -2493,6 +2494,7 @@ const SC={
       :!homeward()&&typeof S.cup==='number'?{id:'cup',hint:'A cup on the edge… push it!'}
       :homeward()?{id:'go-bed',hint:S.big?'It is night! Go upstairs to bed ↖':'It is night! Go to the bedroom ↖'}
       :S.big&&!S.drew&&!homeward()?{id:'go-bed',hint:'Your art room is by the stairs! ↖'}
+      :S.big&&!S.garden&&!homeward()?{id:'go-bed',hint:'Your garden is through the hall! ↖'}
       :{id:'go-living',hint:'Go to the house ↗'},
     enter:()=>say(S.fish==='carry'?'This is the kitchen. Here is your bowl!':S.tummy<3?'This is the kitchen. The fridge is full of yummy food…'
       :S.bird==='here'&&!night()?'This is the kitchen. Look, a little bird!':'This is the kitchen. Your tummy is full.')
@@ -2921,12 +2923,12 @@ const SC={
     draw:()=>`<rect width="400" height="520" fill="#e8f6ee"/><rect width="400" height="450" fill="url(#mintstars)" opacity=".55"/>
       <rect y="450" width="400" height="70" fill="#d8a878"/><path d="M0,450 H400 M0,485 H400 M90,450 V485 M250,450 V485 M170,485 V520" stroke="${INK}" stroke-width="2.5"/>
       <ellipse cx="72" cy="2" rx="40" ry="12" fill="#3a3346" ${K}/>
-      <circle cx="176" cy="112" r="36" fill="${night()?'#22306a':paneSky()}" ${K}/><path d="M176,76 V148 M140,112 H212" ${K}/>
       <ellipse cx="186" cy="486" rx="78" ry="15" fill="#f38db5" ${K}/>
       ${deco(30,452,.6)}`,
     hots:()=>[
       {id:'artdoor',label:'Door to the art room',svg:artDoor(),walk:40,tap:()=>{say('You open the door with paint on it…','');go('studio','right')}},
-      {id:'photo',label:'Photo on the wall',svg:hallPhoto(),walk:166,tap:()=>{react('happy');say(S.pal?'A photo of you and your best friend! Poooourrr!':'A photo of you! So pretty. Poooourrr!')}},
+      {id:'garden',label:'Glass door to the garden',svg:gardenDoor(),walk:138,tap:()=>{say(night()?'You open the glass door. The garden is dark…':'You open the glass door to the garden…','');go('garden','left')}},
+      {id:'photo',label:'Photo on the wall',svg:`<g transform="translate(8,-130)">${hallPhoto()}</g>`,walk:166,tap:()=>{react('happy');say(S.pal?'A photo of you and your best friend! Poooourrr!':'A photo of you! So pretty. Poooourrr!')}},
       {id:'stairs',label:'Stairs up to the bedroom',svg:stairs(),walk:300,tap:()=>{say('Up the stairs… one, two, three… seven!','');go('bed',364)}},
       {id:'chute',label:'The bottom of the slide',svg:chuteArt(),walk:190,tap:()=>{sfx.boing();bubble(200,330,'WHEEE!','#f5891f');say('The slide comes down from your bedroom! Climb the stairs to slide again.')}},
       {id:'go-kitchen',label:'Go to the kitchen',svg:arrow('right','KITCHEN'),tap:()=>leave(460,()=>go('kitchen','left'))}
@@ -2938,10 +2940,92 @@ const SC={
       :S.tummy<3?{id:'go-kitchen',hint:'Breakfast time! Go to the kitchen ↗'}
       :homeward()?{id:'stairs',hint:'It is night! Go upstairs to bed ↑'}
       :!S.drew?{id:'artdoor',hint:'Your art room! Tap the door ↙'}
+      :!S.garden?{id:'garden',hint:'Your garden! Tap the glass door'}
       :{id:'go-kitchen',hint:'Go and explore ↗'},
     enter:()=>say(S.ride==='chute'?'Wheee…'
       :S.tour?'Your new house! This is the hall. The stairs go up to your bedroom.'
       :'The hall of your big house. The stairs go up to your bedroom.')
+  },
+  garden:{
+    draw:()=>{const nt=night(),s=season(),sn=snowy();
+      let lawn='';for(let i=0;i<8;i++)lawn+=`<rect y="${296+i*28}" width="400" height="28" fill="${sn?(i%2?'#eef4fa':'#fbfdff'):(i%2?'#9bcf7c':'#a8d98a')}"/>`;
+      let fence='';for(let x=4;x<400;x+=26)fence+=`<path d="M${x},298 V250 l8,-10 l8,10 V298Z" fill="#fffaf6" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>`;
+      return `<rect width="400" height="520" fill="${nt?'#22306a':paneSky()}"/>
+      ${nt?`<circle cx="300" cy="84" r="20" fill="#fff3b0" ${K}/>${[[60,150],[200,70],[150,120],[120,190],[360,170]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.5" fill="#fff"/>`).join('')}`
+        :S.rain||sn?'':`<circle cx="300" cy="90" r="24" fill="#ffd34d" ${K}/>`}
+      <path d="${cloud(150,96,34,12,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <rect x="208" y="176" width="24" height="100" fill="#a8652f" ${K}/>
+      ${s==='winter'?`<path d="M220,190 L180,140 M220,180 L262,124 M220,170 L214,116 M196,160 l-16,-4 M246,148 l14,-10" ${K} stroke-width="5" fill="none"/>`
+        :`<path d="${cloud(220,168,74,58,10)}" fill="${s==='autumn'?'#e8742a':'#5fae55'}" ${K}/>
+          ${s==='spring'?[[180,150],[214,130],[256,156],[236,186],[196,190]].map(([x,y],i)=>blossom(x,y,i%2?'#fff':'#f38db5',.9)).join('')
+          :s==='summer'?[[186,156],[230,136],[258,176]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="6" fill="#e8473f" stroke="${INK}" stroke-width="1.8"/>`).join(''):''}`}
+      ${fence}<path d="M0,262 H400 M0,284 H400" stroke="${INK}" stroke-width="2.5"/>
+      ${lawn}<path d="M0,296 H400" ${K}/>
+      ${[[60,490],[150,500],[250,494],[340,502]].map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="30" ry="10" fill="#cfd3dc" stroke="${INK}" stroke-width="2.2"/>`).join('')}
+      ${nt?[[90,330],[170,350],[300,320],[260,370],[40,380]].map(([x,y],i)=>`<g class="bob" style="animation-delay:-${i*.5}s"><circle cx="${x}" cy="${y}" r="7" fill="#fff3b0" opacity=".45"/><circle cx="${x}" cy="${y}" r="2.5" fill="#fff3b0"/></g>`).join(''):''}
+      ${deco(360,452,.6)}`},
+    hots:()=>[
+      {id:'flowers',label:'Flower bed',svg:flowerBed(),walk:156,tap:waterFlowers},
+      {id:'tramp',label:'Trampoline',svg:trampoline(),walk:230,tap:bounce},
+      {id:'hog',label:'Bush',svg:hogBush(),walk:262,tap:tapHog},
+      {id:'go-house',label:'Back into the house',svg:arrow('left','HOUSE'),tap:()=>leave(-60,()=>go('hall',138))},
+      {id:'go-pool',label:'Go to your swimming pool',svg:arrow('right','POOL'),tap:()=>leave(460,()=>go('gpool','left'))}
+    ],
+    goal:()=>S.ride==='tramp'?{id:'',hint:''}
+      :homeward()?{id:'go-house',hint:'It is night! Go back inside ↖'}
+      :S.bloom<3?{id:'flowers',hint:`Water the flowers! (${S.bloom} of 3)`}
+      :!S.watered?{id:'flowers',hint:'Your flowers are thirsty. Water them!'}
+      :!S.gswim?{id:'go-pool',hint:'Your very own swimming pool! Go and see ↗'}
+      :!S.tramp?{id:'tramp',hint:'A trampoline! Tap it and bounce'}
+      :!S.hogN?{id:'hog',hint:'Something rustles in the bush… tap it'}
+      :{id:'go-house',hint:'Bounce, sniff the flowers, or go back inside ↖'},
+    over:()=>SC.city.over(),
+    before:()=>{S.garden=true},
+    landLeft:110,
+    enter:()=>say(night()?'Your garden at night. Little lights glow in the grass… and something rustles in the bush.'
+      :!S.bloom?'Your big garden! Grass, a tree, a trampoline… and some tiny flower shoots.'
+      :snowy()?'Your garden is all white with snow! Brrr!'
+      :S.rain?'Your garden in the rain. The flowers love it!'
+      :'Your big garden! The grass smells lovely.')
+  },
+  gpool:{
+    draw:()=>{const nt=night(),sn=snowy(),w=poolBlue();
+      let hedge='M0,300 V226';for(let x=0;x<400;x+=40)hedge+=` Q${x+20},${206+(x/40%2)*8} ${x+40},226`;hedge+=' V300Z';
+      let deck='';for(let y=318;y<520;y+=22)deck+=`M0,${y} H400 `;
+      return `<rect width="400" height="520" fill="${nt?'#22306a':paneSky()}"/>
+      ${nt?`<circle cx="320" cy="80" r="20" fill="#fff3b0" ${K}/>${[[60,60],[180,40],[240,110],[380,150],[130,130]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.5" fill="#fff"/>`).join('')}`
+        :S.rain||sn?'':`<circle cx="320" cy="84" r="24" fill="#ffd34d" ${K}/>`}
+      <path d="${cloud(200,90,32,11,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <path d="${hedge}" fill="#3f8a3c" ${K}/>${sn?`<path d="M0,226${[...Array(10)].map((_,i)=>` Q${i*40+20},${206+(i%2)*8} ${i*40+40},226`).join('')} V236 H0Z" fill="#fbfdff" stroke="${INK}" stroke-width="2"/>`
+        :[[30,250],[110,262],[190,246],[270,264],[350,250]].map(([x,y],i)=>blossom(x,y,i%2?'#fff':'#f38db5',.8)).join('')}
+      <rect y="296" width="400" height="224" fill="${sn?'#eef4fa':'#e8c48e'}"/><path d="${deck}" stroke="${sn?'#cfdbe8':'#c99c62'}" stroke-width="2"/><path d="M0,296 H400" ${K}/>
+      <rect x="140" y="314" width="290" height="132" rx="16" fill="#fffaf6" ${K}/>
+      <rect x="152" y="326" width="270" height="108" rx="10" fill="${w}" stroke="${INK}" stroke-width="2.5"/>
+      <path d="${[0,1,2].map(r=>[...Array(5)].map((_,i)=>`M${170+i*50+(r%2?25:0)},${346+r*30} q8,-6 16,0 t16,0`).join(' ')).join(' ')}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity="${nt?.4:.8}"/>
+      ${nt?GLIGHT.map(([x,y])=>`<ellipse cx="${x}" cy="${y}" rx="22" ry="9" fill="#bff3ff" opacity=".55"/><ellipse cx="${x}" cy="${y}" rx="9" ry="4" fill="#fff"/>`).join(''):''}
+      ${sn?[200,270,340].map((x,i)=>`<path class="bob" style="animation-delay:-${i*.7}s" d="M${x},336 q-8,-12 0,-24 q8,-12 0,-24" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity=".85"/>`).join(''):''}
+      <path d="M392,446 V330 q0,-10 -10,-10 M372,446 V330 q0,-10 -10,-10" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M392,446 V330 q0,-10 -10,-10 M372,446 V330 q0,-10 -10,-10" fill="none" stroke="#cfd3dc" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M62,452 V200" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M62,452 V200" stroke="#fff" stroke-width="2.5"/>
+      <path d="M2,236 Q62,170 122,236Z" fill="#fff" ${K}/>${[0,2,4].map(i=>`<path d="M62,186 L${2+i*24},236 L${26+i*24},236Z" fill="#e8473f" stroke="${INK}" stroke-width="2"/>`).join('')}
+      <path d="M2,236 Q62,170 122,236Z" fill="none" ${K}/><circle cx="62" cy="184" r="5" fill="#ffd34d" stroke="${INK}" stroke-width="2"/>
+      <text x="280" y="476" text-anchor="middle" class="lbl">${nm().toUpperCase()}'S POOL</text>`},
+    hots:()=>[
+      {id:'lounger',label:'Sun lounger',svg:lounger(),walk:84,tap:lounge},
+      {id:'duck',label:'Rubber duck',svg:poolDuck(),walk:330,tap:squeakDuck},
+      ...(S.ride==='float'?[]:[{id:'float',label:'Flamingo float',svg:floatHot(),walk:276,tap:floatPool}]),
+      {id:'go-garden',label:'Back to the garden',svg:arrow('left','GARDEN'),tap:()=>leave(-60,()=>go('garden','right'))}
+    ],
+    goal:()=>S.ride==='float'||S.ride==='lounge'?{id:'',hint:''}
+      :homeward()?{id:'go-garden',hint:'It is night! Go back inside ↖'}
+      :!S.gswim?{id:'float',hint:'Hop on the flamingo float!'}
+      :!S.lounge?{id:'lounger',hint:'Have a rest on the sun lounger'}
+      :{id:'go-garden',hint:'Squeak the duck, float again, or go back to the garden ↖'},
+    over:()=>SC.city.over(),
+    landLeft:150,
+    enter:()=>say(night()?'Your pool at night. The lights glow in the water!'
+      :S.gswim?'Your swimming pool. Splish splash!'
+      :snowy()?'Your very own swimming pool! It is warm. Look at the steam!'
+      :'Your very own swimming pool, just for you! And a flamingo float!')
   },
   studio:{
     draw:()=>`<rect width="400" height="520" fill="#fdf3d8"/>
@@ -3598,6 +3682,7 @@ function nap(){
     S.playground=false;S.rides=[];S.school=false;S.q=null;S.qn=0;S.lessons=0;S.fest='';S.visit='';
     S.square=false;S.picks=null;S.went=[];S.wish=false;S.pigeonN=0;S.latte=false;S.cafeCats=[];S.cafeN=0;S.dish=null;S.ate=[];
     S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;S.sweets=0;S.teeth=0;S.nag=false;S.meds=false;S.drew=false;S.mosDone=false;
+    S.garden=false;S.watered=false;S.gswim=false;S.lounge=false;S.tramp=0;S.hogN=0;S.hog=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     // the bird only comes when it is not raining
@@ -3778,6 +3863,171 @@ function eatFood(k){
 function yuckVeg(){
   faceRight();sfx.nope();bubble(252,330,'BLEH!','#1f8a4c');later(()=>react('scared'),300);
   say('Carrots and broccoli? Bleh! Cats do not eat vegetables!');
+}
+/* ---------- the big house garden, and its own swimming pool ---------- */
+// the glass door in the hall: you can see the garden through it
+function gardenDoor(){
+  const nt=night(),sky=nt?'#22306a':paneSky(),lawn=snowy()?'#fbfdff':'#a8d98a';
+  return `<rect x="96" y="268" width="84" height="164" fill="transparent"/>
+  <rect x="100" y="300" width="76" height="150" rx="4" fill="#fffaf6" ${K}/>
+  <rect x="108" y="308" width="27" height="134" fill="${sky}" stroke="${INK}" stroke-width="2"/><rect x="141" y="308" width="27" height="134" fill="${sky}" stroke="${INK}" stroke-width="2"/>
+  <path d="M108,402 Q122,394 135,400 V442 H108Z M141,398 Q156,392 168,400 V442 H141Z" fill="${lawn}" stroke="${INK}" stroke-width="1.5"/>
+  ${nt?`<circle cx="154" cy="330" r="2" fill="#fff"/><circle cx="120" cy="342" r="2" fill="#fff"/><circle cx="160" cy="360" r="1.6" fill="#fff"/>`
+    :`${blossom(121,412,snowy()?'#fff':'#f38db5',.7)}${blossom(156,408,snowy()?'#fff':'#ffd34d',.7)}`}
+  <path d="M111,324 l12,-12 M145,330 l16,-16" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+  <circle cx="131" cy="380" r="3" fill="#d6ad45" stroke="${INK}" stroke-width="1.5"/><circle cx="145" cy="380" r="3" fill="#d6ad45" stroke="${INK}" stroke-width="1.5"/>
+  <path d="M96,270 h84 v24 h-84Z" fill="#fffaf6" ${K} stroke-width="2.5"/><text x="138" y="289" text-anchor="middle" class="sign" style="font-size:16px">GARDEN</text>`;
+}
+const waterCan=()=>`<path d="M-14,0 V-24 H14 V0Z" fill="#2c8fd6" ${K} stroke-width="2.5"/><path d="M-14,-8 L-32,-26" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M-14,-8 L-32,-26" stroke="#2c8fd6" stroke-width="3.5" stroke-linecap="round"/>
+  <ellipse cx="-33" cy="-27" rx="4" ry="6" transform="rotate(-45 -33 -27)" fill="#2c8fd6" stroke="${INK}" stroke-width="2"/><path d="M-8,-24 Q0,-40 8,-24" fill="none" stroke="${INK}" stroke-width="3"/>${heart(-6,-17,.35,'#fff')}`;
+const dropArt=`<path d="M0,-9 Q5,-2 5,2 A5,5 0 1 1 -5,2 Q-5,-2 0,-9Z" fill="#7cc6f0" stroke="${INK}" stroke-width="1.4"/>`;
+// five flowers that grow from little shoots to big blooms; in winter they are snowdrops
+const FLOWX=[26,50,74,98,122];
+function flowerBed(){
+  const b=S.bloom,sn=snowy(),cols=sn?['#fff','#fff','#fff','#fff','#fff']:['#f38db5','#ffd34d','#e8473f','#8e5bd0','#f9a03f'];
+  const h=[8,30,52,72][b];
+  const fl=FLOWX.map((x,i)=>{const top=446-h-(i%2)*8;
+    return `<path d="M${x},446 V${top}" stroke="${INK}" stroke-width="4.5" stroke-linecap="round"/><path d="M${x},446 V${top}" stroke="#3fae5a" stroke-width="2.2" stroke-linecap="round"/>
+      ${b?`<path d="M${x},${top+h*.55} q-12,-2 -13,-11 q11,1 13,9Z" fill="#7fc36b" stroke="${INK}" stroke-width="1.5"/>`
+        :`<path d="M${x},${top} q-8,-2 -9,-8 q7,0 9,6Z M${x},${top} q8,-2 9,-8 q-7,0 -9,6Z" fill="#7fc36b" stroke="${INK}" stroke-width="1.5"/>`}
+      ${b===2?`<ellipse cx="${x}" cy="${top-5}" rx="5" ry="8" fill="${cols[i]}" stroke="${INK}" stroke-width="1.6"/>`:''}
+      ${b>=3?blossom(x,top-5,cols[i],1.6):''}`}).join('');
+  const fly=b>=3&&!night()&&!sn?`<g transform="translate(104,${446-h-50})"><g class="flap"><ellipse cx="-7" cy="-4" rx="8" ry="6" fill="#7cc6f0" stroke="${INK}" stroke-width="1.6"/><ellipse cx="7" cy="-4" rx="8" ry="6" fill="#7cc6f0" stroke="${INK}" stroke-width="1.6"/><path d="M0,-9 V8" stroke="${INK}" stroke-width="2.2" stroke-linecap="round"/></g></g>`:'';
+  return `<rect x="4" y="320" width="146" height="136" fill="transparent"/>
+  <path d="M8,448 Q14,432 74,432 Q134,432 140,448 Q134,460 74,460 Q14,460 8,448Z" fill="#8a5a3a" ${K}/>
+  <g class="bed" style="transform-box:fill-box;transform-origin:50% 100%">${fl}</g>${fly}
+  <text x="74" y="${446-h-(b>=3?40:24)}" text-anchor="middle" class="lbl">FLOWERS</text>`;
+}
+function trampoline(){
+  return `<rect x="170" y="360" width="120" height="96" fill="transparent"/>
+  <path d="M184,406 L178,452 M276,406 L282,452 M206,414 L204,452 M254,414 L256,452" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="230" cy="406" rx="54" ry="13" fill="#3a3346" stroke="${INK}" stroke-width="2.5"/>
+  <ellipse cx="230" cy="406" rx="54" ry="13" fill="none" stroke="#2c8fd6" stroke-width="6"/><ellipse cx="230" cy="406" rx="57" ry="16" fill="none" stroke="${INK}" stroke-width="2"/>
+  <text x="230" y="378" text-anchor="middle" class="lbl">TRAMPOLINE</text>`;
+}
+// a hedgehog lives in the bush; it comes out when you say hello, and by itself at night
+const hog=(x,y)=>`<g transform="translate(${x},${y})"><g class="hog" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M-24,0 Q-26,-30 2,-32 Q28,-30 28,0Z" fill="#8a6a4a" stroke="${INK}" stroke-width="2.5"/>
+  <path d="M-20,-12 l-4,-9 l8,1 l0,-9 l7,4 l3,-8 l5,7 l6,-6 l2,8 l8,-4 l-1,9 l8,0 l-4,7" fill="none" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M-22,-2 Q-38,-4 -42,-12 Q-32,-22 -20,-16Z" fill="#e8c49a" stroke="${INK}" stroke-width="2"/>
+  <circle cx="-42" cy="-12" r="3" fill="${INK}"/><circle cx="-30" cy="-13" r="2.2" fill="${INK}"/>
+  <path d="M-12,0 v3 M16,0 v3" stroke="${INK}" stroke-width="3" stroke-linecap="round"/></g></g>`;
+function hogBush(){
+  const out=S.hog||night();
+  return `<rect x="296" y="344" width="104" height="112" fill="transparent"/>
+  <path d="${cloud(354,410,46,40,8)}" fill="${snowy()?'#e9f1f8':'#4f9c45'}" ${K}/>
+  ${snowy()?'':blossom(330,388,'#fff',.7)+blossom(372,376,'#fff',.7)}
+  ${out?hog(366,452):`<g transform="translate(318,444)"><path d="M6,-4 Q-6,-6 -12,0 Q-6,4 6,2Z" fill="#e8c49a" stroke="${INK}" stroke-width="2"/><circle cx="-12" cy="0" r="2.6" fill="${INK}"/></g>`}
+  <text x="354" y="360" text-anchor="middle" class="lbl">BUSH</text>`;
+}
+// your own pool: the water is lit up at night
+const poolBlue=()=>night()?'#2a5fa8':'#5fd3e6';
+const flamingo=(cat)=>`${cat?`<g transform="translate(0,4) scale(.5)">${rider()}</g>`:''}
+  <ellipse cx="0" cy="0" rx="40" ry="12" fill="#f38db5" ${K} stroke-width="2.5"/><ellipse cx="0" cy="-2" rx="21" ry="5" fill="${cat?'#f38db5':poolBlue()}" stroke="${INK}" stroke-width="2"/>
+  <path d="M30,-6 Q46,-30 34,-48 Q28,-58 38,-62" fill="none" stroke="${INK}" stroke-width="11" stroke-linecap="round"/><path d="M30,-6 Q46,-30 34,-48 Q28,-58 38,-62" fill="none" stroke="#f38db5" stroke-width="6.5" stroke-linecap="round"/>
+  <circle cx="40" cy="-62" r="7.5" fill="#f38db5" stroke="${INK}" stroke-width="2"/><path d="M46,-64 l10,4 l-9,4Z" fill="#3a3346" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/><circle cx="40" cy="-64" r="1.8" fill="${INK}"/>
+  <path d="M-36,-2 q4,-4 8,-1 M-20,8 q4,-4 8,-1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/>`;
+function floatHot(){return `<rect x="226" y="316" width="112" height="90" fill="transparent"/><g transform="translate(276,388)"><g class="bob">${flamingo(false)}</g></g><text x="282" y="312" text-anchor="middle" class="lbl">FLAMINGO</text>`}
+function poolDuck(){return `<rect x="318" y="326" width="54" height="50" fill="transparent"/><g class="bob" style="animation-delay:-1s"><g class="rduck" style="transform-box:fill-box;transform-origin:50% 100%">${duckArt(344,360,'#ffd34d',1.15)}</g></g>`}
+function lounger(){
+  const on=S.ride==='lounge',nt=night();
+  return `<rect x="4" y="372" width="132" height="84" fill="transparent"/>
+  <path d="M20,452 L28,428 M116,452 L108,428" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>
+  <path d="M12,428 H94 L122,392" fill="none" stroke="${INK}" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12,428 H94 L122,392" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M30,428 H92 L112,402" fill="none" stroke="#e0508a" stroke-width="3.5" stroke-linejoin="round"/>
+  ${on?`<g transform="translate(22,428) rotate(76) scale(.46)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG(nt?'happy':'sleep',false,false,PINK,{...wearNow(),glasses:!nt})}</g></g>`:''}
+  ${on&&!nt?`<g class="zzz" pointer-events="none"><text x="120" y="360">Z</text><text x="138" y="342">z</text><text x="154" y="326">z</text></g>`:''}
+  <text x="70" y="380" text-anchor="middle" class="lbl">SUN LOUNGER</text>`;
+}
+const GLIGHT=[[200,412],[310,412],[390,412]];
+// one splash of water from the can on each flower
+function waterFlowers(){
+  faceLeft();
+  if(S.bloom>=3&&S.watered){
+    const b=$('.bed');b&&restartClass(b,'shake',900);sfx.achoo();bubble(S.x,headY(),'ACHOO!','#e0508a');
+    burst(74,380,(x,y,i)=>blossom(x,y,['#f38db5','#ffd34d','#fff'][i%3],.6));
+    later(()=>react('happy'),400);say(snowy()?'You sniff the snowdrops. Cold nose! A… a… ACHOO!':'You sniff the flowers. They smell so sweet! A… a… ACHOO!');return;
+  }
+  S.busy=true;clearBubbles();sfx.splash();say(S.rain?'Splish splosh! The rain helps too…':'Splish splosh! You water the flowers…','');
+  const id='g'+(++uid);
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g transform="translate(150,330) rotate(-62)">${waterCan()}</g>
+    ${FLOWX.map((x,i)=>`<g transform="translate(${x},${340+(i%2)*12})"><g class="drip" style="animation-delay:${(i*.13).toFixed(2)}s;animation-duration:1.4s">${dropArt}</g></g>`).join('')}</g>`);
+  setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1900);
+  later(()=>{
+    const was=S.bloom;if(S.bloom<3)S.bloom++;S.watered=S.bloom>=3;S.busy=false;render();faceLeft();
+    const b=$('.bed');b&&restartClass(b,'stretch',900);
+    if(was===2){sfx.chord();burst(74,360,(x,y,i)=>blossom(x,y,['#f38db5','#ffd34d','#8e5bd0'][i%3],.7))}else sfx.twinkle(was+2);
+    react('happy');
+    say(was===0?'Look! The little shoots grow taller. Water them again!'
+      :was===1?'More water! Now there are buds on your flowers.'
+      :was===2?(snowy()?'Ta-da! Snowdrops! They bloom even in the snow. Poooourrr!':'Ta-da! Your flowers are blooming! A butterfly comes to visit. Poooourrr!')
+      :'Glug glug! Your flowers had a big drink. Thank you, they say!');
+  },1300);
+}
+// boing, boing, boing, and a somersault on the last bounce
+function bounce(){
+  S.busy=true;S.ride='tramp';S.face=1;clearTimeout(moodT);S.mood='normal';clearBubbles();render();
+  say('You hop on the trampoline…','');
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none" transform="translate(230,406)"><g transform="scale(.6)">${rider()}</g></g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now(),N=4,D=.72;let n=-1;
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const s=(t-t0)/1000;
+    if(s>=N*D){S.ride=null;S.tramp++;S.x=230;S.face=1;S.busy=false;clearBubbles();render();follow();react('happy');
+      say(S.tramp>1?'Boing boing boing! Higher and higher! Poooourrr!':'Boing, boing, boing… and a somersault! Poooourrr!');return}
+    const k=Math.floor(s/D),q=(s%D)/D,up=(56+k*26)*4*q*(1-q);
+    if(k!==n){n=k;sfx.boing();clearBubbles();bubble(k%2?110:340,250,k===N-1?'WHEEE!':'BOING!',k===N-1?'#f5891f':'#2c8fd6')}
+    el.setAttribute('transform',`translate(230,${(406-up).toFixed(1)}) rotate(${k===N-1?(360*q).toFixed(1):0} 0 -60)`);
+    requestAnimationFrame(step);
+  })(t0);
+}
+function tapHog(){
+  faceRight();S.hogN++;
+  if(!S.hog&&!night()){S.hog=true;render();faceRight();sfx.squeak();bubble(352,330,'RUSTLE!','#1f8a4c');
+    say('Rustle rustle… something is coming out of the bush…','');
+    later(()=>{clearBubbles();react('happy');say('A little hedgehog! It sniffs your nose. Snuffle snuffle! Poooourrr!')},1000);return}
+  const roll=S.hogN%2===0,h=$('.hog');h&&restartClass(h,roll?'jump':'wiggle',900);sfx.squeak();bubble(352,330,roll?'ROLL!':'SNUFFLE!','#a8652f');
+  say(roll?'The hedgehog rolls up into a prickly ball…':'Snuffle snuffle…','');
+  later(()=>{clearBubbles();react('happy');say(roll?'…and pops out again! Peekaboo! Poooourrr!':night()?'Hedgehogs love the night. It is looking for snails!':'The hedgehog says hello. Snuffle snuffle! Poooourrr!')},1000);
+}
+// round and round your own pool on the flamingo, then a big shake
+function floatPool(){
+  S.busy=true;S.ride='float';clearTimeout(moodT);S.mood='normal';clearBubbles();render();
+  sfx.splash();splash(276,384);say('Splash! You hop on the flamingo float…','');
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none" transform="translate(276,390)"><g class="bob">${flamingo(true)}</g></g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now();
+  later(()=>{sfx.purr();bubble(250,240,'AAAH!','#e0508a');say(night()?'You float under the stars. The pool lights glow. Aaah…':'You float round and round in your very own pool. Aaah, lovely!','')},1400);
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const s=(t-t0)/1000;
+    if(s>=4.6){finishFloat();return}
+    const x=276+64*Math.sin(s*1.37),y=390+5*Math.sin(s*2.4);
+    el.setAttribute('transform',`translate(${x.toFixed(1)},${y.toFixed(1)})`);
+    requestAnimationFrame(step);
+  })(t0);
+}
+function finishFloat(){
+  S.ride=null;S.gswim=true;S.x=276;S.face=1;clearBubbles();render();follow();
+  const an=$('#catAnim');an&&restartClass(an,'wetshake',900);sfx.shake();wetScreen();
+  bubble(S.x,headY(),'SHAKE SHAKE!','#2c8fd6');say('You climb out. Shake shake shake! Drip drip drip.','');
+  later(()=>{S.busy=false;react('happy');say(snowy()?'Your pool is warm, even in winter! Poooourrr!':'Your very own swimming pool! No queue, no lifeguard. Poooourrr!')},1700);
+}
+function lounge(){
+  S.busy=true;S.ride='lounge';clearTimeout(moodT);clearBubbles();render();sfx.purr();
+  const wet=S.gswim&&!S.lounge,nt=night(),wx=S.rain||snowy();
+  say(nt?'You lie on the lounger and look up at the stars. Twinkle twinkle…'
+    :wx?'You lie under the big umbrella and listen to the weather. Cosy…'
+    :wet?'You lie on the sun lounger and dry off in the sun. Sunglasses on! Aaah…'
+    :'You stretch out on the sun lounger. Sunglasses on! Aaah…','');
+  later(()=>sfx.purr(),1800);
+  later(()=>{S.ride=null;S.lounge=true;S.x=70;S.face=1;S.busy=false;render();follow();react('happy');
+    say(nt?'So many stars! What a lovely night. Poooourrr!':wet&&!wx?'All dry and fluffy again! Poooourrr!':'What a lovely rest! Poooourrr!')},3600);
+}
+function squeakDuck(){
+  faceRight();const d=$('.rduck');d&&restartClass(d,'jump',700);sfx.squeak();bubble(330,290,'SQUEAK!','#f5891f');
+  say('You poke the rubber duck…','');
+  later(()=>{clearBubbles();react('happy');say('Squeak squeak! The rubber duck bobs on the water. Poooourrr!')},800);
 }
 // the big house: down the slide from the bedroom…
 function slideDown(){
