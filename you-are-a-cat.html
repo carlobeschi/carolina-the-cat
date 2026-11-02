@@ -199,8 +199,13 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 @keyframes kick{0%{transform:none}40%{transform:translate(94px,-48px) rotate(300deg)}60%{transform:translate(96px,-8px) rotate(400deg)}85%{transform:translate(96px,-8px) rotate(400deg);opacity:1}92%{opacity:0}100%{transform:none;opacity:1}}
 .drift{animation:drift 4s linear infinite}
 @keyframes drift{to{transform:translateX(-140px)}}
+/* the diary: pictures appear one by one as the cat writes; the puppy wags its tail */
+.pen{animation:pop .35s ease-out both;transform-box:fill-box;transform-origin:center}
+.wag{animation:wag .45s ease-in-out infinite}
+@keyframes wag{50%{transform:rotate(-24deg)}}
 @media (prefers-reduced-motion:reduce){
-  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift,.sway{animation:none}
+  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift,.sway,.wag{animation:none}
+  .pen{animation-duration:.01s}
   .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick,.scrub{animation-duration:.01s}
 }
 </style>
@@ -258,7 +263,9 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   slid:false,big:false,tour:false,moveAsk:0,trip:'',tp:{},trips:[],tripDay:0,souv:[],
   sweets:0,ache:false,teeth:0,nag:false,meds:false,
   paper:[],wall:[],brush:0,tool:'brush',fat:false,clearAsk:false,mos:null,mosN:0,drew:false,mosDone:false,hung:'',
-  garden:false,bloom:0,watered:false,gswim:false,lounge:false,tramp:0,hogN:0,hog:false};
+  garden:false,bloom:0,watered:false,gswim:false,lounge:false,tramp:0,hogN:0,hog:false,
+  diary:[],wrote:false,dpg:0,writing:false,told:false,tale:null,tpg:0,pets:[],fed:[],petDay:0,petN:0,fishX:70,
+  mine:{},mineN:0,sketch:[],sketched:false,snowcat:0,sled:0,puds:[],rolled:0,hill:false,lastTrip:'',wx:'sun'};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -285,10 +292,12 @@ const LUCKY={id:'lucky',slot:'hat',name:'lucky hat',c:[0,-146]};
 // hats brought home from holidays stay in the drawer
 const SUNHAT={id:'sunhat',slot:'hat',name:'sun hat',c:[0,-142]};
 const TAM={id:'tam',slot:'hat',name:'tartan hat',c:[0,-146]};
-const items=()=>{const h=party().hat,s=[SUNHAT,TAM].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
+const BERET={id:'beret',slot:'hat',name:'beret',c:[2,-140]};
+const BOATER={id:'boater',slot:'hat',name:'straw hat',c:[0,-140]};
+const items=()=>{const h=party().hat,s=[SUNHAT,TAM,BERET,BOATER].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
 const wearing=it=>it.slot==='hat'?S.hat===it.id:S[it.slot];
 // how high above the floor speech bubbles go for each hat
-const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226};
+const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226,beret:214,boater:218};
 // every nap moves the season on; day 1 is summer
 const SEASONS=['summer','autumn','winter','spring'];
 const season=()=>SEASONS[(S.day-1)%4];
@@ -316,7 +325,7 @@ function later(fn,ms){T.push(setTimeout(fn,ms))}
 function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
-const outside=()=>['city','park','play','square','moving','garden','gpool'].includes(S.scene);
+const outside=()=>['city','park','play','square','moving','garden','gpool','hill'].includes(S.scene);
 // after three days and 500 points a cat can move to the big house with two floors
 const MOVE_DAY=3, MOVE_PTS=500;
 const canMove=()=>!S.big&&S.day>=MOVE_DAY&&S.points>=MOVE_PTS;
@@ -365,7 +374,7 @@ function setTheme(t){
 }
 document.documentElement.dataset.theme=THEME;
 // things that only matter while a scene is on screen are not saved
-const NOSAVE=['busy','sound','fly','dot','lastKey','lastNote','noteT','prints','ride','clearAsk','hung'];
+const NOSAVE=['busy','sound','fly','dot','lastKey','lastNote','noteT','prints','ride','clearAsk','hung','dpg','writing','tale','tpg','fishX'];
 let DB={cats:[]}, CUR=null, GEN=0;
 const curCat=()=>DB.cats.find(c=>c.id===CUR);
 const nm=()=>(curCat()||{name:'cat'}).name;
@@ -387,6 +396,9 @@ function loadState(s){
   Object.assign(S,JSON.parse(FRESH),s||{},{sound:S.sound,busy:false});
   if(!SC[S.scene]||!S.awake) S.scene='bed';
   if(S.scene==='look') S.scene=S.look&&SC[S.look.from]?S.look.from:'bed';
+  // a bedtime story stops when the game is closed; the cat is back in bed
+  if(S.scene==='tale') S.scene='bed';
+  if(!S.mine||Array.isArray(S.mine)) S.mine={};
   S.mood=S.awake?'normal':'sleep';S.x=200;S.face=1;S.palX=136;S.palFace=1;
   if(S.cup==='fall') S.cup='broken';
   if(S.box==='in'){S.box='gone';S.hat='box'}
@@ -404,7 +416,9 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['stars',()=>S.stars.length>=STARS.length],['moon',()=>S.wink],['art',()=>S.looked],
   ['play',()=>S.rides.length>=3],['school',()=>S.lessons>0],['fest',()=>!!S.fest],['visit',()=>!!S.visit],
   ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['paint',()=>S.drew],['mosaic',()=>S.mosDone],['trip',()=>S.tripDay===S.day],
-  ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done'],['garden',()=>S.watered],['gpool',()=>S.gswim],['tramp',()=>S.tramp>0]];
+  ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done'],['garden',()=>S.watered],['gpool',()=>S.gswim],['tramp',()=>S.tramp>0],
+  ['pets',()=>S.pets.length>0&&!hungryPets().length],['sketch',()=>S.sketched],['snowcat',()=>S.snowcat>=SNOWCAT.length],['sledge',()=>S.sled>0],
+  ['puddles',()=>S.puds.length>=PUDX.length],['roll',()=>S.rolled>0],['diary',()=>S.wrote],['story',()=>S.told]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -465,6 +479,11 @@ const WEAR={
     <path d="M-6,-158 V-135 M11,-158 V-135 M-28,-141 H29 M-24,-153 H25" stroke="#ffd34d" stroke-width="1.2"/>
     <rect x="-24" y="-137" width="49" height="9" rx="4" fill="#1f5fa8" ${K} stroke-width="2.4"/>
     <circle cx="2" cy="-167" r="7" fill="#d8243c" ${K} stroke-width="2.2"/></g>`,
+  beret:()=>`<g transform="rotate(-10 0 -132)"><ellipse cx="3" cy="-138" rx="30" ry="11" fill="#3a3346" ${K}/><path d="M-24,-132 Q2,-124 30,-133" fill="none" stroke="#d8243c" stroke-width="3"/>
+    <path d="M4,-149 v-7" stroke="${INK}" stroke-width="4" stroke-linecap="round"/></g>`,
+  boater:()=>`<g transform="rotate(-6 0 -130)"><path d="M-19,-131 V-150 Q0,-154 19,-150 V-131Z" fill="#f1d27a" ${K}/>
+    <rect x="-19" y="-141" width="38" height="8" fill="#d8243c" stroke="${INK}" stroke-width="2"/><path d="M19,-137 l9,8" stroke="#d8243c" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="0" cy="-130" rx="36" ry="7" fill="#f1d27a" ${K}/><path d="M-30,-130 h60" stroke="#d6ad45" stroke-width="1.5" stroke-dasharray="3 3"/></g>`,
   bow:()=>`<path d="M18,-127 L4,-138 L5,-116Z M18,-127 L32,-138 L31,-116Z" fill="#e0508a" ${K} stroke-width="2.2"/><circle cx="18" cy="-127" r="4.5" fill="#f38db5" stroke="${INK}" stroke-width="2"/>`,
   glasses:()=>`<path transform="translate(-11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
     <path transform="translate(11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
@@ -522,6 +541,8 @@ const DEFS=`<defs>
 <filter id="wob" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="3.2" xChannelSelector="R" yChannelSelector="G"/></filter>
 <clipPath id="catClip"><path d="${BODY}"/></clipPath>
 <clipPath id="paperClip"><rect width="368" height="290"/></clipPath>
+<clipPath id="skClip"><circle cx="150" cy="150" r="150"/></clipPath>
+<clipPath id="esWin"><rect x="30" y="120" width="340" height="120" rx="10"/></clipPath>
 <clipPath id="wallClip"><rect x="200" y="0" width="200" height="337"/></clipPath>
 <clipPath id="mirClip"><ellipse cx="110" cy="352" rx="62" ry="84"/></clipPath>
 <pattern id="heartpaper" width="48" height="48" patternUnits="userSpaceOnUse">${[[12,14],[36,38]].map(([x,y])=>`<path transform="translate(${x},${y}) scale(.55)" d="${HEART}" fill="#f6b3cb"/><path d="M${x-2.5},${y-2.5} v1.5 M${x+2.5},${y-2.5} v1.5 M${x-2.5},${y+.5} q2.5,2.5 5,0" fill="none" stroke="#e27fa3" stroke-width="1.1" stroke-linecap="round"/>`).join('')}</pattern>
@@ -783,7 +804,7 @@ const STK=[
   {name:'a love heart',svg:`<path transform="translate(0,-3) scale(1.45)" d="${HEART}" fill="none" stroke="#b01e48" stroke-width="1.5"/>
     <text y="20" text-anchor="middle" style="font-family:var(--display);font-size:13px;fill:#b01e48">love</text>`}
 ];
-const stkSVG=i=>`<path d="${cloud(0,0,25,25,9)}" fill="#fff" ${K} stroke-width="2.5"/>${STK[i].svg}`;
+const stkSVG=i=>typeof i==='string'?mineSVG(i):`<path d="${cloud(0,0,25,25,9)}" fill="#fff" ${K} stroke-width="2.5"/>${STK[i].svg}`;
 function placed(s,i,small){
   // stickers live in big-door coordinates; the kitchen fridge shows them shrunk to fit its door
   const x=small?FRIDGE.x+(s.x-DOOR.x)*FRIDGE.w/DOOR.w:s.x, y=small?FRIDGE.y+(s.y-DOOR.y)*FRIDGE.h/DOOR.h:s.y;
@@ -932,6 +953,9 @@ function dresser(){
   <path d="M336,414 q-4,10 2,16 q4,-8 8,-16Z" fill="#e0508a" stroke="${INK}" stroke-width="2"/>`;
 }
 function itemHot(it,i,n){
+  if(n>7){const per=Math.ceil(n/2),r=i<per?0:1,k=r?i-per:i,w=348/per,x=26+(k+.5)*w,[cx,cy]=it.c;
+    return `<rect x="${x-w/2}" y="${124+r*46}" width="${w}" height="46" fill="transparent"/>
+    <g opacity="${wearing(it)?.3:1}"><g transform="translate(${x},${147+r*46}) scale(.62) translate(${-cx},${-cy})">${WEAR[it.id]()}</g></g>`}
   const w=348/n,x=26+(i+.5)*w,[cx,cy]=it.c;
   return `<rect x="${x-w/2}" y="124" width="${w}" height="92" fill="transparent"/>
   <g opacity="${wearing(it)?.3:1}"><g transform="translate(${x},170) scale(${n>5?1:n>4?1.25:1.5}) translate(${-cx},${-cy})">${WEAR[it.id]()}</g></g>`;
@@ -1542,7 +1566,8 @@ const DOORX={cafe:51,rest:149,school:251,pool:349,play:350,sweets:56};
 // each day the square shows you two places to go: places you have never been come first
 function dayPicks(){
   const fresh=PLACES.filter(p=>!S.seen.includes(p)),turn=PLACES.map((_,i)=>PLACES[(i+(S.day-1)*2)%PLACES.length]);
-  return [...new Set([...fresh,...turn])].slice(0,2);
+  // on a snow day or a rainy day the park comes first, for the big hill
+  return [...new Set([...(snowy()||S.rain?['park']:[]),...fresh,...turn])].slice(0,2);
 }
 const nextPick=()=>(S.picks||[]).find(p=>!S.went.includes(p));
 const toSquare=()=>({id:'go-square',label:'Back to the square',svg:arrow('left','SQUARE'),tap:()=>leave(-60,()=>go('square',DOORX[S.scene]||'right'))});
@@ -1873,7 +1898,7 @@ function bedtime(){
       S.ache?'Go to the bathroom ↖ or tap the bed to sleep':'Brush your teeth ↖ or tap the bed to sleep');
     return;
   }
-  nap();
+  S.told?nap():startTale();
 }
 
 /* ---------- the swimming pool: a diving board, a beach ball and a lifeguard duck ---------- */
@@ -2081,9 +2106,10 @@ function hangBtn(){
 /* ---------- scenes ---------- */
 /* ---------- holidays: the cat lives in London. A plane over the square says HOLIDAY!
    Brazil: Heathrow airport, a plane, then the beach in Rio. Scotland: Euston station, the sleeper train, then Edinburgh ---------- */
-const TRIPS={brazil:{name:'Brazil',start:'airport'},scotland:{name:'Scotland',start:'station'}};
+const TRIPS={brazil:{name:'Brazil',start:'airport'},scotland:{name:'Scotland',start:'station'},paris:{name:'Paris',start:'pancras'},italy:{name:'Italy',start:'airport'}};
+const italy=()=>S.trip==='italy';
 // a holiday is offered on the square once each trip is new, and then every third day
-const tripDay=()=>!S.trip&&S.tripDay!==S.day&&S.day>=2&&(S.trips.length<2||S.day%3===0);
+const tripDay=()=>!S.trip&&S.tripDay!==S.day&&S.day>=2&&(S.trips.length<Object.keys(TRIPS).length||S.day%3===0);
 const flagBR=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="40" height="28" rx="2" fill="#1f8a4c" stroke="${INK}" stroke-width="2"/>
   <path d="M0,-11 L17,0 L0,11 L-17,0Z" fill="#ffd34d"/><circle r="6.5" fill="#1f5fa8"/><path d="M-6,-1 q6,-3 12,1" fill="none" stroke="#fff" stroke-width="1.4"/></g>`;
 const flagSC=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="40" height="28" rx="2" fill="#1f5fa8"/>
@@ -2102,7 +2128,7 @@ function holidayPlane(){
   <text x="206" y="34" text-anchor="middle" class="sign" style="font-size:19px;fill:#e0508a">HOLIDAY!</text>
   <g transform="translate(100,28)">${planeArt(.62)}</g></g>`;
 }
-const tripIcon=t=>`<svg width="46" height="34" viewBox="-23 -17 46 34" aria-hidden="true">${t==='brazil'?flagBR(0,0):flagSC(0,0)}</svg>`;
+const tripIcon=t=>`<svg width="46" height="34" viewBox="-23 -17 46 34" aria-hidden="true">${tripFlag(t,0,0,1)}</svg>`;
 function offerTrip(){
   if(S.fish==='carry'){react('happy',false);say('Take your fish home first! Then you can go on holiday.');return}
   if(ov.hidden)PREV=[document.getElementById('story').textContent,document.getElementById('hint').textContent];
@@ -2110,18 +2136,20 @@ function offerTrip(){
   openOv('trip',`<h2>Go on holiday!</h2><p>Where shall we go?</p>
     <button class="big blue" data-a="trip" data-t="brazil" data-focus>${tripIcon('brazil')} <span>BRAZIL<span class="meta">BY PLANE ✈</span></span></button>
     <button class="big green" data-a="trip" data-t="scotland">${tripIcon('scotland')} <span>SCOTLAND<span class="meta">BY SLEEPER TRAIN</span></span></button>
+    <button class="big pink" data-a="trip" data-t="paris">${tripIcon('paris')} <span>PARIS<span class="meta">BY EUROSTAR</span></span></button>
+    <button class="big gold" data-a="trip" data-t="italy">${tripIcon('italy')} <span>ITALY<span class="meta">BY PLANE ✈</span></span></button>
     <button class="big small" data-a="close">NOT NOW</button>`,
-    `Holiday time, ${nm()}! Where shall we go?`,'Tap Brazil or Scotland');
+    `Holiday time, ${nm()}! Where shall we go?`,'Tap a place to go');
 }
 function startTrip(t){
   closeOv();S.trip=t;S.tp={};clearBubbles();sfx.chord();
-  say(t==='brazil'?'You pack your suitcase… and off to the airport!':'You pack your suitcase… and off to the train station!','');
+  say(TRIPS[t].start==='airport'?'You pack your suitcase… and off to the airport!':'You pack your suitcase… and off to the train station!','');
   go(TRIPS[t].start,'left');
 }
 function cancelTrip(){S.trip='';S.tp={};go('square',200)}
 // home again: the trip counts for today, and its hat stays in the dress-up drawer
 function endTrip(how){
-  const t=S.trip;S.trip='';S.tp={};S.tripDay=S.day;S.trips.includes(t)||S.trips.push(t);
+  const t=S.trip;S.trip='';S.tp={};S.tripDay=S.day;S.lastTrip=t;S.trips.includes(t)||S.trips.push(t);
   sfx.chord();WELCOME=how;go('living','right');
 }
 const tripHome=()=>({id:'go-home',label:'Go home',svg:arrow('left','HOME'),tap:cancelTrip});
@@ -2151,6 +2179,8 @@ const planeWin=(x,v)=>{
   const sky=v===1?'#7cc6f0':'#bfe3fa';
   const land=v===0?`<rect x="${x-30}" y="186" width="60" height="30" fill="#a8d98a"/>${[-18,-4,10].map((d,i)=>`<rect x="${x+d}" y="${178-i%2*6}" width="10" height="${14+i%2*6}" fill="${['#f7b9d0','#ffd98a','#cfd3dc'][i]}" stroke="${INK}" stroke-width="1.4"/>`).join('')}<rect x="${x+20}" y="166" width="6" height="22" fill="#d6ad45" stroke="${INK}" stroke-width="1.4"/>`
     :v===1?`<path d="${cloud(x-12,192,22,10,7)}" fill="#fff" stroke="${INK}" stroke-width="1.6"/><path d="${cloud(x+16,198,20,9,7)}" fill="#fff" stroke="${INK}" stroke-width="1.6"/>`
+    :v===2&&italy()?`<path d="M${x-34},220 L${x-16},178 L${x-6},196 L${x+8},170 L${x+34},220Z" fill="#9aa3b5" stroke="${INK}" stroke-width="1.4"/><path d="M${x-22},192 L${x-16},178 L${x-10},190Z M${x+2},182 L${x+8},170 L${x+15},184Z" fill="#fff"/>`
+    :v===3&&italy()?`<rect x="${x-30}" y="190" width="60" height="30" fill="#3cb8b0"/>${[-24,-10,4,18].map((d,i)=>`<rect x="${x+d}" y="${176+i%2*5}" width="12" height="${16-i%2*5}" fill="${['#f2a07b','#f7d27a','#e98aa0','#f0b46a'][i]}" stroke="${INK}" stroke-width="1.3"/>`).join('')}`
     :v===2?`<rect x="${x-30}" y="170" width="60" height="50" fill="#2c8fd6"/><path d="M${x-22},180 q5,-4 10,0 M${x+4},196 q5,-4 10,0 M${x-14},206 q5,-4 10,0" fill="none" stroke="#fff" stroke-width="1.8"/>
       <path d="M${x+8},186 q-4,-8 -10,-8 q4,-2 10,4 q6,-6 10,-4 q-6,0 -10,8Z" fill="#3a3346" stroke="${INK}" stroke-width="1.2"/>`
     :`<rect x="${x-30}" y="184" width="60" height="36" fill="#3cb8b0"/><path d="M${x-30},190 Q${x-14},150 ${x+2},190Z" fill="#6f9d5b" stroke="${INK}" stroke-width="1.4"/><rect x="${x-30}" y="200" width="60" height="20" fill="#f6dc9a"/>`;
@@ -2391,6 +2421,631 @@ function squirrelTree(){
   <circle cx="352" cy="334" r="4" fill="#a8652f" stroke="${INK}" stroke-width="1.4"/></g>`;
 }
 
+/* ---------- reading aloud: the bedtime story and the diary are read by the device's own voice ---------- */
+let VOICE=null;
+function pickVoice(){
+  try{const vs=speechSynthesis.getVoices();if(!vs.length)return null;
+    return vs.find(v=>/en[-_]GB/i.test(v.lang)&&/female|libby|sonia|serena|kate|martha|stephanie|google uk english female/i.test(v.name))
+      ||vs.find(v=>/en[-_]GB/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null}catch(e){return null}
+}
+function speak(t){
+  try{
+    if(!S.sound||!window.speechSynthesis||!window.SpeechSynthesisUtterance)return;
+    speechSynthesis.cancel();VOICE=VOICE||pickVoice();
+    const u=new SpeechSynthesisUtterance(t.replace(/…/g,', '));
+    if(VOICE)u.voice=VOICE;u.lang=VOICE?VOICE.lang:'en-GB';u.rate=.88;u.pitch=1.12;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function hush(){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
+// names are typed in capitals; the voice reads them better as Luna than LUNA
+const nmT=()=>{const n=nm();return n.split(' ').map(w=>w[0]+w.slice(1).toLowerCase()).join(' ')};
+
+/* ---------- little pictures for the diary and the bedtime story, each drawn around 0,0 about 40 wide ---------- */
+const flagFR=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="14" height="28" fill="#1f5fa8"/><rect x="-6" y="-14" width="13" height="28" fill="#fff"/><rect x="7" y="-14" width="13" height="28" fill="#d8243c"/>
+  <rect x="-20" y="-14" width="40" height="28" rx="2" fill="none" stroke="${INK}" stroke-width="2"/></g>`;
+const flagIT=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="14" height="28" fill="#1f8a4c"/><rect x="-6" y="-14" width="13" height="28" fill="#fff"/><rect x="7" y="-14" width="13" height="28" fill="#d8243c"/>
+  <rect x="-20" y="-14" width="40" height="28" rx="2" fill="none" stroke="${INK}" stroke-width="2"/></g>`;
+const tripFlag=(t,x,y,s)=>({brazil:flagBR,scotland:flagSC,paris:flagFR,italy:flagIT}[t]||flagBR)(x,y,s);
+const sledArt=(c='#d8243c')=>`<path d="M-34,0 H30 Q40,0 40,-10" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M-34,0 H30 Q40,0 40,-10" fill="none" stroke="#cfd3dc" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M-22,0 V-8 M18,0 V-8" stroke="${INK}" stroke-width="3"/><rect x="-32" y="-18" width="62" height="11" rx="4" fill="${c}" ${K} stroke-width="2.5"/>`;
+const CRESCENT='M0,-19 A19,19 0 1 0 0,19 A11,19 0 1 1 0,-19Z';
+const IC={
+  milk:()=>`<path d="M-18,-4 H18 Q16,12 0,12 Q-16,12 -18,-4Z" fill="#f38db5" ${K} stroke-width="2.5"/><ellipse cx="0" cy="-4" rx="18" ry="5" fill="#fff" ${K} stroke-width="2.5"/>`,
+  fish:()=>`<g transform="scale(1.4)">${fishArt}</g>`,
+  dress:()=>`<g transform="translate(0,145)">${WEAR.crown()}</g>`,
+  yarn:()=>yarnBall(17),
+  box:()=>moveBox(-18,-14,36,28),
+  cup:()=>`<g transform="translate(0,17)">${cupArt()}</g>`,
+  bird:()=>bird(0,10),
+  song:()=>`<path d="M-6,12 V-16 L14,-20 V8" fill="none" stroke="${INK}" stroke-width="3" stroke-linejoin="round"/><ellipse cx="-11" cy="12" rx="6.5" ry="5" fill="#8a6bd1" stroke="${INK}" stroke-width="2"/><ellipse cx="9" cy="8" rx="6.5" ry="5" fill="#8a6bd1" stroke="${INK}" stroke-width="2"/>`,
+  party:()=>`<rect x="-18" y="-4" width="36" height="18" rx="3" fill="#f38db5" ${K} stroke-width="2.5"/><path d="M-18,3 q6,5 12,0 t12,0 t12,0" fill="none" stroke="#fff" stroke-width="2.5"/><path d="M0,-4 V-13" stroke="${INK}" stroke-width="3"/><path d="M0,-22 q5,5 0,8 q-5,-3 0,-8Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.5"/>`,
+  park:()=>duckArt(0,6,'#ffd34d',1.3),
+  season:pg=>pg.s==='winter'?flake(0,0,15):pg.s==='autumn'?`<g transform="scale(2.2)">${leaf(0,0,30,'#e8742a')}</g>`:blossom(0,0,'#f38db5',2),
+  bath:()=>`<circle cx="-8" cy="4" r="10" fill="#e6f6ff" stroke="${INK}" stroke-width="2"/><circle cx="9" cy="-6" r="8" fill="#e6f6ff" stroke="${INK}" stroke-width="2"/><circle cx="10" cy="12" r="5" fill="#e6f6ff" stroke="${INK}" stroke-width="2"/><path d="M-12,0 q2,-4 6,-4" fill="none" stroke="#fff" stroke-width="2.5"/>`,
+  stars:()=>`<path d="${starPath(0,0,19)}" fill="#ffd34d" ${K} stroke-width="2.5"/>`,
+  moon:()=>`<g transform="translate(6,0)"><path d="${CRESCENT}" fill="#ffd34d" ${K} stroke-width="2.5"/><circle cx="-11" cy="-3" r="2" fill="${INK}"/></g>`,
+  art:()=>`<rect x="-18" y="-15" width="36" height="30" fill="#d6ad45" ${K} stroke-width="2.5"/><rect x="-12" y="-9" width="24" height="18" fill="#fff"/><circle cx="-4" cy="2" r="5" fill="#e0508a"/><circle cx="5" cy="-2" r="4" fill="#2c8fd6"/>`,
+  play:()=>`<path d="M-18,-18 H18 M-12,-18 V8 M12,-18 V8" fill="none" stroke="${INK}" stroke-width="3"/><rect x="-16" y="6" width="32" height="7" rx="3" fill="#e0508a" stroke="${INK}" stroke-width="2"/>`,
+  school:()=>`<path d="M-20,-12 Q-10,-18 0,-12 Q10,-18 20,-12 V14 Q10,8 0,14 Q-10,8 -20,14Z" fill="#fff" ${K} stroke-width="2.5"/><path d="M0,-12 V14 M-15,-5 h10 M-15,2 h10 M5,-5 h10 M5,2 h10" stroke="${INK}" stroke-width="1.8"/>`,
+  fest:()=>present(0,16,.6,false),
+  visit:()=>heart(0,0,1.8,'#e0508a',true),
+  fountain:()=>[[-10,4],[0,-8],[10,4]].map(([x,y])=>`<g transform="translate(${x},${y}) scale(1.5)">${dropArt}</g>`).join(''),
+  cafe:()=>`<g transform="translate(-3,14)">${latteCup()}</g>`,
+  rest:()=>`<ellipse cx="0" cy="6" rx="20" ry="8" fill="#fff" ${K} stroke-width="2.5"/><path d="M-10,4 q5,-10 10,0 q5,-10 10,0" fill="none" stroke="#f1b13a" stroke-width="3" stroke-linecap="round"/><circle cx="0" cy="-2" r="3.5" fill="#d8243c"/>`,
+  pool:()=>`<circle r="14" fill="none" stroke="${INK}" stroke-width="13"/><circle r="14" fill="none" stroke="#f38db5" stroke-width="8.5"/><path d="M-14,0 h-6 M14,0 h6 M0,-14 v-6 M0,14 v6" stroke="#fff" stroke-width="4"/>`,
+  slide:()=>`<path d="M-16,-16 Q-12,10 18,14" fill="none" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="M-16,-16 Q-12,10 18,14" fill="none" stroke="#f9a03f" stroke-width="5.5" stroke-linecap="round"/>`,
+  paint:()=>`<ellipse rx="20" ry="15" fill="#f6dc9a" ${K} stroke-width="2.5"/><circle cx="-9" cy="-4" r="4" fill="#e5383b"/><circle cx="1" cy="-8" r="4" fill="#2c8fd6"/><circle cx="10" cy="-2" r="4" fill="#ffd34d"/><circle cx="-2" cy="6" r="4" fill="#3fae5a"/>`,
+  mosaic:()=>[['#e5383b',-14,-14],['#2c8fd6',0,-14],['#ffd34d',-14,0],['#3fae5a',0,0]].map(([c,x,y])=>`<rect x="${x}" y="${y}" width="13" height="13" rx="2" fill="${c}" stroke="${INK}" stroke-width="2"/>`).join(''),
+  trip:pg=>tripFlag(pg.t,0,0,.95),
+  sweets:()=>`<path d="M0,0 V20" stroke="${INK}" stroke-width="3.5"/><circle cy="-6" r="13" fill="#f38db5" ${K} stroke-width="2.5"/><path d="M0,-6 m-7,0 a7,7 0 1 1 7,7 a4,4 0 1 1 -4,-4" fill="none" stroke="#fff" stroke-width="2.5"/>`,
+  teeth:()=>`<g transform="rotate(-30)"><rect x="-20" y="-3" width="30" height="7" rx="3" fill="#2c8fd6" stroke="${INK}" stroke-width="2"/><rect x="10" y="-9" width="11" height="8" fill="#fff" stroke="${INK}" stroke-width="1.8"/><path d="M11,-12 q5,-5 10,0" fill="#7fe3a0" stroke="${INK}" stroke-width="1.5"/></g>`,
+  garden:()=>`<path d="M0,20 V2" stroke="#3fae5a" stroke-width="3.5"/>${blossom(0,-4,'#f38db5',1.9)}`,
+  gpool:()=>`<g transform="translate(-6,12) scale(.45)">${flamingo(false)}</g>`,
+  tramp:()=>`<path d="M-16,0 L-20,14 M16,0 L20,14" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/><ellipse cx="0" cy="0" rx="22" ry="6" fill="#3a3346" stroke="#2c8fd6" stroke-width="3"/><path d="M0,-6 v-10 M-5,-14 l5,-5 l5,5" fill="none" stroke="#e0508a" stroke-width="2.5" stroke-linecap="round"/>`,
+  pets:()=>`<g transform="scale(2.6)">${pawSVG(0,2,0,'#a8652f')}</g>`,
+  sketch:()=>`<path d="${cloud(0,0,19,19,8)}" fill="#fff" ${K} stroke-width="2.5"/><path d="M-9,4 q5,-12 10,-2 t8,-4" fill="none" stroke="#e0508a" stroke-width="3.5" stroke-linecap="round"/><path d="M-6,9 l12,-3" stroke="#2c8fd6" stroke-width="3" stroke-linecap="round"/>`,
+  snowcat:()=>`<circle cy="8" r="12" fill="#fff" ${K} stroke-width="2.5"/><circle cy="-10" r="9" fill="#fff" ${K} stroke-width="2.5"/><path d="M-8,-15 l-1,-9 l6,5 M8,-15 l1,-9 l-6,5" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="-3" cy="-11" r="1.4" fill="${INK}"/><circle cx="3" cy="-11" r="1.4" fill="${INK}"/><path d="M-9,-1 h18" stroke="#e0508a" stroke-width="4" stroke-linecap="round"/>`,
+  sledge:()=>`<g transform="translate(-2,8) scale(.6)">${sledArt()}</g><path d="M-14,-8 q10,-10 26,-14" fill="none" stroke="#7cc6f0" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 5"/>`,
+  puddles:()=>`<ellipse cy="10" rx="20" ry="6" fill="#7cb6e6" ${K} stroke-width="2.2"/>${[-12,0,12].map((x,i)=>`<circle cx="${x}" cy="${-4-(i%2)*8}" r="3.5" fill="#7cb6e6" stroke="${INK}" stroke-width="1.5"/>`).join('')}`,
+  roll:()=>`<path d="M-20,14 Q0,-20 20,-14 V14Z" fill="#a8d98a" ${K} stroke-width="2.5"/><path d="M-10,-2 a6,6 0 1 1 8,6" fill="none" stroke="#e0508a" stroke-width="2.5" stroke-linecap="round"/>`,
+  hero:()=>`<g transform="translate(0,26) scale(.3)">${catSVG('happy',false,false,PINK,wearNow())}</g>`,
+  sleepy:()=>`<text x="0" y="8" text-anchor="middle" class="say" style="font-size:28px" fill="#2c8fd6">Zzz</text>`,
+  pencil:()=>`<g transform="rotate(-35)"><rect x="-18" y="-4" width="30" height="8" fill="#ffd34d" stroke="${INK}" stroke-width="2"/><path d="M12,-4 L20,0 L12,4Z" fill="#f6dc9a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g>`
+};
+const icon=(k,pg={},x=0,y=0,s=1)=>`<g transform="translate(${x},${y}) scale(${s})">${(IC[k]||IC.stars)(pg)}</g>`;
+// for each fun thing: a word under its picture, a line for the diary, and a line for the bedtime story where the cat is the hero
+const TRIPSAY={brazil:['flew all the way to Brazil','flew in a big plane all the way to Brazil, and built the biggest sandcastle on the beach'],
+  scotland:['went to Scotland on the sleeper train','rode the sleeper train all night to Scotland, and danced to the bagpipes'],
+  paris:['went to Paris on the Eurostar','zoomed under the sea on the Eurostar to Paris, and waved at the Eiffel Tower'],
+  italy:['flew to Italy','flew over the mountains to Italy, and rode a gondola in Venice']};
+const DIARY={
+  milk:['MILK','I drank my milk.',N=>`${N} drank a big bowl of milk, slurp slurp, and felt strong and brave.`],
+  fish:['FISH','I ate a yummy fish.',N=>`${N} bought a fish at the fish shop, and it was the yummiest fish in the whole of London.`],
+  dress:['DRESS UP','I dressed up.',N=>`${N} dressed up and looked so pretty that everybody said ooh.`],
+  yarn:['YARN','I played with my yarn.',N=>`${N} chased a ball of yarn, and got all tangled up, and wiggled free again.`],
+  box:['BOX','I sat in a box.',N=>`${N} found a big box and jumped right in. A box is the best house for a cat!`],
+  cup:['CRASH!','I pushed a cup. Crash!',N=>`${N} pushed a cup off the table. Crash! What a cheeky cat.`],
+  bird:['BIRD','A bird sang to me.',N=>`a little bird sang a song for ${N} at the kitchen window.`],
+  song:['MUSIC','I played the piano.',N=>`${N} played a song on the piano, and danced and danced.`],
+  party:['BIRTHDAY','It was my birthday!',N=>`it was ${N}'s birthday, and ${N} blew out all the candles in one big puff.`],
+  park:['PARK','I went to the park.',N=>`${N} went to the park and said hello to the ducks. Quack quack!`],
+  season:['OUTSIDE','I played outside.',N=>`${N} went outside and played in the ${{autumn:'crunchy leaves',winter:'fresh snow',spring:'flowers'}[season()]||'sunshine'}.`],
+  bath:['BATH','I had a bath.',N=>`${N} had a bubbly bath and popped all the bubbles.`],
+  stars:['STARS','I counted the stars.',N=>`${N} counted all the stars in the sky.`],
+  moon:['MOON','The moon winked at me.',N=>`${N} meowed at the moon, and the moon winked back.`],
+  art:['PAINTING',"I looked at Carolina's painting.",N=>`${N} looked at a beautiful painting by Carolina.`],
+  play:['PLAYGROUND','I went to the playground.',N=>`${N} went down the slide and up on the swings at the playground. Wheee!`],
+  school:['SCHOOL','I went to cat school.',N=>`clever ${N} went to cat school and knew all the answers. Miss Owl said: twit twoo, well done!`],
+  fest:['PARTY','We had a party!',N=>`there was a big surprise party, and ${N} was the star of it.`],
+  visit:['VISITOR','A friend came to visit.',N=>`a special visitor came all the way to the roof to see ${N}.`],
+  fountain:['FOUNTAIN','I made a wish.',N=>`${N} made a secret wish at the fountain. Shh, it is a secret!`],
+  cafe:['CAFÉ','I had a milky latte.',N=>`${N} had a milky latte at the cat café, with a heart on top.`],
+  rest:['DINNER','I ate at the restaurant.',N=>`${N} ate a fancy dinner at the restaurant, and the penguin waiter bowed.`],
+  pool:['SWIM','I went swimming.',N=>`brave ${N} jumped off the diving board. Splash!`],
+  slide:['SLIDE','I went down my slide.',N=>`${N} went down the slide in the big house. Wheee!`],
+  paint:['PAINTING','I painted a picture.',N=>`${N} painted a beautiful picture, like a real artist.`],
+  mosaic:['MOSAIC','I made a mosaic.',N=>`${N} made a mosaic out of tiny coloured tiles.`],
+  trip:['HOLIDAY','I went on holiday!',(N,t)=>`${N} ${(TRIPSAY[t]||TRIPSAY.brazil)[1]}.`],
+  sweets:['SWEETS','I ate some sweets.',N=>`${N} went to Mrs Mouse's sweet shop for a little treat.`],
+  teeth:['TEETH','I brushed my teeth.',N=>`${N} brushed every tooth until it sparkled.`],
+  garden:['GARDEN','I watered my flowers.',N=>`${N} watered the flowers in the garden, and they grew and grew.`],
+  gpool:['FLAMINGO','I floated in my pool.',N=>`${N} floated round and round on a pink flamingo.`],
+  tramp:['BOING!','I bounced on my trampoline.',N=>`${N} bounced so high on the trampoline that it nearly touched the clouds.`],
+  pets:['PETS','I fed my pets.',N=>`kind ${N} fed all the pets, and they were so happy they did a little dance.`],
+  sketch:['MY STICKER','I drew my own sticker.',N=>`${N} drew a brand new sticker and stuck it on the fridge.`],
+  snowcat:['SNOWCAT','I built a snowcat!',N=>`${N} built a snowcat in the snow. It looked just like ${N}!`],
+  sledge:['SLEDGE','I went sledging!',N=>`${N} whizzed down the snowy hill on a red sledge. Wheee!`],
+  puddles:['PUDDLES','I jumped in puddles!',N=>`${N} jumped in every puddle, splish splash splosh, and then a rainbow came out.`],
+  roll:['HILL','I rolled down the hill.',N=>`${N} rolled all the way down the big hill, roly poly, and laughed and laughed.`]
+};
+// everyday things go last in the diary, and the bedtime story leaves them out
+const ROUTINE=['milk','fish','bath','teeth','stars','moon','art'];
+
+/* ---------- the diary on the bedroom windowsill ---------- */
+const DIARYMAX=60;
+function pageNow(){
+  return {d:S.day,s:season(),w:S.wx||'sun',k:S.done.filter(k=>DIARY[k]),p:S.today,t:S.tripDay===S.day?S.lastTrip||'':''};
+}
+// when the cat naps, today's page goes into the diary for good
+function keepPage(){
+  const pg=pageNow();
+  if(S.diary.length&&S.diary[S.diary.length-1].d===pg.d)S.diary[S.diary.length-1]=pg;else S.diary.push(pg);
+  if(S.diary.length>DIARYMAX)S.diary=S.diary.slice(-DIARYMAX);
+}
+const pages=()=>[...S.diary.filter(p=>p.d!==S.day),pageNow()];
+const pageKeys=pg=>{const k=pg.k.filter(x=>DIARY[x]);return [...k.filter(x=>!ROUTINE.includes(x)),...k.filter(x=>ROUTINE.includes(x))]};
+function pageText(pg){
+  const k=pageKeys(pg);
+  if(!k.length)return pg.d===S.day?`Day ${pg.d}. Today has only just started! What will I do?`:`Day ${pg.d}. A sleepy, cosy day.`;
+  return `Day ${pg.d}. `+k.slice(0,8).map(x=>x==='trip'?`I ${(TRIPSAY[pg.t]||TRIPSAY.brazil)[0]}!`:DIARY[x][1]).join(' ');
+}
+function diaryBook(){
+  return `<rect x="104" y="214" width="70" height="40" fill="transparent"/>
+  <g transform="rotate(-4 139 238)"><rect x="112" y="224" width="54" height="16" rx="3" fill="#e0508a" ${K} stroke-width="2.5"/><path d="M116,229 H162 M116,234 H162" stroke="#fff" stroke-width="1.8"/>
+  ${heart(139,231,.45,'#ffd34d')}</g>
+  <text x="139" y="272" text-anchor="middle" class="lbl">DIARY</text>`;
+}
+const wxIcon=w=>w==='rain'?`<path d="${cloud(0,-4,18,8,7)}" fill="#e3e8ee" stroke="${INK}" stroke-width="2"/><path d="M-8,10 l-3,8 M2,10 l-3,8 M12,10 l-3,8" stroke="#2c8fd6" stroke-width="2.5" stroke-linecap="round"/>`
+  :w==='snow'?flake(0,0,13):`<circle r="11" fill="#ffd34d" ${K} stroke-width="2.5"/><path d="M0,-20 v4 M0,20 v-4 M-20,0 h4 M20,0 h-4 M-14,-14 l3,3 M14,14 l-3,-3 M-14,14 l3,-3 M14,-14 l-3,3" stroke="#f9a03f" stroke-width="3" stroke-linecap="round"/>`;
+const SEAWORD={summer:'SUMMER',autumn:'AUTUMN',winter:'WINTER',spring:'SPRING'};
+const BOXX=[88,200,312], BOXY=[248,362];
+function diaryPage(){
+  const all=pages(),pg=all[Math.max(0,Math.min(all.length-1,S.dpg))],k=pageKeys(pg).slice(0,6),pen=S.writing;
+  const lines=[...Array(9)].map((_,i)=>`M28,${150+i*34} H372`).join(' ');
+  const boxes=k.map((key,i)=>{const x=BOXX[i%3],y=BOXY[Math.floor(i/3)];
+    return `<g${pen?` class="pen" style="animation-delay:${(.5+i*.55).toFixed(2)}s"`:''}><rect x="${x-50}" y="${y-52}" width="100" height="104" rx="10" fill="#fffaf6" stroke="${INK}" stroke-width="2" stroke-dasharray="6 4"/>
+      ${icon(key,pg,x,y-12,1.25)}<text x="${x}" y="${y+40}" text-anchor="middle" class="sign" style="font-size:${DIARY[key][0].length>8?14:17}px">${DIARY[key][0]}</text></g>`}).join('');
+  return `<rect x="20" y="112" width="360" height="342" rx="10" fill="#fff" ${K}/><path d="${lines}" stroke="#bfe3fa" stroke-width="2"/><path d="M58,112 V454" stroke="#f38db5" stroke-width="2"/>
+    ${[140,200,260,320,380,440].map(y=>`<circle cx="20" cy="${y}" r="7" fill="#fffaf6" ${K} stroke-width="2.5"/>`).join('')}
+    <text x="72" y="166" class="sign" style="font-size:28px;fill:var(--hot)">DAY ${pg.d}</text>
+    <text x="184" y="164" class="sign" style="font-size:18px">${SEAWORD[pg.s]||''}</text>
+    <g transform="translate(332,152)">${wxIcon(pg.w)}</g>
+    ${k.length?boxes:`<g transform="translate(200,290)">${icon(pg.d===S.day?'pencil':'sleepy',pg,0,0,2)}</g><text x="200" y="350" text-anchor="middle" class="sign" style="font-size:20px">${pg.d===S.day?'NOTHING YET… GO AND PLAY!':'A SLEEPY DAY'}</text>`}
+    ${pg.p?`<text x="360" y="442" text-anchor="end" class="sign" style="font-size:18px;fill:#d6ad45">★ ${pg.p}</text>`:''}`;
+}
+const pgBtn=(x,dir,on)=>`<circle cx="${x}" cy="488" r="23" fill="${on?'#fffaf6':'#e9e3dc'}" ${K}/><path d="${dir<0?`M${x+6},476 L${x-7},488 L${x+6},500`:`M${x-6},476 L${x+7},488 L${x-6},500`}" fill="none" stroke="${on?'#2c8fd6':'#b9b2aa'}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
+function turnPage(d){
+  const n=pages().length,to=S.dpg+d;
+  if(to<0||to>=n){sfx.nope();say(to<0?'This is the very first page of your diary!':'This is the newest page. What will you do next?');return}
+  S.dpg=to;S.writing=false;sfx.whoosh();render();readPage();
+}
+function readPage(){const pg=pages()[S.dpg];if(!pg)return;const t=pageText(pg);say(t);speak(t)}
+
+/* ---------- the bedtime story: a little book where the cat is the hero of its own day ---------- */
+const HEROADJ=['brave','clever','kind','curious','happy'];
+function makeTale(){
+  const N=nmT(),ks=S.done.filter(k=>DIARY[k]&&!ROUTINE.includes(k));
+  const pick=ks.length<=3?ks:[ks[0],ks[Math.floor(ks.length/2)],ks[ks.length-1]];
+  const out=[{k:'hero',t:`Once upon a time, in a little house in London, there lived a ${HEROADJ[S.day%HEROADJ.length]} cat called ${N}.`}];
+  if(!pick.length) out.push({k:'milk',t:`One day, ${N} had a long, lazy, cosy day, and drank lots and lots of milk.`});
+  const OPEN=['One morning,','After that,','And then,'];
+  pick.forEach((k,i)=>{const s=DIARY[k][2](N,S.lastTrip);out.push({k,t:`${OPEN[i]} ${s}`})});
+  out.push({k:'moon',t:(S.wink?`When the stars came out, ${N} climbed up to the roof, and meowed at the moon, and the moon winked back. `:`When the stars came out, `)
+    +`${S.wink?'Then ':''}${N} snuggled into a soft cloud bed${S.pal?' with a best friend':''}, and closed both eyes. The end. Good night, ${N}!`});
+  return out;
+}
+function startTale(){S.tale=makeTale();S.tpg=0;sfx.chord();go('tale',200)}
+function talePage(){const p=S.tale&&S.tale[S.tpg];if(!p)return;say(p.t,S.tpg<S.tale.length-1?'Tap NEXT for the next page':'Tap GOOD NIGHT to go to sleep');speak(p.t)}
+function nextTale(){
+  if(!S.tale){endTale();return}
+  if(S.tpg<S.tale.length-1){S.tpg++;sfx.whoosh();render();const b=$('.tbook');b&&restartClass(b,'stretch',900);talePage()}
+  else endTale();
+}
+function endTale(){
+  hush();S.told=true;S.tale=null;checkFun();
+  S.scene='bed';S.x=200;S.face=1;S.mood='normal';stage.classList.remove('fade');nap();
+}
+function bookArt(){
+  const p=S.tale[S.tpg],last=S.tpg===S.tale.length-1,kk=p.k==='hero'?'hero':p.k;
+  return `<rect x="30" y="90" width="340" height="250" fill="transparent"/><g class="tbook" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M200,110 Q120,92 40,104 V330 Q120,318 200,336 Q280,318 360,330 V104 Q280,92 200,110Z" fill="#d8243c" ${K}/>
+  <path d="M200,118 Q124,100 50,112 V318 Q124,306 200,324Z" fill="#fffaf6" ${K} stroke-width="2.5"/><path d="M200,118 Q276,100 350,112 V318 Q276,306 200,324Z" fill="#fffaf6" ${K} stroke-width="2.5"/>
+  ${kk==='moon'?`<g transform="translate(130,214) scale(2.4)"><path d="${CRESCENT}" fill="#ffd34d" ${K} stroke-width="2"/><circle cx="-11" cy="-3" r="1.8" fill="${INK}"/></g>`:icon(kk,{s:season(),t:S.lastTrip},124,214,kk==='hero'?2:2.4)}
+  <g transform="translate(276,296) scale(.62)">${catSVG(last?'sleep':'happy',false,false,PINK,wearNow())}</g>
+  ${last?`<g class="zzz" pointer-events="none"><text x="300" y="196">Z</text><text x="316" y="180">z</text><text x="330" y="166">z</text></g>`:''}
+  <text x="276" y="140" text-anchor="middle" class="sign" style="font-size:16px">${S.tpg===0?'ONCE UPON A TIME':last?'THE END':`PAGE ${S.tpg+1}`}</text></g>`;
+}
+
+/* ---------- pets: a pet house in the big house garden, with a goldfish, a puppy and a bunny to adopt ---------- */
+const PETS={
+  fish:{name:'Bubbles',kind:'goldfish',he:'she',food:'fish flakes',x:60,walk:150,
+    hi:'Bubbles the goldfish swims over to say hello. Blub blub!',
+    play:['You tap tap on the glass. Bubbles blows you a big bubble! Blub!','Bubbles swims round and round the little castle. Blub blub!','You walk past… and Bubbles follows you! Swish swish.']},
+  puppy:{name:'Biscuit',kind:'puppy',he:'he',food:'a dog biscuit',x:164,walk:268,
+    hi:'Biscuit the puppy jumps up and down. Woof woof! He is so happy to see you!',
+    play:['Biscuit licks your face. Slurp! Yuck… but nice. Poooourrr!','Biscuit chases his own tail round and round. Silly puppy!','Biscuit rolls over for a tummy tickle. Woof!']},
+  bunny:{name:'Clover',kind:'bunny',he:'she',food:'a crunchy carrot',x:340,walk:268,
+    hi:'Clover the bunny wiggles her nose at you. Sniff sniff!',
+    play:['Clover does a happy bunny jump! Boing!','Clover and you touch noses. Sniff sniff! Poooourrr!','Clover hops all the way round you. Hop hop hop!']}
+};
+const PETK=['puppy','bunny','fish'];
+const hungryPets=()=>S.pets.filter(p=>!S.fed.includes(p));
+const PETKIND={fish:'GOLDFISH',puppy:'PUPPY',bunny:'BUNNY'};
+function petHouse(){
+  return `<rect x="10" y="140" width="128" height="160" fill="transparent"/>
+  <path d="M18,196 L74,148 L130,196Z" fill="#d8243c" ${K}/><rect x="26" y="194" width="96" height="104" fill="#f9b36b" ${K}/>
+  <path d="M26,214 H122 M26,234 H122 M26,254 H122 M26,274 H122" stroke="#d98c4a" stroke-width="2"/>
+  <path d="M60,298 V256 q0,-14 14,-14 q14,0 14,14 V298Z" fill="#a8652f" ${K}/><g transform="translate(74,270) scale(1.6)">${pawSVG(0,0,0,'#ffd34d')}</g>
+  <rect x="44" y="164" width="60" height="22" rx="5" fill="#fff" stroke="${INK}" stroke-width="2.2"/><text x="74" y="181" text-anchor="middle" class="sign" style="font-size:16px">PETS</text>
+  ${S.pets.includes('puppy')&&!night()?`<g transform="translate(110,298) scale(.42)">${puppyArt(false)}</g>`:''}`;
+}
+// the pets are drawn standing on y=0
+const puppyArt=(wag=true)=>`<path d="M22,-20 q14,-8 16,-22" fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><g${wag?' class="wag"':''} style="transform-box:fill-box;transform-origin:0% 100%"><path d="M22,-20 q14,-8 16,-22" fill="none" stroke="#e8c49a" stroke-width="3" stroke-linecap="round"/></g>
+  <ellipse cx="2" cy="-18" rx="26" ry="16" fill="#f3d3a6" ${K}/><path d="M-14,-4 v6 M-4,-4 v6 M10,-4 v6 M18,-4 v6" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="-22" cy="-38" r="17" fill="#f3d3a6" ${K}/><path d="M-36,-46 q-10,6 -6,24 q8,-2 10,-14Z M-10,-50 q12,0 12,18 q-8,-2 -10,-12Z" fill="#a8652f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="-27" cy="-41" r="2.5" fill="${INK}"/><circle cx="-16" cy="-41" r="2.5" fill="${INK}"/><ellipse cx="-22" cy="-32" rx="4" ry="3" fill="${INK}"/><path d="M-26,-27 q4,4 8,0" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+  <rect x="-32" y="-24" width="20" height="6" rx="3" fill="#2c8fd6" stroke="${INK}" stroke-width="1.5"/>`;
+const bunnyArt=()=>`<circle cx="22" cy="-12" r="7" fill="#fff" ${K} stroke-width="2"/><ellipse cx="4" cy="-16" rx="22" ry="16" fill="#fff" ${K}/>
+  <g transform="rotate(-10 -14 -40)"><ellipse cx="-20" cy="-60" rx="6" ry="18" fill="#fff" ${K} stroke-width="2.5"/><ellipse cx="-20" cy="-58" rx="2.5" ry="12" fill="#f6b3cb"/></g>
+  <g transform="rotate(12 -6 -40)"><ellipse cx="-4" cy="-62" rx="6" ry="18" fill="#fff" ${K} stroke-width="2.5"/><ellipse cx="-4" cy="-60" rx="2.5" ry="12" fill="#f6b3cb"/></g>
+  <circle cx="-12" cy="-32" r="14" fill="#fff" ${K}/><circle cx="-17" cy="-35" r="2.3" fill="${INK}"/><circle cx="-7" cy="-35" r="2.3" fill="${INK}"/>
+  <path d="M-14,-28 l2,2 l2,-2Z" fill="#e0508a" stroke="${INK}" stroke-width="1.2"/><path d="M-12,-26 v3 M-24,-27 l-10,-2 M-24,-25 l-10,2 M0,-27 l10,-2 M0,-25 l10,2" stroke="${INK}" stroke-width="1.3"/>
+  <path d="M-12,-2 v2 M10,-2 v2" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>`;
+const goldfish=()=>`<g class="gfish" style="transform:translateX(${(S.fishX||70)-70}px);transition:transform 1.2s ease-in-out"><g class="gflip"><g class="gwig" style="transform-box:fill-box;transform-origin:center"><path d="M10,0 q-10,-12 -24,0 q14,12 24,0Z M-12,0 l-10,-8 v16Z" fill="#f9a03f" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><path d="M-2,-8 l4,-6 l3,6" fill="#f9a03f" stroke="${INK}" stroke-width="1.6"/><circle cx="3" cy="-2" r="2" fill="${INK}"/></g></g></g>`;
+const petBowl=(x,full,c='#2c8fd6')=>`<path d="M${x-16},440 H${x+16} L${x+12},452 H${x-12}Z" fill="${c}" ${K} stroke-width="2.5"/>${full?`<ellipse cx="${x}" cy="440" rx="12" ry="4" fill="#d9a066" stroke="${INK}" stroke-width="1.5"/>`:''}`;
+const adoptSign=(x,y,k)=>`<g class="pulse"><rect x="${x-44}" y="${y-18}" width="88" height="36" rx="10" fill="#fff3c4" ${K} stroke-width="2.5"/><text x="${x}" y="${y+7}" text-anchor="middle" class="sign" style="font-size:18px;fill:#e0508a">ADOPT?</text></g>
+  <text x="${x}" y="${y+40}" text-anchor="middle" class="lbl">${PETKIND[k]}</text>`;
+function fishTank(){
+  const has=S.pets.includes('fish'),fed=S.fed.includes('fish');
+  return `<rect x="10" y="230" width="128" height="226" fill="transparent"/>
+  <rect x="18" y="356" width="112" height="12" rx="3" fill="#a8652f" ${K} stroke-width="2.5"/><path d="M28,368 V452 M120,368 V452" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M28,368 V452 M120,368 V452" stroke="#a8652f" stroke-width="3" stroke-linecap="round"/>
+  <rect x="24" y="262" width="100" height="94" rx="8" fill="#bfe8f5" ${K}/><rect x="28" y="280" width="92" height="72" rx="5" fill="#5fc3e0" opacity=".85"/>
+  <path d="M30,350 q8,-8 16,0 q8,-8 16,0 q8,-8 16,0 q8,-8 16,0 q8,-8 16,0" fill="#f6dc9a" stroke="${INK}" stroke-width="1.6"/>
+  <path d="M100,350 V318 h-6 v-8 h6 v-6 h8 v6 h6 v8 h-6 V350Z" fill="#cfd3dc" stroke="${INK}" stroke-width="1.6"/>
+  <path d="M40,350 q-6,-18 2,-34 M46,350 q8,-16 0,-30" fill="none" stroke="#3fae5a" stroke-width="4" stroke-linecap="round"/>
+  ${has?`<g transform="translate(70,316)">${goldfish()}</g>${fed?'':`<text x="74" y="252" text-anchor="middle" class="say" style="font-size:22px" fill="#e0508a">?</text>`}`:adoptSign(74,312,'fish')}
+  ${has?`<text x="74" y="246" text-anchor="middle" class="lbl">${PETS.fish.name.toUpperCase()}</text>`:''}`;
+}
+function puppyBed(){
+  const has=S.pets.includes('puppy'),fed=S.fed.includes('puppy');
+  return `<rect x="150" y="300" width="136" height="156" fill="transparent"/>
+  <ellipse cx="202" cy="438" rx="50" ry="16" fill="#2c8fd6" ${K}/><ellipse cx="202" cy="432" rx="38" ry="9" fill="#f38db5" stroke="${INK}" stroke-width="2"/>
+  ${petBowl(266,fed,'#e8473f')}
+  ${has?`<g class="pupj" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(206,438)">${puppyArt()}</g></g>
+    ${fed?'':`<text x="186" y="372" text-anchor="middle" class="say" style="font-size:22px" fill="#e0508a">?</text>`}
+    <text x="204" y="350" text-anchor="middle" class="lbl">${PETS.puppy.name.toUpperCase()}</text>`:adoptSign(204,380,'puppy')}`;
+}
+function hutch(){
+  const has=S.pets.includes('bunny'),fed=S.fed.includes('bunny');
+  return `<rect x="290" y="250" width="110" height="206" fill="transparent"/>
+  <path d="M296,312 L346,282 L396,312Z" fill="#7a4a26" ${K}/><rect x="302" y="310" width="88" height="70" fill="#d9a066" ${K}/>
+  <rect x="312" y="320" width="40" height="50" fill="#fffaf6" stroke="${INK}" stroke-width="2"/><path d="M322,320 V370 M332,320 V370 M342,320 V370 M312,335 H352 M312,350 H352" stroke="${INK}" stroke-width="1.3"/>
+  <rect x="356" y="320" width="26" height="50" fill="#a8652f" stroke="${INK}" stroke-width="2"/><path d="M306,380 V452 M386,380 V452" stroke="${INK}" stroke-width="6" stroke-linecap="round"/>
+  ${petBowl(372,fed,'#7fc36b')}
+  ${has?`<g class="bunj" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(330,450) scale(.9)">${bunnyArt()}</g></g>
+    ${fed?'':`<text x="352" y="408" text-anchor="middle" class="say" style="font-size:22px" fill="#e0508a">?</text>`}
+    <text x="346" y="272" text-anchor="middle" class="lbl">${PETS.bunny.name.toUpperCase()}</text>`:adoptSign(346,410,'bunny')}`;
+}
+// each home is drawn at a base place and shifted, so the cat has a gap to stand in between the puppy and the hutch
+const PETDX={fish:-12,puppy:-40,bunny:4};
+const PETHOT={fish:()=>`<g transform="translate(${PETDX.fish},0)">${fishTank()}</g>`,puppy:()=>`<g transform="translate(${PETDX.puppy},0)">${puppyBed()}</g>`,bunny:()=>`<g transform="translate(${PETDX.bunny},0)">${hutch()}</g>`};
+const petJump=k=>{const el=k==='fish'?$('.gwig'):$(k==='puppy'?'.pupj':'.bunj');el&&restartClass(el,k==='fish'?'wiggle':'jump',800)};
+const foodArt={fish:()=>[0,1,2,3].map(i=>`<rect x="${-8+i*5}" y="${-i*4}" width="4" height="4" fill="#e8742a"/>`).join(''),
+  puppy:()=>`<path d="M-10,-3 h20 a4,4 0 1 1 0,6 h-20 a4,4 0 1 1 0,-6Z" fill="#d9a066" stroke="${INK}" stroke-width="1.6"/>`,
+  bunny:()=>`<path d="M-12,0 L10,-4 Q14,0 10,4Z" fill="#f5891f" stroke="${INK}" stroke-width="1.6"/><path d="M10,-2 l6,-6 M10,0 l7,-2" stroke="#3fae5a" stroke-width="2.5"/>`};
+function tapPet(k){
+  const P=PETS[k];
+  if(k==='bunny')faceRight();else faceLeft();
+  if(!S.pets.includes(k)){
+    if(S.petDay===S.day&&S.pets.length){bubble(PETS[k].x,250,'TOMORROW!','#2c8fd6');say(`One new pet a day! A ${P.kind} can come and live here tomorrow.`);return}
+    S.pets.push(k);S.petDay=S.day;S.fed=S.fed.filter(x=>x!==k);clearBubbles();render();k==='bunny'?faceRight():faceLeft();
+    sfx.chord();burst(P.x,330,(x,y)=>heart(x,y,.9,'#e0508a',true));petJump(k);
+    say(`A ${P.kind} from the pet rescue comes to live with you! ${P.he==='he'?'His':'Her'} name is ${P.name}. ${P.he==='he'?'He':'She'} looks hungry…`);
+    return;
+  }
+  if(!S.fed.includes(k)){
+    S.busy=true;sfx.crunch(true);
+    const [fx,fy]=k==='fish'?[62,276]:k==='puppy'?[226,404]:[376,404];
+    const id='f'+(++uid);stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g transform="translate(${fx},${fy})"><g class="drip" style="animation-duration:1.2s">${foodArt[k]()}</g></g></g>`);
+    setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},1300);
+    say(`You give ${P.name} ${P.food}…`,'');
+    later(()=>{S.fed.push(k);S.busy=false;render();k==='bunny'?faceRight():faceLeft();petJump(k);sfx[k==='puppy'?'woof':k==='bunny'?'squeak':'plop']();
+      bubble(P.x,240,k==='puppy'?'WOOF!':k==='bunny'?'NIBBLE!':'BLUB!','#e0508a');react('happy');
+      const left=hungryPets();say(`${P.name} gobbles it all up! Thank you, ${nmT()}!`+(left.length?` Now feed ${PETS[left[0]].name}!`:' All your pets are happy!'))},1200);
+    return;
+  }
+  const n=S.petN++%3;petJump(k);
+  if(k==='puppy'){sfx.woof();bubble(P.x,250,n===0?'LICK!':'WOOF!','#a8652f')}
+  else if(k==='bunny'){sfx.boing();bubble(P.x,250,'HOP!','#e0508a')}
+  else{sfx.plop();bubble(P.x,220,'BLUB!','#2c8fd6');burst(64,300,(x,y)=>`<circle cx="${x/3+50}" cy="${y}" r="4" fill="#e6f6ff" stroke="${INK}" stroke-width="1.2"/>`)}
+  react('happy');say(P.play[n]);
+}
+// the goldfish swims along the glass after the cat
+function fishFollow(){
+  const g=$('.gfish');if(!g)return;
+  const tx=Math.max(44,Math.min(104,S.x-70)),dir=tx>=(S.fishX||70)?1:-1;S.fishX=tx;
+  g.style.transform=`translateX(${(tx-70).toFixed(1)}px)`;const f=$('.gflip');f&&f.setAttribute('transform',`scale(${dir},1)`);
+}
+
+/* ---------- draw your own sticker: a round sticker paper by the fridge door ---------- */
+const SKP={x:50,y:106,w:300,h:300}, SKMAX=9000, MINEMAX=24;
+const mineSVG=id=>`<path d="${cloud(0,0,25,25,9)}" fill="#fff" ${K} stroke-width="2.5"/>${S.mine[id]?`<g transform="scale(${(44/SKP.w).toFixed(4)}) translate(-150,-150)"><g clip-path="url(#skClip)">${inkSVG(S.mine[id])}</g></g>`:''}`;
+const stkName=i=>typeof i==='string'?'your own drawing':STK[i].name;
+function sketchPad(){
+  return `<rect x="8" y="290" width="102" height="160" fill="transparent"/>
+  <rect x="18" y="320" width="82" height="100" rx="6" fill="#fff" ${K}/>${[0,1,2,3,4].map(i=>`<circle cx="${30+i*15}" cy="320" r="5" fill="none" stroke="${INK}" stroke-width="2.5"/>`).join('')}
+  <circle cx="59" cy="370" r="28" fill="none" stroke="#cfd3dc" stroke-width="2.5" stroke-dasharray="5 5"/>
+  <path d="M46,374 q8,-18 16,-4 t12,-6" fill="none" stroke="#e0508a" stroke-width="4" stroke-linecap="round"/>
+  <g transform="translate(84,404) rotate(-40)"><rect x="-26" y="-5" width="40" height="10" fill="#ffd34d" stroke="${INK}" stroke-width="2"/><path d="M14,-5 L24,0 L14,5Z" fill="#f6dc9a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g>
+  <text x="59" y="442" text-anchor="middle" class="lbl">DRAW!</text>`;
+}
+function stickBtn(){
+  return `<rect x="226" y="20" width="164" height="60" rx="16" fill="#e0508a" ${K}/><text x="308" y="58" text-anchor="middle" class="sign" style="fill:#fff;font-size:21px">STICK IT ✓</text>`;
+}
+// the same tools as the easel: paw stamp, big brush, clear
+const drawTools=()=>[
+  {id:'paw',label:'Paw print stamp',svg:toolBtn(14,118,S.tool==='paw',`<g transform="translate(46,494) scale(2.2)">${pawSVG(0,0,0,'#e0508a')}</g><text x="${86}" y="500" text-anchor="middle" class="sign" style="font-size:19px">PAW</text>`),tap:()=>pickTool('paw')},
+  {id:'fat',label:'Big brush',svg:toolBtn(142,116,S.fat,`<path d="M162,491 H180" stroke="${INK}" stroke-width="${S.fat?16:8}" stroke-linecap="round"/><text x="${222}" y="500" text-anchor="middle" class="sign" style="font-size:19px">BIG</text>`),tap:()=>pickTool('fat')},
+  {id:'clear',label:'Clear the paper',svg:toolBtn(268,118,S.clearAsk,`<path d="M284,482 h22 l-3,22 h-16Z M281,482 h28 M290,478 h10" fill="#cfd3dc" ${K} stroke-width="2.5"/><text x="${348}" y="500" text-anchor="middle" class="sign" style="font-size:19px;${S.clearAsk?'fill:#d9363e':''}">${S.clearAsk?'SURE?':'CLEAR'}</text>`),tap:clearPaper}
+];
+function stickSketch(){
+  if(!S.sketch.length){say('Draw something first! Use your finger.');return}
+  const id='m'+(S.mineN++);S.mine[id]=S.sketch;S.sketch=[];
+  const ids=Object.keys(S.mine);
+  if(ids.length>MINEMAX){const old=ids[0];delete S.mine[old];S.stk=S.stk.filter(t=>t.i!==old);S.newStk=S.newStk.filter(i=>i!==old)}
+  S.newStk.unshift(id);
+  if(!S.sketched){S.sketched=true;earnHeart()}
+  sfx.sticker();say('Peel… your very own sticker!','');go('stickers');
+}
+
+/* ---------- weather to play in: the big hill behind the park ---------- */
+const SNOWCAT=['You roll a big snowball for the body. Roll roll roll!','You put a smaller snowball on top for the head.',
+  'Two pointy ears, two stone eyes and a pink nose. Meow!','Last of all, you give it a scarf. A snowcat! It looks just like you!'];
+const PUDX=[94,206,318];
+const SLED=[[380,236],[310,290],[240,420],[150,446]];
+const wxDay=()=>snowy()||S.rain;
+const wxDone=()=>snowy()?S.snowcat>=SNOWCAT.length&&S.sled>0:S.rain?S.puds.length>=PUDX.length:S.rolled>0;
+function snowCat(){
+  const n=S.snowcat;
+  return `<rect x="22" y="280" width="134" height="176" fill="transparent"/>
+  <path d="M36,452 Q40,${n?436:410} 90,${n?434:404} Q140,${n?436:410} 144,452Z" fill="#fff" ${K}/>
+  ${n>=1?`<circle cx="90" cy="404" r="36" fill="#fff" ${K}/>`:''}
+  ${n>=2?`<circle cx="90" cy="344" r="26" fill="#fff" ${K}/>`:''}
+  ${n>=3?`<path d="M72,326 L68,298 L86,320Z M108,326 L112,298 L94,320Z" fill="#fff" ${K} stroke-width="2.5"/><path d="M73,318 l-2,-12 l8,9Z M107,318 l2,-12 l-8,9Z" fill="#f6b3cb"/>
+    <circle cx="81" cy="340" r="3.5" fill="${INK}"/><circle cx="99" cy="340" r="3.5" fill="${INK}"/><path d="M87,349 h6 l-3,4Z" fill="#e0508a" stroke="${INK}" stroke-width="1.4"/>
+    <path d="M78,352 L52,346 M78,356 L52,360 M102,352 L128,346 M102,356 L128,360" stroke="#7a4a26" stroke-width="2.5" stroke-linecap="round"/>`:''}
+  ${n>=4?`<path d="M64,368 Q90,380 116,368 L118,378 Q90,390 62,378Z" fill="#e0508a" ${K} stroke-width="2.5"/><path d="M104,376 l6,30 h-14 l2,-28Z" fill="#e0508a" ${K} stroke-width="2.5"/><path d="M70,372 v8 M82,376 v8 M96,376 v8 M108,372 v8" stroke="#fff" stroke-width="2.5"/>`:''}
+  <text x="90" y="${n>=3?286:n>=2?306:n?358:396}" text-anchor="middle" class="lbl">${n>=SNOWCAT.length?'SNOWCAT':'SNOW'}</text>`;
+}
+function sledgeHot(){
+  return `<rect x="226" y="390" width="120" height="66" fill="transparent"/>${S.ride==='sled'?'':`<g transform="translate(282,450)">${sledArt()}</g><path d="M322,440 q20,-8 18,-24" fill="none" stroke="${INK}" stroke-width="2"/>`}
+  <text x="282" y="414" text-anchor="middle" class="lbl">SLEDGE</text>`;
+}
+function puddleHot(i){
+  const x=PUDX[i],done=S.puds.includes(i);
+  return `<rect x="${x-50}" y="440" width="100" height="56" fill="transparent"/><ellipse cx="${x}" cy="476" rx="${done?40:46}" ry="${done?9:12}" fill="${done?'#9cc6ea':'#7cb6e6'}" ${K}/>
+  <ellipse cx="${x-10}" cy="474" rx="14" ry="3" fill="#fff" opacity=".6"/>${done?'':`<ellipse cx="${x}" cy="476" rx="20" ry="5" fill="none" stroke="#fff" stroke-width="2" class="ripple"/>`}`;
+}
+function hillRoll(){return `<rect x="250" y="236" width="150" height="190" fill="transparent"/><text x="336" y="266" text-anchor="middle" class="lbl">ROLL DOWN ↙</text>`}
+const rainbowArc=()=>`<g opacity=".9">${['#e8473f','#f9a03f','#ffd34d','#7fc36b','#2c8fd6','#8a6bd1'].map((c,i)=>{const r=150-i*9;return `<path d="M${200-r},250 A${r},${r} 0 0 1 ${200+r},250" fill="none" stroke="${c}" stroke-width="9"/>`}).join('')}</g>`;
+function buildSnowcat(){
+  faceLeft();
+  if(S.snowcat>=SNOWCAT.length){const s=$('.hot[data-id="snowcat"]');s&&restartClass(s,'wiggle',900);sfx.meow(false);bubble(90,260,'MEOW?','#2c8fd6');react('happy');say('Your snowcat says meow! Well… nearly. It is made of snow!');return}
+  const n=S.snowcat;S.busy=true;sfx.crunch(true);burst(90,420,(x,y)=>`<circle cx="${x}" cy="${y}" r="5" fill="#fff" stroke="${INK}" stroke-width="1.2"/>`);
+  later(()=>{S.snowcat=n+1;S.busy=false;render();faceLeft();n===SNOWCAT.length-1?sfx.chord():sfx.pop();react('happy');say(SNOWCAT[n])},500);
+}
+// the cat pulls the sledge up the hill, then whizzes down
+function rideHill(sled){
+  S.busy=true;S.ride=sled?'sled':'roll';clearTimeout(moodT);S.mood='normal';clearBubbles();render();
+  say(sled?'You pull the sledge all the way up the hill… huff, puff…':'You climb up to the top of the hill…','');
+  const art=sled?`<g transform="translate(0,-4)">${sledArt()}</g><g transform="translate(-4,-14) scale(.55)">${rider()}</g>`:rider();
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none" transform="translate(${SLED[0][0]},${SLED[0][1]-(sled?0:42)})${sled?' rotate(-36) scale(-1,1)':' translate(0,41) scale(.55)'}">${art}</g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now()+900,D=sled?2.2:2.6;
+  later(()=>{sfx.whee();bubble(270,170,'WHEEE!','#2c8fd6')},900);
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const s=Math.max(0,(t-t0)/1000);
+    if(s>=D){S.ride=null;sled?S.sled++:S.rolled++;S.x=150;S.face=-1;S.busy=false;clearBubbles();render();follow();
+      if(snowy())burst(150,440,(x,y)=>`<circle cx="${x}" cy="${y}" r="5" fill="#fff" stroke="${INK}" stroke-width="1.2"/>`);
+      else if(season()==='autumn')burst(150,440,(x,y,i)=>leaf(x,y,i*50,LEAFC[i%4]));
+      react('happy');
+      say(sled?(S.sled>1?'Again! Faster and faster! Wheee! Poooourrr!':'Wheee! You whizz down the snowy hill on your sledge! Poooourrr!')
+        :(S.rolled>1?'Roly poly, all the way down again! Poooourrr!':'Roly poly, roly poly… all the way down the hill! You are so dizzy! Poooourrr!'));return}
+    const q=Math.min(1,s/D),e=q*q*(3-2*q),[x,y]=bez(SLED,e),[x2,y2]=bez(SLED,Math.min(1,e+.02));
+    const a=Math.atan2(y2-y,x2-x)*180/Math.PI-180;
+    el.setAttribute('transform',sled?`translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${a.toFixed(1)}) scale(-1,1)`
+      :`translate(${x.toFixed(1)},${(y-42).toFixed(1)}) rotate(${(-e*720).toFixed(1)}) translate(0,41) scale(.55)`);
+    requestAnimationFrame(step);
+  })(performance.now());
+}
+function jumpPuddle(i){
+  const x=PUDX[i];S.face=1;$('#catFlip')&&$('#catFlip').setAttribute('transform','scale(1,1)');
+  const an=$('#catAnim');an&&restartClass(an,'jump',700);sfx.pounce();
+  later(()=>{
+    sfx.splash();splash(x,466);splash(x-20,456);splash(x+20,456);
+    const first=!S.puds.includes(i);if(first)S.puds.push(i);
+    const all=S.puds.length>=PUDX.length;
+    bubble(x,320,['SPLISH!','SPLASH!','SPLOSH!'][i],'#2c8fd6');
+    if(all&&first){render();wetScreen();sfx.chord();later(()=>{react('happy');say('SPLOSH! The biggest splash ever! Look… the sun comes out and makes a rainbow! Poooourrr!')},700);say('SPLOSH!','');return}
+    render();react('happy');
+    say(first?['Splish! Your paws are all wet!','Splash! Even bigger!','Splosh!'][i]+(S.puds.length<PUDX.length?' Jump in the next one!':''):'Splish splash! Puddles are the best!');
+  },350);
+}
+
+/* ---------- Paris: St Pancras, the Eurostar under the sea, then the Eiffel Tower ---------- */
+function eurostarDesk(){
+  return `<rect x="8" y="230" width="140" height="226" fill="transparent"/>
+  <rect x="14" y="240" width="130" height="212" fill="#23345a" ${K}/><rect x="24" y="250" width="110" height="28" rx="6" fill="#ffd34d" ${K} stroke-width="2.5"/>
+  <text x="79" y="270" text-anchor="middle" class="sign" style="font-size:16px;fill:#23345a">EUROSTAR</text>
+  <rect x="32" y="292" width="94" height="84" rx="6" fill="#fff3c4" ${K}/>
+  <g transform="translate(79,388) scale(.5)">${catSVG('happy',false,false,CREAM,{glasses:true})}</g>
+  <rect x="14" y="376" width="130" height="16" fill="#ffd34d" ${K} stroke-width="2.5"/>
+  ${S.tp.ticket?'':`<rect x="64" y="364" width="30" height="16" rx="2" fill="#fff" stroke="${INK}" stroke-width="2" transform="rotate(-8 79 372)"/><path d="M70,370 h18" stroke="#2c8fd6" stroke-width="2" transform="rotate(-8 79 372)"/>`}`;
+}
+function stationPiano(){
+  return `<rect x="150" y="320" width="104" height="136" fill="transparent"/><g class="spiano" style="transform-box:fill-box;transform-origin:50% 100%">
+  <rect x="158" y="352" width="88" height="98" rx="4" fill="#8e5bd0" ${K}/><rect x="152" y="392" width="100" height="16" rx="3" fill="#fff" ${K} stroke-width="2.5"/>
+  <path d="${[0,1,2,3,4,5,6].map(i=>`M${162+i*13},392 v9`).join(' ')}" stroke="${INK}" stroke-width="4"/>
+  <rect x="170" y="362" width="64" height="20" rx="4" fill="#fff3c4" stroke="${INK}" stroke-width="2"/><text x="202" y="377" text-anchor="middle" class="sign" style="font-size:13px">PLAY ME</text>
+  <path d="M164,450 v-40 M240,450 v-40" stroke="${INK}" stroke-width="3"/></g>
+  <text x="202" y="340" text-anchor="middle" class="lbl">PIANO</text>`;
+}
+function eurostarTrain(){
+  return `<rect x="250" y="220" width="150" height="236" fill="transparent"/><g transform="translate(18,0)">
+  <path d="M404,256 H292 Q248,262 236,330 Q230,380 246,424 H404Z" fill="#fff" ${K}/>
+  <path d="M236,330 Q230,380 246,424 H272 Q256,380 262,330 Q270,280 292,256 Q248,262 236,330Z" fill="#ffd34d" stroke="${INK}" stroke-width="2.5"/>
+  <path d="M260,300 Q270,270 296,266 H330 V300Z" fill="#9fd0ef" stroke="${INK}" stroke-width="2.5"/>
+  <path d="M262,380 H404" stroke="#23345a" stroke-width="10"/>
+  ${[344,384].map(x=>`<rect x="${x-14}" y="282" width="28" height="20" rx="5" fill="#9fd0ef" stroke="${INK}" stroke-width="2"/>`).join('')}
+  <rect x="298" y="316" width="34" height="96" rx="5" fill="#e9eef5" stroke="${INK}" stroke-width="2.5"/><circle cx="326" cy="364" r="2.5" fill="${INK}"/>
+  <text x="372" y="350" text-anchor="middle" class="sign" style="font-size:15px;fill:#23345a">EUROSTAR</text>
+  <circle cx="290" cy="440" r="11" fill="${INK}"/><circle cx="370" cy="440" r="11" fill="${INK}"/></g>`;
+}
+const ES_VIEW=['Bye bye, London! Green fields go whoosh.','Whoosh! A long dark tunnel. We are going UNDER the sea!','Out of the tunnel… Bonjour, France! Fields and cows. Moo!'];
+function esWindow(){
+  const v=S.tp.view||0;
+  const view=v===1?`<rect x="30" y="120" width="340" height="120" fill="#2b2f3a"/><g class="drift">${[0,1,2,3,4,5,6].map(i=>`<rect x="${40+i*70}" y="140" width="30" height="5" rx="2" fill="#ffe08a"/><rect x="${70+i*70}" y="214" width="30" height="5" rx="2" fill="#ffe08a"/>`).join('')}</g>`
+    :`<rect x="30" y="120" width="340" height="120" fill="#bfe3fa"/><path d="${cloud(120,146,26,9,7)}" fill="#fff"/><path d="${cloud(290,140,22,8,6)}" fill="#fff"/>
+      <g class="drift"><path d="M10,240 Q90,170 170,206 T330,196 T490,210 V240Z" fill="${v===2?'#c9d86a':'#7fae6b'}" stroke="${INK}" stroke-width="2"/>
+      ${v===2?[60,180,300,420].map(x=>`<g transform="translate(${x},222)"><ellipse rx="10" ry="6" fill="#fff" stroke="${INK}" stroke-width="1.5"/><circle cx="-4" cy="-1" r="2.5" fill="${INK}"/><circle cx="10" cy="-3" r="4" fill="#fff" stroke="${INK}" stroke-width="1.5"/></g>`).join('')+[120,240,360].map(x=>blossom(x,216,'#ffd34d',1)).join('')
+        :[80,200,330,450].map((x,i)=>`<rect x="${x}" y="${196+i%2*6}" width="18" height="${18+i%2*4}" fill="${['#f7b9d0','#ffd98a','#cfd3dc','#c9e6a8'][i]}" stroke="${INK}" stroke-width="1.5"/><path d="M${x-3},${196+i%2*6} l12,-10 l12,10" fill="#d8243c" stroke="${INK}" stroke-width="1.5"/>`).join('')}</g>`;
+  return `<rect x="22" y="112" width="356" height="136" rx="16" fill="#e9eef5" ${K}/><g clip-path="url(#esWin)">${view}</g>
+  <rect x="30" y="120" width="340" height="120" rx="10" fill="none" stroke="${INK}" stroke-width="2.5"/><path d="M200,120 V240" stroke="#e9eef5" stroke-width="8"/><path d="M200,120 V240" stroke="${INK}" stroke-width="2"/>`;
+}
+function esTable(){
+  const had=S.tp.snack;
+  return `<rect x="150" y="310" width="110" height="146" fill="transparent"/>
+  <rect x="150" y="360" width="104" height="10" rx="3" fill="#a8652f" ${K} stroke-width="2.5"/><path d="M202,370 V450" stroke="${INK}" stroke-width="7"/><path d="M202,370 V450" stroke="#a8652f" stroke-width="3"/>
+  <g transform="translate(184,360)">${latteCup()}</g>${had?'':`<path d="M178,330 q-4,-8 2,-14 M190,330 q-4,-8 2,-14" fill="none" stroke="#cfd3dc" stroke-width="2.5" stroke-linecap="round" class="bob"/>`}
+  <g transform="translate(228,358)"><path d="M-14,0 Q-16,-12 -4,-10 Q0,-18 4,-10 Q16,-12 14,0Z" fill="#f1c76a" stroke="${INK}" stroke-width="2"/></g>
+  <text x="202" y="306" text-anchor="middle" class="lbl">SNACK</text>`;
+}
+function eiffel(){
+  const lit=S.tp.tower;
+  return `<rect x="270" y="40" width="130" height="290" fill="transparent"/><g class="eif">
+  <path d="M282,326 Q312,250 326,150 L332,62 H338 L344,150 Q358,250 388,326 H362 Q350,284 335,284 Q320,284 308,326Z" fill="#a8652f" ${K}/>
+  <path d="M312,236 H358 M320,176 H350 M328,120 H342" stroke="${INK}" stroke-width="4"/>
+  <path d="M300,300 L346,238 M370,300 L324,238 M316,230 L348,180 M354,230 L322,180" stroke="#7a4a26" stroke-width="1.6"/>
+  <path d="M335,62 V44" stroke="${INK}" stroke-width="2.5"/>
+  ${lit?[[300,300],[370,300],[322,220],[348,220],[330,150],[340,110],[335,70],[312,260],[358,260]].map(([x,y],i)=>`<g class="bob" style="animation-delay:-${i*.3}s"><path d="${starPath(x,y,5)}" fill="#ffe08a" stroke="${INK}" stroke-width="1"/></g>`).join(''):''}</g>
+  <text x="335" y="36" text-anchor="middle" class="lbl">EIFFEL TOWER</text>`;
+}
+function boulangerie(){
+  return `<rect x="6" y="210" width="140" height="246" fill="transparent"/>
+  <rect x="12" y="250" width="128" height="200" fill="#2c6fb3" ${K}/><rect x="16" y="222" width="120" height="30" rx="4" fill="#fffaf6" ${K} stroke-width="2.5"/>
+  <text x="76" y="243" text-anchor="middle" class="sign" style="font-size:15px">BOULANGERIE</text>
+  ${awning(12,250,6,21.4,'#fff','#2c6fb3')}
+  <rect x="22" y="284" width="72" height="70" rx="4" fill="#fff3c4" ${K} stroke-width="2.5"/>
+  ${[[40,320],[66,320],[52,342]].map(([x,y])=>`<path d="M${x-12},${y} Q${x-14},${y-10} ${x-4},${y-9} Q${x},${y-16} ${x+4},${y-9} Q${x+14},${y-10} ${x+12},${y}Z" fill="#f1c76a" stroke="${INK}" stroke-width="1.8"/>`).join('')}
+  <path d="M30,300 L86,292" stroke="#d9a066" stroke-width="7" stroke-linecap="round"/><path d="M30,300 L86,292" stroke="${INK}" stroke-width="1" stroke-dasharray="3 6"/>
+  <path d="M100,450 V384 q0,-14 15,-14 q15,0 15,14 V450Z" fill="#fff3c4" ${K}/>`;
+}
+const croissant=(x,y)=>`<g transform="translate(${x},${y}) scale(1.3)"><path d="M-12,0 Q-14,-10 -4,-9 Q0,-16 4,-9 Q14,-10 12,0Z" fill="#f1c76a" stroke="${INK}" stroke-width="1.8"/></g>`;
+function painterCat(){
+  const done=S.tp.portrait;
+  return `<rect x="146" y="250" width="124" height="206" fill="transparent"/>
+  <path d="M178,450 L196,300 M238,450 L220,300 M208,450 V320" stroke="#a8652f" stroke-width="5" stroke-linecap="round"/>
+  <rect x="176" y="282" width="64" height="70" fill="#fff" ${K} stroke-width="2.5"/>
+  ${done?`<g transform="translate(208,346) scale(.3)">${catSVG('happy',false,false,PINK,wearNow())}</g>`:`<path d="M186,330 q14,-20 30,-6 t14,-4" fill="none" stroke="#2c8fd6" stroke-width="3" stroke-linecap="round"/>`}
+  <g class="artist" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(152,450) scale(.55)">${catSVG('happy',false,false,CALICO,{hat:'beret'})}</g></g>
+  <text x="208" y="270" text-anchor="middle" class="lbl">PAINTER</text>`;
+}
+function poodle(){
+  return `<rect x="282" y="368" width="108" height="88" fill="transparent"/><g class="pood" style="transform-box:fill-box;transform-origin:50% 100%">
+  <circle cx="372" cy="400" r="9" fill="#f38db5" ${K} stroke-width="2"/><path d="M366,410 l-4,-8" stroke="${INK}" stroke-width="3"/>
+  <ellipse cx="338" cy="420" rx="28" ry="15" fill="#f6b3cb" ${K} stroke-width="2.5"/>
+  <path d="M318,430 V448 M328,432 V448 M350,432 V448 M358,430 V448" stroke="${INK}" stroke-width="4" stroke-linecap="round"/>
+  ${[318,328,350,358].map(x=>`<circle cx="${x}" cy="450" r="5" fill="#f38db5" stroke="${INK}" stroke-width="1.8"/>`).join('')}
+  <circle cx="308" cy="396" r="15" fill="#f6b3cb" ${K} stroke-width="2.5"/><circle cx="306" cy="380" r="10" fill="#f38db5" stroke="${INK}" stroke-width="2"/>
+  <ellipse cx="296" cy="402" rx="6" ry="12" fill="#f38db5" stroke="${INK}" stroke-width="2"/><circle cx="304" cy="396" r="2.3" fill="${INK}"/><circle cx="294" cy="402" r="2.6" fill="${INK}"/>
+  <rect x="312" y="404" width="14" height="5" rx="2" fill="#2c8fd6" stroke="${INK}" stroke-width="1.2"/></g>`;
+}
+const BONJOUR=[['BONJOUR!','Bonjour! That is how you say hello in French!'],['MERCI!','Merci! That means thank you!'],['AU REVOIR!','Au revoir! That means goodbye!']];
+const CIAO=[['CIAO!','Ciao! That is how you say hello in Italian!'],['GRAZIE!','Grazie! That means thank you!'],['ARRIVEDERCI!','Arrivederci! That means goodbye!']];
+function esTicket(){
+  faceLeft();
+  if(S.tp.ticket){react('happy');say('The ticket cat says: bon voyage! That means have a good trip.');return}
+  S.busy=true;sfx.coin();bubble(79,250,'ONE TICKET!','#23345a');say('One ticket to Paris, please!','');
+  later(()=>{S.tp.ticket=true;S.busy=false;render();sfx.sticker();react('happy');say('Here is your ticket to Paris! The ticket cat says: bon voyage!')},1100);
+}
+// the station piano plays the first notes of Frère Jacques
+const JACQUES=[0,1,2,0,0,1,2,0,2,3,4];
+function playStation(){
+  faceRight();S.busy=true;S.tp.piano=true;const p=$('.spiano');p&&restartClass(p,'wiggle',900);
+  say('Anyone can play this piano! Plink plonk…','');
+  JACQUES.forEach((n,i)=>later(()=>{sfx.note(n);floatNote(170+(i%6)*14,330,KEYC[n])},i*300));
+  later(()=>{const an=$('#catAnim');an&&restartClass(an,'dance',1800)},700);
+  later(()=>{S.busy=false;react('happy');say('Frère Jacques! A French song, ready for Paris. Everybody claps! Poooourrr!')},JACQUES.length*300+300);
+}
+function boardEurostar(){
+  if(!S.tp.ticket){bubble(S.x,headY(),'TICKET?','#2c8fd6');say('You need a ticket first! Go to the Eurostar desk.');return}
+  S.busy=true;sfx.ding();setTimeout(()=>sfx.ding(),350);bubble(318,200,'ALL ABOARD!','#23345a');say('All aboard the Eurostar! Next stop: Paris!','');
+  later(()=>{S.busy=false;go('eurostar','left')},900);
+}
+function esLook(){
+  faceRight();const v=S.tp.view||0;
+  if(v<2){S.tp.view=v+1;render();faceRight()}
+  sfx.whoosh();react('happy',v<2);say(v<2?ES_VIEW[v+1]:'France goes whoosh past the window. Paris is nearly here!');
+}
+function esSnack(){
+  faceRight();const first=!S.tp.snack;S.tp.snack=true;render();faceRight();sfx.slurp();react('happy');
+  say(first?'A hot chocolate and a little cake. Slurp! Yummy! Poooourrr!':'All gone! Only crumbs left.');
+}
+function tapEiffel(){
+  faceRight();const first=!S.tp.tower;S.tp.tower=true;render();faceRight();sfx.twinkle(5);setTimeout(()=>sfx.twinkle(4),200);
+  burst(335,200,(x,y,j)=>`<path d="${starPath(x,y,7)}" fill="#ffe08a" stroke="${INK}" stroke-width="1.2"/>`);
+  react('happy');say(first?'The Eiffel Tower! It is so tall… and look, it sparkles! Ooh la la!':'Sparkle sparkle! The Eiffel Tower is the tallest thing in Paris.');
+}
+function eatCroissant(){
+  faceLeft();S.busy=true;sfx.coin();bubble(76,200,'UN CROISSANT!','#2c6fb3');say('Un croissant, s\'il vous plaît! That means a croissant, please.','');
+  later(()=>flyToMouth(croissant,60,320,()=>{S.tp.croissant=(S.tp.croissant||0)+1;S.busy=false;sfx.crunch(true);react('happy');
+    say(S.tp.croissant>1?'Another croissant! Flaky crumbs everywhere. Yum!':'Crunch crunch! A warm, buttery croissant! Poooourrr!')}),700);
+}
+function paintMe(){
+  faceLeft();
+  if(S.tp.portrait&&S.souv.includes('beret')){const a=$('.artist');a&&restartClass(a,'wiggle',900);react('happy');say('The painter says: you are my favourite model! Magnifique!');return}
+  S.busy=true;const a=$('.artist');a&&restartClass(a,'wiggle',900);sfx.stick();say('The painter says: sit still, please! Swish, swish, dab…','');
+  later(()=>{S.tp.portrait=true;render();faceLeft();sfx.sticker();bubble(208,250,'MAGNIFIQUE!','#e0508a');say('Ta-da! A painting of you! Magnifique!','')},1500);
+  later(()=>{if(!S.souv.includes('beret'))S.souv.push('beret');S.hat='beret';S.dressed=true;S.busy=false;clearBubbles();render();faceLeft();sfx.sticker();react('happy');
+    say('The painter gives you a beret! Now you look like a real French artist. It goes in your dress-up drawer.')},3000);
+}
+function tapPoodle(){
+  faceRight();const i=(S.tp.poo||0)%BONJOUR.length;S.tp.poo=(S.tp.poo||0)+1;
+  const p=$('.pood');p&&restartClass(p,'jump',700);sfx.woof();bubble(320,320,BONJOUR[i][0],'#e0508a');say(BONJOUR[i][1],'');
+  later(()=>{clearBubbles();react('happy');say(BONJOUR[i][1])},1000);
+}
+function parisHome(){leave(-60,()=>endTrip(`You take the Eurostar all the way home to London, under the sea again. Home sweet home! What a holiday, ${nm()}!`))}
+
+/* ---------- Italy: the plane from Heathrow, then Venice with a gondola and gelato ---------- */
+function gelatoCart(){
+  return `<rect x="6" y="250" width="134" height="206" fill="transparent"/>
+  <path d="M74,300 V268" stroke="${INK}" stroke-width="3"/><path d="M20,272 Q74,228 128,272Z" fill="#fff" ${K}/>${[0,2].map(i=>`<path d="M74,232 L${20+i*36},272 L${38+i*36},272Z" fill="#7fc36b" stroke="${INK}" stroke-width="1.8"/>`).join('')}<path d="M20,272 Q74,228 128,272Z" fill="none" ${K}/>
+  <rect x="22" y="330" width="104" height="80" rx="6" fill="#f38db5" ${K}/><rect x="22" y="320" width="104" height="18" rx="4" fill="#e6f6ff" ${K} stroke-width="2.5"/>
+  ${['#f38db5','#9fd34d','#7a4a26','#fff3c4'].map((c,i)=>`<ellipse cx="${36+i*25}" cy="322" rx="10" ry="6" fill="${c}" stroke="${INK}" stroke-width="1.6"/>`).join('')}
+  <text x="74" y="378" text-anchor="middle" class="sign" style="font-size:18px;fill:#fff">GELATO</text>
+  <circle cx="40" cy="420" r="11" fill="#3a3346" ${K} stroke-width="2.5"/><circle cx="108" cy="420" r="11" fill="#3a3346" ${K} stroke-width="2.5"/>
+  <g class="gseller" style="transform-box:fill-box;transform-origin:50% 100%"><g transform="translate(132,450) scale(.42)">${catSVG('happy',false,false,GINGER)}</g></g>`;
+}
+const GELATO=[['STRAWBERRY','#f38db5'],['PISTACHIO','#9fd34d'],['CHOCOLATE','#7a4a26']];
+const coneArt=c=>(x,y)=>`<g transform="translate(${x},${y}) scale(1.3)"><path d="M-8,-2 L0,16 L8,-2Z" fill="#e8b46a" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/><circle cx="0" cy="-8" r="9" fill="${c}" stroke="${INK}" stroke-width="1.6"/></g>`;
+function pizzeria(){
+  return `<rect x="300" y="150" width="100" height="176" fill="transparent"/>
+  <rect x="304" y="236" width="90" height="28" rx="5" fill="#fff" ${K} stroke-width="2.5"/><text x="349" y="256" text-anchor="middle" class="sign" style="font-size:17px;fill:#d8243c">PIZZA</text>
+  <rect x="312" y="270" width="74" height="52" rx="6" fill="#ffe08a" ${K} stroke-width="2.5"/><path d="M322,316 Q349,282 376,316Z" fill="#3a3346" stroke="${INK}" stroke-width="2"/>
+  <path d="M332,316 q4,-8 8,0 q4,-10 9,0 q4,-8 8,0" fill="#f5891f"/>
+  <g transform="translate(349,194)"><circle r="22" fill="#f1c76a" ${K} stroke-width="2.5"/><circle r="17" fill="#d8243c"/>${[[-7,-5],[6,-7],[-2,7],[8,5]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="3.6" fill="#fff8e1" stroke="${INK}" stroke-width="1"/>`).join('')}<path d="M-4,-1 q2,-3 4,0" fill="none" stroke="#1f8a4c" stroke-width="2.5"/></g>`;
+}
+const sliceArt=(x,y)=>`<g transform="translate(${x},${y}) scale(1.3)"><path d="M-10,-8 L10,-8 L0,12Z" fill="#d8243c" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/><path d="M-11,-10 H11" stroke="#f1c76a" stroke-width="5" stroke-linecap="round"/><circle cx="-2" cy="-2" r="2" fill="#fff8e1"/><circle cx="3" cy="3" r="2" fill="#fff8e1"/></g>`;
+const gondolaArt=(cat,rowing)=>`<path d="M-96,-6 Q-110,-10 -116,-30 Q-108,-14 -90,-14 H84 Q100,-14 108,-30 Q104,-6 90,4 H-80 Q-92,4 -96,-6Z" fill="#2b2f3a" ${K}/>
+  <path d="M-80,-6 H84" stroke="#d6ad45" stroke-width="2.5"/><path d="M104,-28 h12 v-6 h-10" fill="#cfd3dc" stroke="${INK}" stroke-width="1.6"/>
+  ${cat?`<g transform="translate(-20,-10) scale(.5)">${rider()}</g>`:`<rect x="-34" y="-28" width="34" height="14" rx="4" fill="#d8243c" stroke="${INK}" stroke-width="2"/>`}
+  <g transform="translate(58,-12) scale(.5)">${catSVG('happy',false,false,SOOT,{hat:'boater'})}</g>
+  <g${rowing?' class="sway"':''} style="transform-box:fill-box;transform-origin:50% 0%"><path d="M76,-62 L96,30" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M76,-62 L96,30" stroke="#d9a066" stroke-width="2.5" stroke-linecap="round"/></g>`;
+function gondolaHot(){
+  return `<rect x="110" y="300" width="240" height="120" fill="transparent"/><g transform="translate(220,392)"><g class="bob">${gondolaArt(false,false)}</g></g>
+  <text x="200" y="312" text-anchor="middle" class="lbl">GONDOLA</text>`;
+}
+function rideGondola(){
+  S.busy=true;S.ride='gondola';clearTimeout(moodT);S.mood='normal';clearBubbles();render();sfx.splash();
+  say('You hop into the gondola. The gondolier pushes off with his long oar…','');
+  stage.insertAdjacentHTML('beforeend',`<g id="rider" pointer-events="none" transform="translate(220,392)">${gondolaArt(true,true)}</g>`);
+  const el=$('#rider'),g=GEN,t0=performance.now();
+  later(()=>{sfx.sole();bubble(260,220,'♪ O SOLE MIO ♪','#d8243c');say('The gondolier sings: O sole mio! Your gondola glides along the canal…','')},1100);
+  (function step(t){
+    if(g!==GEN||!el.isConnected)return;
+    const s=(t-t0)/1000;
+    if(s>=5.4){S.ride=null;S.tp.gondola=true;S.x=200;S.face=1;clearBubbles();
+      const hat=!S.souv.includes('boater');if(hat){S.souv.push('boater');S.hat='boater';S.dressed=true}
+      render();follow();S.busy=false;sfx.sticker();react('happy');
+      say(hat?'What a ride! The gondolier gives you his straw hat. Grazie! It goes in your dress-up drawer.':'What a lovely ride on the canal! Grazie! Poooourrr!');return}
+    const x=220-90*Math.sin(s*1.16),y=392+3*Math.sin(s*2.6);
+    el.setAttribute('transform',`translate(${x.toFixed(1)},${y.toFixed(1)})`);
+    requestAnimationFrame(step);
+  })(t0);
+}
+function buyGelato(){
+  faceLeft();const n=S.tp.gelato||0,[name,c]=GELATO[n%GELATO.length],w=CIAO[n%CIAO.length];
+  S.busy=true;const s=$('.gseller');s&&restartClass(s,'wiggle',900);sfx.coin();bubble(110,260,w[0],'#f5891f');say(`${w[1]} One ${name.toLowerCase()} gelato, please!`,'');
+  later(()=>flyToMouth(coneArt(c),74,300,()=>{S.tp.gelato=n+1;S.busy=false;sfx.slurp();react('happy');
+    say(n?`A ${name.toLowerCase()} gelato! Lick lick… Brrr, so cold! Poooourrr!`:`A ${name.toLowerCase()} gelato! Gelato is Italian ice cream. Lick lick… Brrr, so cold! Poooourrr!`)}),900);
+}
+function eatPizza(){
+  faceRight();S.busy=true;sfx.coin();bubble(300,150,'PIZZA!','#d8243c');say('A slice of pizza Margherita, please! Pizza comes from Italy.','');
+  later(()=>flyToMouth(sliceArt,349,290,()=>{S.tp.pizza=(S.tp.pizza||0)+1;S.busy=false;sfx.crunch(true);react('happy');
+    say(S.tp.pizza>1?'Another slice! Stretchy cheese everywhere. Mmm!':'Mmm! Hot pizza with stretchy cheese! Delizioso! That means delicious.')}),700);
+}
+
 const SC={
   bed:{
     draw:()=>`<rect width="400" height="520" fill="${S.big?'#efe4f7':'#fde6ee'}"/><rect width="400" height="450" fill="url(#heartpaper)"/>
@@ -2413,6 +3068,7 @@ const SC={
       // in the big house the dresser moves over to make room for the slide
       h.push({id:'drawer',label:'Dress-up drawer',svg:S.big?`<g transform="translate(-300,0)">${dresser()}</g>`:dresser(),walk:S.big?60:300,tap:()=>S.awake?go('dress',270):wake()});
       h.push({id:'vase',label:ART.vase.label,svg:framed('vase',298,136,72),walk:300,tap:()=>S.awake?lookAt('vase'):wake()});
+      h.push({id:'diary',label:'Your diary',svg:diaryBook(),walk:140,tap:()=>S.awake?go('diary'):wake()});
       if(S.awake){
         h.push({id:'yarn',label:'Ball of yarn',svg:yarnHot(),walk:()=>typeof S.yarn==='number'?YARNX[S.yarn]-46:S.yarn==='done'?250:undefined,tap:batYarn});
         if(S.big) h.push({id:'slide',label:'Slide down to the hall',svg:bedSlide(),walk:364,tap:slideDown});
@@ -2434,7 +3090,8 @@ const SC={
       :homeward()&&!S.bath?{id:'go-bath',hint:'Bath time before bed! ↖'}
       :homeward()&&S.teeth!=='done'&&!S.nag?{id:'go-bath',hint:'Brush your teeth before bed! ↖'}
       :homeward()&&!S.wink?{id:'ladder',hint:'Climb the ladder to the roof ↑'}
-      :homeward()?{id:'bed',hint:'Tap the bed for a nap'}
+      :homeward()&&!S.wrote?{id:'diary',hint:'Write in your diary! Tap it'}
+      :homeward()?{id:'bed',hint:'Tap the bed for a bedtime story'}
       :{id:down,hint:S.big?'Take the slide down! ↘':'Go and explore ↗'};
     },
     enter:()=>{const room=S.big?'your big bedroom, upstairs':'your bedroom';
@@ -2444,6 +3101,7 @@ const SC={
       :night()&&!S.bath?'It is night! Bath time before bed…'
       :night()&&S.teeth!=='done'&&!S.nag?'It is night! Teeth time before bed…'
       :night()&&!S.wink?'It is night! A ladder goes up to the roof.'
+      :night()&&!S.wrote?'Back in your bedroom. Time to write in your diary!'
       :night()?'Back in your bedroom. What a big day!'
       :`This is ${room}. Your cloud bed is so soft.`)},
     // stop before the dresser so it stays in sight
@@ -2490,6 +3148,7 @@ const SC={
       :S.tummy<3&&S.ache?{id:'go-bed',hint:S.big?'Medicine first! Go upstairs to the bathroom ↖':'Medicine first! Go to the bathroom ↖'}
       :S.tummy<3?{id:'fridge',hint:'Tap the fridge for some food'}
       :S.newStk.length?{id:'fridge',hint:'New sticker! Tap the fridge'}
+      :!homeward()&&!S.mineN&&fridgeShut()?{id:'fridge',hint:'Draw your own sticker! Tap the fridge'}
       :!homeward()&&S.bird==='here'?{id:'bird',hint:'A bird at the window! Tap it'}
       :!homeward()&&typeof S.cup==='number'?{id:'cup',hint:'A cup on the edge… push it!'}
       :homeward()?{id:'go-bed',hint:S.big?'It is night! Go upstairs to bed ↖':'It is night! Go to the bedroom ↖'}
@@ -2718,10 +3377,13 @@ const SC={
     hots:()=>[
       {id:'pond',label:'Pond',svg:pond(),walk:96,tap:tapPond},
       ...[0,1].map(i=>({id:'duck'+i,label:'Duck',svg:parkDuck(i),walk:96,tap:()=>quack(i)})),
-      toSquare()
+      toSquare(),
+      {id:'go-hill',label:'Go up the big hill',svg:arrow('right','HILL'),tap:()=>leave(460,()=>go('hill','left'))}
     ],
-    goal:()=>placeGoal(()=>!S.pondN?{id:'pond',hint:'A pond! What lives in it? Tap it'}
-      :!S.quackN?{id:'duck0',hint:'Say hello to the ducks'}:null,
+    goal:()=>placeGoal(()=>wxDay()&&!wxDone()?{id:'go-hill',hint:snowy()?'Snow day! Go up the big hill to play ↗':'Puddles! Go up the big hill and jump in them ↗'}
+      :!S.pondN?{id:'pond',hint:'A pond! What lives in it? Tap it'}
+      :!S.quackN?{id:'duck0',hint:'Say hello to the ducks'}
+      :!S.hill?{id:'go-hill',hint:'There is a big hill! Go and see ↗'}:null,
       ()=>S.pondN<=S.quackN?{id:'pond',hint:`Watch the fish jump for hearts (${S.hearts} of ${FISH})`}
       :{id:'duck'+(S.quackN%2),hint:`Say hello to the ducks for hearts (${S.hearts} of ${FISH})`}),
     over:()=>SC.city.over(),
@@ -2965,6 +3627,7 @@ const SC={
       ${nt?[[90,330],[170,350],[300,320],[260,370],[40,380]].map(([x,y],i)=>`<g class="bob" style="animation-delay:-${i*.5}s"><circle cx="${x}" cy="${y}" r="7" fill="#fff3b0" opacity=".45"/><circle cx="${x}" cy="${y}" r="2.5" fill="#fff3b0"/></g>`).join(''):''}
       ${deco(360,452,.6)}`},
     hots:()=>[
+      {id:'pethouse',label:'Pet house',svg:petHouse(),walk:150,tap:()=>{say(S.pets.length?'You open the door of the pet house…':'A little pet house! You open the door…','');go('pets','left')}},
       {id:'flowers',label:'Flower bed',svg:flowerBed(),walk:156,tap:waterFlowers},
       {id:'tramp',label:'Trampoline',svg:trampoline(),walk:230,tap:bounce},
       {id:'hog',label:'Bush',svg:hogBush(),walk:262,tap:tapHog},
@@ -2975,6 +3638,8 @@ const SC={
       :homeward()?{id:'go-house',hint:'It is night! Go back inside ↖'}
       :S.bloom<3?{id:'flowers',hint:`Water the flowers! (${S.bloom} of 3)`}
       :!S.watered?{id:'flowers',hint:'Your flowers are thirsty. Water them!'}
+      :hungryPets().length?{id:'pethouse',hint:'Your pets are hungry! Tap the pet house'}
+      :!S.pets.length||(S.pets.length<3&&S.petDay!==S.day&&!S.gswim)?{id:'pethouse',hint:S.pets.length?'A new pet can come today! Tap the pet house':'A pet house! Who could live there? Tap it'}
       :!S.gswim?{id:'go-pool',hint:'Your very own swimming pool! Go and see ↗'}
       :!S.tramp?{id:'tramp',hint:'A trampoline! Tap it and bounce'}
       :!S.hogN?{id:'hog',hint:'Something rustles in the bush… tap it'}
@@ -3118,14 +3783,14 @@ const SC={
       ${signBoard(200,18,150,'HEATHROW',18)}${deco(340,452,.55)}`,
     hots:()=>[
       {id:'jet',label:'Your plane',svg:bigPlane(),walk:300,tap:tapJet},
-      {id:'board',label:'Departures board',svg:`<rect x="20" y="100" width="170" height="104" fill="transparent"/>${departBoard(['RIO ✈ BOARDING','PARIS 10:40','NEW YORK 11:05'])}`,walk:130,tap:readBoard},
+      {id:'board',label:'Departures board',svg:`<rect x="20" y="100" width="170" height="104" fill="transparent"/>${departBoard(italy()?['VENICE ✈ BOARDING','RIO 10:40','NEW YORK 11:05']:['RIO ✈ BOARDING','VENICE 10:40','NEW YORK 11:05'])}`,walk:130,tap:readBoard},
       {id:'desk',label:'Check-in desk',svg:deskArt(),walk:240,tap:checkIn},
       tripHome(),
       {id:'gate',label:'Go to the gate',svg:arrow('right','GATE'),tap:toGate}
     ],
     goal:()=>!S.tp.ticket?{id:'desk',hint:'Check in your suitcase at the desk'}:{id:'gate',hint:'You have your ticket! Go to the gate ↗'},
     landLeft:250,
-    enter:()=>say('London Heathrow airport! Big planes everywhere. Your plane goes to Rio de Janeiro, in Brazil.')
+    enter:()=>say(`London Heathrow airport! Big planes everywhere. Your plane goes to ${italy()?'Venice, in Italy':'Rio de Janeiro, in Brazil'}.`)
   },
   plane:{
     noCat:true,
@@ -3143,16 +3808,16 @@ const SC={
     hots:()=>[
       {id:'window',label:'Window',svg:`<rect x="70" y="126" width="60" height="86" fill="transparent"/>${planeWin(100,S.tp.landed?3:S.tp.view||0)}`,tap:lookOut},
       {id:'trolley',label:'Penguin with the snack trolley',svg:trolley(),tap:planeSnack},
-      S.tp.landed?{id:'land',label:'Get off the plane',svg:arrow('right','BRAZIL'),tap:()=>go('beach','left')}
+      S.tp.landed?{id:'land',label:'Get off the plane',svg:arrow('right',italy()?'ITALY':'BRAZIL'),tap:()=>go(italy()?'venice':'beach','left')}
         :{id:'pillow',label:'Pillow',svg:neckPillow(),tap:planeNap}
     ],
     goal:()=>S.tp.nap?{id:'',hint:''}
-      :S.tp.landed?{id:'land',hint:'We are in Brazil! Get off the plane ↗'}
+      :S.tp.landed?{id:'land',hint:`We are in ${italy()?'Italy':'Brazil'}! Get off the plane ↗`}
       :(S.tp.view||0)<2?{id:'window',hint:'Look out of the window!'}
       :!S.tp.snack?{id:'trolley',hint:'Snack time! Tap the trolley'}
       :{id:'pillow',hint:'It is a long way. Tap the pillow for a nap'},
     before:()=>{S.x=SEATX[0];S.face=1;if(S.tp.nap){S.tp.nap=false;S.tp.landed=true}},
-    enter:()=>{if(S.tp.landed){say('The plane has landed in Brazil!');return}
+    enter:()=>{if(S.tp.landed){say(`The plane has landed in ${italy()?'Italy':'Brazil'}!`);return}
       sfx.whoosh();say('Click! Seat belt on. Whoosh… the plane takes off! Bye bye, London!')}
   },
   beach:{
@@ -3308,14 +3973,16 @@ const SC={
     hots:()=>[
       {id:'door',label:'Fridge door',svg:`<rect x="${DOOR.x}" y="${DOOR.y}" width="${DOOR.w}" height="${DOOR.h}" fill="transparent"/>`,tap:stickIt},
       {id:'dots',label:ART.dots.label,svg:taped(DOOR.x+16,DOOR.y+26,124),tap:()=>S.newStk.length?stickIt():lookAt('dots')},
-      ...S.stk.map((s,i)=>({id:'stk'+i,label:STK[s.i].name+' sticker',svg:placed(s,i),tap:()=>S.newStk.length?stickIt():admire(i)})),
+      ...S.stk.map((s,i)=>({id:'stk'+i,label:stkName(s.i)+' sticker',svg:placed(s,i),tap:()=>S.newStk.length?stickIt():admire(i)})),
       ...(S.newStk.length?[{id:'tray',label:'New sticker',svg:`<circle cx="346" cy="300" r="38" fill="transparent"/>
         <text x="346" y="248" text-anchor="middle" class="lbl">NEW!</text><g transform="translate(346,300) scale(1.2)"><g class="pulse">${stkSVG(S.newStk[0])}</g></g>`,
         tap:()=>say('Tap the fridge door to stick it on!')}]:[]),
+      {id:'pad',label:'Draw your own sticker',svg:sketchPad(),tap:()=>go('sketch')},
       {id:'go-kitchen',label:'Back to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>go('kitchen',170)}
     ],
     goal:()=>S.newStk.length?{id:'door',hint:'Tap the fridge door to stick it on!'}
-      :{id:'go-kitchen',hint:'Tap a sticker, or go back ↖'},
+      :!S.sketched?{id:'pad',hint:'Draw your own sticker! Tap the pad ↙'}
+      :{id:'go-kitchen',hint:'Tap a sticker, draw another, or go back ↖'},
     enter:()=>say(S.newStk.length?`Your fridge door! You have ${S.newStk.length>1?'new stickers':'a new sticker'}.`:'Your fridge door. Look at your stickers!')
   },
   look:{
@@ -3338,6 +4005,203 @@ const SC={
     enter:()=>say(ART[S.look.k].story)
   }
 };
+
+/* ---------- scenes for the diary, the bedtime story, pets, stickers, the hill, Paris and Venice ---------- */
+Object.assign(SC,{
+  diary:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#e8b47a"/><path d="M0,104 H400" stroke="#d29a5e" stroke-width="3"/><path d="M0,40 H400 M0,72 H400" stroke="#d29a5e" stroke-width="2" opacity=".6"/>
+      <text x="200" y="66" text-anchor="middle" class="sign" style="font-size:28px;fill:#fff;stroke:${INK};stroke-width:1px">${nm().toUpperCase()}'S DIARY</text>`,
+    hots:()=>{const n=pages().length;return [
+      {id:'go-back',label:'Back to the bedroom',svg:arrow('left','BEDROOM'),tap:()=>go('bed',120)},
+      {id:'page',label:'Diary page: tap to hear it',svg:diaryPage(),tap:()=>{sfx.twinkle(2);readPage()}},
+      {id:'prev',label:'Older page',svg:pgBtn(120,-1,S.dpg>0),tap:()=>turnPage(-1)},
+      {id:'next',label:'Newer page',svg:pgBtn(280,1,S.dpg<n-1),tap:()=>turnPage(1)},
+      {id:'pnum',label:`Page ${S.dpg+1} of ${n}`,svg:`<text x="200" y="496" text-anchor="middle" class="sign" style="font-size:20px">${S.dpg+1} / ${n}</text>`,tap:readPage}
+    ]},
+    goal:()=>night()&&S.wrote?{id:'go-back',hint:'Now go back to bed ↖'}:{id:'',hint:'Tap ◀ ▶ to turn the pages. Tap a page to hear it!'},
+    before:()=>{S.dpg=pages().length-1;S.writing=night()&&!S.wrote;if(S.writing)S.wrote=true},
+    enter:()=>{
+      if(S.writing){const k=pageKeys(pageNow()).slice(0,6);
+        k.forEach((_,i)=>later(()=>sfx.scribble(),500+i*550));
+        say('You take your pencil and write about your day… scribble scribble!','');
+        later(()=>{S.writing=false;readPage()},700+k.length*550);return}
+      readPage()}
+  },
+  tale:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#22306a"/>${[[30,40],[120,24],[250,30],[380,60],[60,76],[330,22]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.2" fill="#fff"/>`).join('')}
+      <path d="M210,60 a18,18 0 1 0 18,22 a14,14 0 0 1 -18,-22Z" fill="#fff3b0" stroke="${INK}" stroke-width="2"/>
+      <rect y="400" width="400" height="120" fill="#efe4f7"/><path d="M0,400 H400" ${K}/>
+      <path d="${cloud(200,428,150,28,12)}" fill="#fff" ${K}/><ellipse cx="96" cy="410" rx="30" ry="13" fill="#f38db5" ${K}/>
+      <g transform="translate(150,420) rotate(-84) scale(.62)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('happy',false,false,PINK,{bow:S.bow,glasses:S.glasses})}</g></g>
+      ${S.pal?`<g transform="translate(300,418) rotate(-84) scale(.5)">${catSVG('sleep',false,false,GREY)}</g>`:''}`,
+    hots:()=>{const last=S.tale&&S.tpg===S.tale.length-1;return [
+      {id:'book',label:'Story book: tap to hear the page again',svg:S.tale?bookArt():'',tap:talePage},
+      {id:'next',label:last?'Good night':'Next page',svg:`<rect x="${last?190:226}" y="458" width="${last?196:160}" height="52" rx="16" fill="${last?'#8a6bd1':'#2c8fd6'}" ${K}/>
+        <text x="${last?288:306}" y="492" text-anchor="middle" class="sign" style="fill:#fff;font-size:21px">${last?'GOOD NIGHT ☾':'NEXT ▶'}</text>`,tap:nextTale}
+    ]},
+    goal:()=>({id:'next',hint:S.tale&&S.tpg===S.tale.length-1?'Tap GOOD NIGHT to go to sleep':'Tap NEXT for the next page'}),
+    enter:()=>talePage()
+  },
+  pets:{
+    draw:()=>`<rect width="400" height="520" fill="#fdeedd"/>${[[40,60],[140,40],[250,70],[350,44],[90,150],[200,130],[310,160],[40,220],[370,230]].map(([x,y],i)=>`<g transform="translate(${x},${y}) scale(1.4)" opacity=".35">${pawSVG(0,0,i%4,'#e8b47a')}</g>`).join('')}
+      <rect x="150" y="70" width="100" height="80" rx="6" fill="${night()?'#22306a':paneSky()}" ${K}/><path d="M200,70 V150 M150,110 H250" ${K}/>
+      <rect y="450" width="400" height="70" fill="#c98f5a"/><path d="M0,450 H400 M0,485 H400 M70,450 V485 M220,450 V485 M150,485 V520 M320,485 V520" stroke="${INK}" stroke-width="2.5"/>
+      <text x="200" y="190" text-anchor="middle" class="lbl">${nm().toUpperCase()}'S PET HOUSE</text>`,
+    hots:()=>[
+      ...['fish','puppy','bunny'].map(k=>({id:'home-'+k,label:S.pets.includes(k)?PETS[k].name:`Adopt a ${PETS[k].kind}`,svg:PETHOT[k](),walk:PETS[k].walk,tap:()=>tapPet(k)})),
+      {id:'go-garden',label:'Back to the garden',svg:arrow('left','GARDEN'),tap:()=>leave(-60,()=>go('garden',75))}
+    ],
+    goal:()=>{const h=hungryPets(),next=PETK.find(k=>!S.pets.includes(k));
+      return homeward()?{id:'go-garden',hint:'It is night! Say good night to your pets ↖'}
+        :h.length?{id:'home-'+h[0],hint:`${PETS[h[0]].name} is hungry! Tap to feed ${PETS[h[0]].he==='he'?'him':'her'}`}
+        :next&&S.petDay!==S.day?{id:'home-'+next,hint:`A ${PETS[next].kind} needs a home! Tap to adopt`}
+        :{id:'go-garden',hint:S.pets.length?'Play with your pets, or go back ↖':'Go back to the garden ↖'}},
+    onWalk:fishFollow,
+    landLeft:268,
+    enter:()=>{
+      if(!S.pets.length){say('Your very own pet house! It is empty… Who would like to live here?');return}
+      const k=S.pets[S.pets.length-1];
+      later(()=>{petJump('puppy');S.pets.includes('puppy')&&(sfx.woof(),bubble(166,330,'WOOF WOOF!','#a8652f'))},400);
+      later(()=>petJump('bunny'),900);later(()=>petJump('fish'),1300);
+      say(hungryPets().length?`Your pets are so happy to see you! But they are hungry…`:S.pets.length>1?'Your pets run to say hello! Woof, sniff, blub!':PETS[k].hi)}
+  },
+  sketch:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#dff1fb"/><rect width="400" height="404" fill="url(#dots)"/><rect y="404" width="400" height="116" fill="#e8b47a"/><path d="M0,404 H400" ${K}/>
+      <circle cx="${SKP.x+150}" cy="${SKP.y+150}" r="156" fill="#fff" ${K} stroke-width="4"/><circle cx="${SKP.x+150}" cy="${SKP.y+150}" r="150" fill="#fff" stroke="#cfd3dc" stroke-width="2" stroke-dasharray="8 8"/>`,
+    hots:()=>[
+      {id:'go-back',label:'Back to the fridge door',svg:arrow('left','FRIDGE'),tap:()=>go('stickers')},
+      ...(S.sketch.length?[{id:'stick',label:'Make it a sticker',svg:stickBtn(),tap:stickSketch}]:[]),
+      ...pots(),...drawTools()
+    ],
+    goal:()=>S.sketch.length>=3?{id:'stick',hint:'Draw more, or tap STICK IT ✓'}:{id:'',hint:'Draw your sticker with your finger! Pick a colour ↓'},
+    over:()=>`<g id="ink" pointer-events="none" transform="translate(${SKP.x},${SKP.y})"><g clip-path="url(#skClip)">${inkSVG(S.sketch)}</g></g>`,
+    enter:()=>say(S.sketch.length?'Your sticker is waiting. Draw some more!':'A round sticker, all white! Draw anything you like.')
+  },
+  hill:{
+    draw:()=>{const nt=night(),sn=snowy(),s=season();
+      return `<rect width="400" height="520" fill="${nt?'#22306a':paneSky()}"/>
+      ${nt?`<circle cx="90" cy="80" r="20" fill="#fff3b0" ${K}/>${[[180,50],[260,110],[340,60],[40,170]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.5" fill="#fff"/>`).join('')}`
+        :S.rain||sn?'':`<circle cx="90" cy="84" r="24" fill="#ffd34d" ${K}/>`}
+      ${S.rain&&S.puds.length>=PUDX.length&&!nt?rainbowArc():''}
+      <path d="${cloud(220,90,36,12,8)}" fill="${S.rain?'#e3e8ee':'#fff'}" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,330 Q60,300 130,320 V452 H0Z" fill="${sn?'#eef4fa':'#9bcf7c'}" ${K}/>
+      <path d="M110,452 C200,440 300,280 404,226 V452Z" fill="${sn?'#fbfdff':s==='autumn'?'#c9c46a':'#a8d98a'}" ${K}/>
+      ${sn?'':[[300,330],[350,290],[260,380]].map(([x,y],i)=>s==='autumn'?leaf(x,y,i*60,LEAFC[i%4]):s==='spring'?blossom(x,y,'#f38db5',.8):`<path d="M${x},${y} l-4,-8 M${x},${y} l4,-8 M${x},${y} v-9" stroke="#4f9c45" stroke-width="2.5" stroke-linecap="round"/>`).join('')}
+      <rect x="372" y="170" width="10" height="66" fill="#a8652f" stroke="${INK}" stroke-width="2"/><path d="${cloud(377,160,26,26,8)}" fill="${sn?'#fff':s==='autumn'?'#e8742a':'#5fae55'}" stroke="${INK}" stroke-width="2.5"/>
+      <rect y="450" width="400" height="70" fill="${sn?'#fbfdff':S.rain?'#b89870':'#d9c49a'}"/><path d="M0,450 H400" ${K}/>
+      ${deco(360,452,.55)}`},
+    hots:()=>[
+      ...(snowy()?[{id:'snowcat',label:'Snow for a snowcat',svg:snowCat(),walk:170,tap:buildSnowcat},
+        ...(S.ride==='sled'?[]:[{id:'sledge',label:'Sledge',svg:sledgeHot(),walk:206,tap:()=>rideHill(true)}])]
+       :S.rain?PUDX.map((_,i)=>({id:'pud'+i,label:'Puddle',svg:puddleHot(i),walk:PUDX[i],tap:()=>jumpPuddle(i)}))
+       :S.ride==='roll'?[]:[{id:'roll',label:'Roll down the hill',svg:hillRoll(),walk:170,tap:()=>rideHill(false)}]),
+      {id:'go-park',label:'Back to the park',svg:arrow('left','PARK'),tap:()=>leave(-60,()=>go('park','right'))}
+    ],
+    goal:()=>{const p=PUDX.findIndex((_,i)=>!S.puds.includes(i));
+      return S.ride?{id:'',hint:''}
+        :S.fish==='carry'||night()?{id:'go-park',hint:S.fish==='carry'?'Take your fish home ↖':'It is night! Go home ↖'}
+        :snowy()&&S.snowcat<SNOWCAT.length?{id:'snowcat',hint:`Build a snowcat! (${S.snowcat} of ${SNOWCAT.length})`}
+        :snowy()&&!S.sled?{id:'sledge',hint:'A sledge! Whizz down the hill'}
+        :S.rain&&p>=0?{id:'pud'+p,hint:`Jump in the puddles! (${S.puds.length} of ${PUDX.length})`}
+        :!snowy()&&!S.rain&&!S.rolled?{id:'roll',hint:'Roll down the big hill! Tap it'}
+        :{id:'go-park',hint:snowy()?'Sledge again, or go back to the park ↖':S.rain?'Splash again, or go back to the park ↖':'Roll again, or go back to the park ↖'}},
+    over:()=>SC.city.over(),
+    before:()=>{S.hill=true},
+    landLeft:190,
+    enter:()=>say(night()?'The big hill at night. Shh, everybody is asleep.'
+      :snowy()?'A snow day on the big hill! Fresh white snow everywhere. Brrr!'
+      :S.rain?'Rain on the big hill… and look at all the puddles!'
+      :'The big hill behind the park! It is so steep and green.')
+  },
+  pancras:{
+    draw:()=>`<rect width="400" height="520" fill="#e7e1d6"/>
+      <path d="M0,0 H400 V230 H0Z" fill="#bcd3e6"/><path d="M0,230 Q0,40 200,30 Q400,40 400,230" fill="none" stroke="#5d6f9a" stroke-width="6"/>
+      <path d="M40,230 Q46,90 200,74 Q354,90 360,230 M100,230 Q110,130 200,120 Q290,130 300,230 M0,150 H400 M0,190 H400" fill="none" stroke="#5d6f9a" stroke-width="2.5"/>
+      <rect y="210" width="400" height="30" fill="#b4553b"/><path d="M0,210 H400 M0,240 H400" ${K}/>
+      <circle cx="200" cy="120" r="30" fill="#fff" stroke="${INK}" stroke-width="4"/><circle cx="200" cy="120" r="34" fill="none" stroke="#d6ad45" stroke-width="4"/>
+      <path d="M200,120 V98 M200,120 L214,128" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/>
+      <rect y="450" width="400" height="70" fill="#cfc6b8"/><path d="M0,450 H400" ${K}/><path d="M232,462 H400" stroke="#ffd34d" stroke-width="5"/>
+      ${signBoard(200,4,150,'ST PANCRAS',17)}${deco(160,452,.55)}`,
+    hots:()=>[
+      {id:'tickets',label:'Eurostar ticket desk',svg:eurostarDesk(),walk:170,tap:esTicket},
+      {id:'piano',label:'Station piano',svg:stationPiano(),walk:130,tap:playStation},
+      {id:'train',label:'The Eurostar train',svg:eurostarTrain(),walk:290,tap:boardEurostar},
+      tripHome()
+    ],
+    goal:()=>!S.tp.ticket?{id:'tickets',hint:'Buy a ticket at the Eurostar desk'}
+      :!S.tp.piano?{id:'piano',hint:'A piano in the station! Anyone can play it'}
+      :{id:'train',hint:'Get on the Eurostar to Paris!'},
+    landLeft:150,
+    enter:()=>say('St Pancras station in London! The Eurostar train goes under the sea, all the way to Paris.')
+  },
+  eurostar:{
+    draw:()=>`<rect width="400" height="520" fill="#f2efe6"/><rect width="400" height="34" fill="#23345a"/><path d="M0,34 H400" ${K}/><path d="M0,24 H400" stroke="#ffd34d" stroke-width="4"/>
+      <rect y="450" width="400" height="70" fill="#5d6f9a"/><path d="M0,450 H400" ${K}/><path d="M0,486 h400" stroke="#8a9bc4" stroke-width="3" stroke-dasharray="14 10"/>
+      ${[50,350].map(x=>`<path d="M${x-40},450 V300 Q${x-40},270 ${x-10},270 H${x+10} Q${x+40},270 ${x+40},300 V450Z" fill="#ffd34d" ${K}/><rect x="${x-30}" y="278" width="60" height="18" rx="7" fill="#fff" stroke="${INK}" stroke-width="2.2"/>`).join('')}
+      ${deco(110,452,.5)}`,
+    hots:()=>[
+      {id:'window',label:'Window',svg:esWindow(),walk:240,tap:esLook},
+      {id:'snack',label:'Hot chocolate',svg:esTable(),walk:150,tap:esSnack},
+      ...((S.tp.view||0)>=2?[{id:'off',label:'Get off the train',svg:arrow('right','PARIS'),tap:()=>leave(460,()=>go('paris','left'))}]:[])
+    ],
+    goal:()=>(S.tp.view||0)<2?{id:'window',hint:'Look out of the window!'}
+      :!S.tp.snack?{id:'snack',hint:'Snack time! Tap the hot chocolate'}
+      :{id:'off',hint:'We are in Paris! Get off the train ↗'},
+    landLeft:120,
+    enter:()=>{sfx.whistle();say('Your seat on the Eurostar. The train is so fast! Whoosh!')}
+  },
+  paris:{
+    draw:()=>{let cob='';for(let r=0;r<4;r++)for(let c=0;c<11;c++)cob+=`M${c*40+(r%2?20:0)-14},${470+r*14} q14,-6 28,0 `;
+      const house=(x,w,h)=>`<rect x="${x}" y="${450-h}" width="${w}" height="${h}" fill="#f2e6cf" ${K}/><path d="M${x-4},${450-h} L${x+8},${430-h} H${x+w-8} L${x+w+4},${450-h}Z" fill="#8a9bb0" ${K} stroke-width="2.5"/>
+        ${[0,1,2].map(r=>[0,1].map(c=>`<rect x="${x+w*(c?.6:.16)}" y="${470-h+r*44}" width="${w*.24}" height="28" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/><path d="M${x+w*(c?.56:.12)},${500-h+r*44} h${w*.32}" stroke="${INK}" stroke-width="3"/>`).join('')).join('')}`;
+      return `<rect width="400" height="520" fill="#cfe6f6"/><path d="${cloud(150,70,34,12,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      ${house(150,110,250)}${house(4,120,220)}
+      <rect y="450" width="400" height="70" fill="#c9bfb0"/><path d="${cob}" fill="none" stroke="#ada293" stroke-width="2.5" stroke-linecap="round"/><path d="M0,450 H400" ${K}/>
+      ${deco(270,452,.55)}`},
+    hots:()=>[
+      {id:'tower',label:'Eiffel Tower',svg:eiffel(),walk:300,tap:tapEiffel},
+      {id:'bakery',label:'Bakery',svg:boulangerie(),walk:150,tap:eatCroissant},
+      {id:'painter',label:'Painter',svg:painterCat(),walk:262,tap:paintMe},
+      {id:'poodle',label:'Poodle',svg:poodle(),walk:260,tap:tapPoodle},
+      {id:'go-home',label:'Take the train home',svg:arrow('left','TRAIN HOME'),tap:parisHome}
+    ],
+    goal:()=>!S.tp.tower?{id:'tower',hint:'The Eiffel Tower! Tap it'}
+      :!S.tp.croissant?{id:'bakery',hint:'A bakery! Buy a croissant'}
+      :!S.souv.includes('beret')?{id:'painter',hint:'A painter! Ask for a painting of you'}
+      :!S.tp.poo?{id:'poodle',hint:'A pink poodle! Say bonjour'}
+      :{id:'go-home',hint:`What a holiday! Play more for hearts (${S.hearts}), or take the train home ↖`},
+    landLeft:240,
+    enter:()=>say('Paris! Bonjour, Paris! Look, the Eiffel Tower!')
+  },
+  venice:{
+    draw:()=>{const house=(x,w,h,c)=>`<rect x="${x}" y="${330-h}" width="${w}" height="${h}" fill="${c}" ${K}/>
+        ${[0,1].map(r=>[0,1].map(k=>`<path d="M${x+w*(k?.58:.16)},${372-h+r*50} v-14 q${w*.13},-14 ${w*.26},0 v14Z" fill="#fff3c4" stroke="${INK}" stroke-width="2"/>`).join('')).join('')}`;
+      let stones='';for(let r=0;r<3;r++)for(let c=0;c<9;c++)stones+=`M${c*48+(r%2?24:0)-10},${462+r*18} h40 `;
+      return `<rect width="400" height="520" fill="#bfe3fa"/><circle cx="330" cy="70" r="22" fill="#ffd34d" ${K}/><path d="${cloud(150,80,32,11,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      ${house(-4,104,190,'#f2a07b')}${house(100,96,220,'#f7d27a')}${house(196,104,170,'#e98aa0')}${house(300,104,200,'#f0b46a')}
+      <rect y="326" width="400" height="104" fill="#3cb8b0"/><path d="M0,326 H400" ${K}/>
+      <path d="${[0,1,2].map(r=>[...Array(8)].map((_,i)=>`M${i*52+(r%2?26:0)},${352+r*26} q8,-6 16,0 t16,0`).join(' ')).join(' ')}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+      ${[30,370].map(x=>`<path d="M${x},440 V316" stroke="${INK}" stroke-width="8"/><path d="M${x},440 V316" stroke="#fff" stroke-width="4" stroke-dasharray="10 10"/>`).join('')}
+      <rect y="430" width="400" height="90" fill="#d9cdb4"/><path d="${stones}" stroke="#b5a585" stroke-width="2.5"/><path d="M0,430 H400" ${K}/>
+      ${deco(230,452,.55)}`},
+    hots:()=>[
+      ...(S.ride==='gondola'?[]:[{id:'gondola',label:'Gondola',svg:gondolaHot(),walk:200,tap:rideGondola}]),
+      {id:'gelato',label:'Gelato cart',svg:gelatoCart(),walk:160,tap:buyGelato},
+      {id:'pizza',label:'Pizza shop',svg:pizzeria(),walk:300,tap:eatPizza},
+      {id:'go-home',label:'Fly home',svg:arrow('left','FLY HOME'),tap:flyHome}
+    ],
+    goal:()=>S.ride==='gondola'?{id:'',hint:''}
+      :!S.tp.gondola?{id:'gondola',hint:'A gondola! Tap it for a ride'}
+      :!S.tp.gelato?{id:'gelato',hint:'Gelato! Tap the cart'}
+      :!S.tp.pizza?{id:'pizza',hint:'Pizza! Tap the pizza shop'}
+      :{id:'go-home',hint:`What a holiday! Play more for hearts (${S.hearts}), or fly home ↖`},
+    landLeft:240,
+    enter:()=>say('Italy! This is Venice. The streets are made of water, so everybody goes by boat!')
+  }
+});
 
 /* ---------- render ---------- */
 function catLayer(){
@@ -3366,7 +4230,7 @@ function render(){
   if(S.pal) HOTS.pal={id:'pal',tap:petPal};
   const ae=document.activeElement, fid=stage.contains(ae)&&ae.dataset?ae.dataset.id:null;
   const prints=outside()&&snowy()?`<g id="prints" pointer-events="none">${S.prints.map(p=>pawSVG(p.x,p.y,p.f,'#b9cde0')).join('')}</g>`:'';
-  stage.classList.toggle('drawing',S.scene==='paint');
+  stage.classList.toggle('drawing',S.scene==='paint'||S.scene==='sketch');
   stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+prints+palLayer()+
     hs.map(h=>`<g class="hot${p===h.id?' pulse':''}" data-id="${h.id}" role="button" tabindex="0" aria-label="${h.label}">${h.svg}</g>`).join('')+
     catLayer()+(sc.over?sc.over():'');
@@ -3392,6 +4256,7 @@ function walkTo(tx,cb){
     // each paw on the piano plays the key under it; in the snow, paws leave prints
     if(S.scene==='piano'){const k=keyAt(S.x);if(k!==S.lastKey){S.lastKey=k;k>=0&&playKey(k)}}
     if(outside()&&snowy()&&Math.abs(S.x-px)>=18){px=S.x;addPrint()}
+    SC[S.scene].onWalk&&SC[S.scene].onWalk();
     if(p<1)requestAnimationFrame(step);else{an.classList.remove('walk');S.busy=false;cb&&cb()}
   })(t0);
 }
@@ -3414,7 +4279,7 @@ function follow(){
 }
 // from: 'left' or 'right' walks in from that edge; a number puts the cat right there (top or bottom of a ladder)
 function go(name,from){
-  clearLater();S.busy=true;stage.classList.add('fade');const g=GEN;
+  clearLater();hush();S.busy=true;stage.classList.add('fade');const g=GEN;
   setTimeout(()=>{
     if(g!==GEN)return;
     // 'chute': the cat comes down the big house slide into the hall
@@ -3455,12 +4320,13 @@ function stickIt(){
   S.stk.push({i,x:Math.round(Math.max(DOOR.x+28,Math.min(DOOR.x+DOOR.w-28,p.x))),y:Math.round(Math.max(DOOR.y+28,Math.min(DOOR.y+DOOR.h-28,p.y))),r:Math.round(Math.random()*28-14)});
   save();sfx.stick();render();
   const el=$('.stk'+(S.stk.length-1));el&&restartClass(el,'stretch',900);
-  say(`Stick! You put ${STK[i].name} on the fridge.`+(S.newStk.length?' One more!':''));
+  say((typeof i==='string'?'Stick! Your very own sticker is on the fridge. You drew it yourself!':`Stick! You put ${STK[i].name} on the fridge.`)+(S.newStk.length?' One more!':''));
 }
 function admire(n){
   const s=S.stk[n],el=$('.stk'+n);el&&restartClass(el,'wiggle',900);sfx.twinkle(1+n%5);
-  bubble(s.x,Math.max(70,s.y-60),STK[s.i].name.replace('a ','').toUpperCase()+'!','#e0508a');
-  say(`A sticker of ${STK[s.i].name}!`);
+  const own=typeof s.i==='string';
+  bubble(s.x,Math.max(70,s.y-60),own?'BY ME!':STK[s.i].name.replace('a ','').toUpperCase()+'!','#e0508a');
+  say(own?`Your own sticker! You drew it yourself, ${nm()}. So pretty!`:`A sticker of ${STK[s.i].name}!`);
 }
 function meetFriend(){
   S.face=1;$('#catFlip').setAttribute('transform','scale(1,1)');
@@ -3675,6 +4541,7 @@ function hungry(){
 }
 function nap(){
   walkTo(200,()=>{
+    keepPage();
     const got=S.today+NAPPTS;S.points+=NAPPTS;S.today=0;S.done=[];
     S.awake=false;S.tummy=0;S.fridge=false;S.bowl=0;S.fish=false;S.mood='sleep';S.stars=[];S.wink=false;S.box='door';S.cup=0;
     S.sDone=false;S.stamps=0;S.piano=false;S.danced=false;S.songAt=0;
@@ -3683,8 +4550,11 @@ function nap(){
     S.square=false;S.picks=null;S.went=[];S.wish=false;S.pigeonN=0;S.latte=false;S.cafeCats=[];S.cafeN=0;S.dish=null;S.ate=[];
     S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;S.sweets=0;S.teeth=0;S.nag=false;S.meds=false;S.drew=false;S.mosDone=false;
     S.garden=false;S.watered=false;S.gswim=false;S.lounge=false;S.tramp=0;S.hogN=0;S.hog=false;
+    S.wrote=false;S.told=false;S.fed=[];S.sketched=false;S.snowcat=0;S.sled=0;S.puds=[];S.rolled=0;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
+    // the diary remembers the morning's weather, because eating the fish stops the rain
+    S.wx=S.rain?'rain':snowy()?'snow':'sun';
     // the bird only comes when it is not raining
     S.bird=S.rain?false:'here';
     render();updateHud();sfx.purr();
@@ -4073,25 +4943,26 @@ function moveHouse(){
 
 
 /* ---------- holidays ---------- */
-function readBoard(){sfx.ding();setTimeout(()=>sfx.ding(),350);bubble(110,250,'BING BONG!','#2c8fd6');say('The board says: RIO DE JANEIRO, BRAZIL. Boarding now!')}
+function readBoard(){sfx.ding();setTimeout(()=>sfx.ding(),350);bubble(110,250,'BING BONG!','#2c8fd6');say(`The board says: ${italy()?'VENICE, ITALY':'RIO DE JANEIRO, BRAZIL'}. Boarding now!`)}
 function tapJet(){faceRight();const j=$('.jet');j&&restartClass(j,'wiggle',900);sfx.whoosh();react('happy');say('Look! That is your plane. It is so big! Poooourrr!')}
 function checkIn(){
   faceLeft();
   if(S.tp.ticket){react('happy');say('The check-in cat waves. Have a lovely holiday!');return}
   S.busy=true;const c=$('.case');c&&restartClass(c,'shake',900);sfx.beep();bubble(89,300,'BEEP!','#2c8fd6');
   say('Your suitcase goes on the belt… beep!','');
-  later(()=>{S.tp.ticket=true;S.busy=false;render();sfx.coin();react('happy');say('Here is your ticket to Brazil! The check-in cat says: have fun!')},1200);
+  later(()=>{S.tp.ticket=true;S.busy=false;render();sfx.coin();react('happy');say(`Here is your ticket to ${italy()?'Italy':'Brazil'}! The check-in cat says: have fun!`)},1200);
 }
 function toGate(){
   if(!S.tp.ticket){bubble(S.x,headY(),'TICKET?','#2c8fd6');say('You need a ticket first! Go to the check-in desk.');return}
   leave(460,()=>go('plane','left'));
 }
 const VIEWS=['Bye bye, London! The houses look so small.','We are up above the clouds! So fluffy.','The big blue sea! Look… a whale!'];
+const VIEWS_IT=['Bye bye, London! The houses look so small.','We are up above the clouds! So fluffy.','Look down… big snowy mountains! Those are the Alps.'];
 function lookOut(){
-  if(S.tp.landed){react('happy');say('Brazil! Sea, sand and a big green mountain!');return}
+  if(S.tp.landed){react('happy');say(italy()?'Italy! Pink and yellow houses, and water everywhere!':'Brazil! Sea, sand and a big green mountain!');return}
   const v=S.tp.view||0;
   if(v<2){S.tp.view=v+1;render()}
-  sfx.whoosh();react('happy');say(v<2?VIEWS[v+1]:'The sea goes on and on. Brazil is far away!');
+  sfx.whoosh();react('happy');say(v<2?(italy()?VIEWS_IT:VIEWS)[v+1]:italy()?'The mountains go on and on. Italy is on the other side!':'The sea goes on and on. Brazil is far away!');
 }
 function planeSnack(){
   const first=!S.tp.snack;S.tp.snack=true;
@@ -4102,10 +4973,10 @@ function planeSnack(){
 // a nap on the plane, and when you wake up you are in Brazil
 function planeNap(){
   S.busy=true;S.tp.nap=true;S.mood='sleep';clearTimeout(moodT);clearBubbles();render();sfx.purr();
-  say('You snuggle into your pillow. Zzz… The plane flies over the sea all night…','');
+  say(italy()?'You snuggle into your pillow. Zzz… The plane flies over the mountains…':'You snuggle into your pillow. Zzz… The plane flies over the sea all night…','');
   later(()=>{sfx.ding();setTimeout(()=>sfx.ding(),350);bubble(200,130,'DING DONG!','#2c8fd6')},2600);
   later(()=>{S.tp.nap=false;S.tp.landed=true;S.mood='normal';S.busy=false;render();sfx.whee();react('happy');
-    say('Good morning! The plane has landed in Brazil!')},3800);
+    say(`Wake up! The plane has landed in ${italy()?'Italy':'Brazil'}!`)},3800);
 }
 function takeSunHat(){
   S.souv.push('sunhat');S.hat='sunhat';S.dressed=true;clearBubbles();render();sfx.sticker();react('happy');
@@ -4418,6 +5289,8 @@ const sfx={
   chug(){this.noise(.09,'lowpass',500,.3);setTimeout(()=>this.noise(.09,'lowpass',380,.22),190)},
   boom(){seq('sine',[[120,40,.7,.4]]);this.noise(.8,'lowpass',300,.6)},
   ding(){seq('triangle',[[1320,1320,.35,.12]])},
+  scribble(){seq('square',[[1800,1500,.05,.025],[1400,1750,.05,.025],[1900,1600,.06,.025]])},
+  sole(){seq('triangle',[[392,392,.32,.1],[440,440,.25,.1],[494,494,.5,.1],[523,523,.3,.1],[494,494,.25,.1],[440,440,.6,.1]])},
   whistle(){seq('square',[[2100,2300,.1,.04],[2100,2300,.3,.04]])},
   psh(){this.noise(.8,'highpass',2500,.3)},
   coo(){seq('sine',[[400,330,.18,.16],[380,300,.25,.14]])},
@@ -4436,7 +5309,7 @@ function admireArt(i){
   const it=S.wall[i];say(it.t==='pic'?`Your painting! You are a real artist, ${nm()}!`:`Your mosaic ${MOSAICS[it.k].name}! Tile by tile. So pretty!`);
 }
 function pickPot(i){
-  S.brush=i;S.clearAsk=false;if(S.tool==='paw'&&S.scene==='paint')S.tool='brush';sfx.stick();render();
+  S.brush=i;S.clearAsk=false;if(S.tool==='paw'&&(S.scene==='paint'||S.scene==='sketch'))S.tool='brush';sfx.stick();render();
   say(i===RAINBOW?'Rainbow! All the colours!':`${PAINT[i][0][0]+PAINT[i][0].slice(1).toLowerCase()}!`);
 }
 function pickTool(t){
@@ -4446,9 +5319,9 @@ function pickTool(t){
   sfx.stick();render();
 }
 function clearPaper(){
-  if(!S.paper.length){say('The paper is already empty. Paint something!');return}
+  if(!inkList().length){say('The paper is already empty. Paint something!');return}
   if(!S.clearAsk){S.clearAsk=true;render();say('Clear all the paper? Tap SURE? to start again.');return}
-  S.clearAsk=false;S.paper=[];sfx.whoosh();render();say('Swoosh! A clean white paper.');
+  S.clearAsk=false;if(S.scene==='sketch')S.sketch=[];else S.paper=[];sfx.whoosh();render();say('Swoosh! A clean white paper.');
 }
 function hangPic(){
   if(!S.paper.length){say('Paint something first! Use your finger.');return}
@@ -4475,24 +5348,27 @@ let PEN=null;
 function paperPt(e){
   const m=stage.getScreenCTM();if(!m)return null;
   const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m.inverse());
-  return {x:Math.round(p.x-PAPER.x),y:Math.round(p.y-PAPER.y)};
+  return {x:Math.round(p.x-pad().x),y:Math.round(p.y-pad().y)};
 }
-const onPaper=p=>p&&p.x>=0&&p.y>=0&&p.x<=PAPER.w&&p.y<=PAPER.h;
-const inkSize=()=>S.paper.reduce((n,it)=>n+(it.d?it.d.length:12),0);
+// the easel paper, or the round sticker paper by the fridge
+const pad=()=>S.scene==='sketch'?SKP:PAPER;
+const inkList=()=>S.scene==='sketch'?S.sketch:S.paper;
+const onPaper=p=>p&&p.x>=0&&p.y>=0&&p.x<=pad().w&&p.y<=pad().h&&(S.scene!=='sketch'||Math.hypot(p.x-150,p.y-150)<=152);
+const inkSize=()=>inkList().reduce((n,it)=>n+(it.d?it.d.length:12),0);
 function newStroke(p,q){
-  const it={c:brushCol(),d:`M${p.x},${p.y}`+(q?`L${q.x},${q.y}`:'l.1,0')};if(S.fat)it.w=FATW;
-  S.paper.push(it);
+  const it={c:brushCol(),d:`M${p.x},${p.y}`+(q?`L${q.x},${q.y}`:'l.1,0')};if(S.scene==='sketch')it.w=S.fat?36:18;else if(S.fat)it.w=FATW;
+  inkList().push(it);
   const g=$('#ink g');g&&g.insertAdjacentHTML('beforeend',inkSVG([it]));
   return {it,el:g&&g.lastElementChild,n:1};
 }
 stage.addEventListener('pointerdown',e=>{
-  if(S.scene!=='paint'||S.busy||PEN)return;
+  if((S.scene!=='paint'&&S.scene!=='sketch')||S.busy||PEN)return;
   const p=paperPt(e);if(!onPaper(p))return;
   e.preventDefault();ac();
   if(S.clearAsk){S.clearAsk=false;render()}
-  if(inkSize()>INKMAX){say('The paper is full! Hang it up ✓');return}
+  if(inkSize()>(S.scene==='sketch'?SKMAX:INKMAX)){say(S.scene==='sketch'?'Your sticker is full! Tap STICK IT ✓':'The paper is full! Hang it up ✓');return}
   if(S.tool==='paw'){
-    const it={c:brushCol(),paw:[p.x,p.y]};S.paper.push(it);
+    const it={c:brushCol(),paw:[p.x,p.y]};inkList().push(it);
     const g=$('#ink g');g&&g.insertAdjacentHTML('beforeend',inkSVG([it]));sfx.stick();refreshGoal();save();return;
   }
   try{stage.setPointerCapture(e.pointerId)}catch(err){}
@@ -4501,7 +5377,7 @@ stage.addEventListener('pointerdown',e=>{
 stage.addEventListener('pointermove',e=>{
   if(!PEN||e.pointerId!==PEN.id)return;
   const r=paperPt(e);if(!r)return;
-  const p={x:Math.max(0,Math.min(PAPER.w,r.x)),y:Math.max(0,Math.min(PAPER.h,r.y))};
+  const p={x:Math.max(0,Math.min(pad().w,r.x)),y:Math.max(0,Math.min(pad().h,r.y))};
   if(Math.hypot(p.x-PEN.last.x,p.y-PEN.last.y)<3)return;
   // the rainbow brush starts a new colour every few dabs
   if(S.brush===RAINBOW&&PEN.n>=5){Object.assign(PEN,newStroke(PEN.last,p))}
@@ -4511,7 +5387,10 @@ stage.addEventListener('pointermove',e=>{
 function penUp(e){
   if(!PEN||e.pointerId!==PEN.id)return;
   PEN=null;
-  const h=document.getElementById('hint'),g=SC.paint.goal();h.textContent=g.hint;refreshGoal();save();
+  const h=document.getElementById('hint'),g=SC[S.scene].goal();h.textContent=g.hint;
+  // a new sticker shows its STICK IT button after the first line
+  if(S.scene==='sketch'&&!$('[data-id="stick"]'))render();
+  refreshGoal();save();
 }
 stage.addEventListener('pointerup',penUp);
 stage.addEventListener('pointercancel',penUp);
@@ -4660,7 +5539,7 @@ ov.addEventListener('click',e=>{
     const y=ov.querySelector('[data-a="yr"][aria-pressed="true"]');
     sfx.sticker();newCat(v||NAMES[0],y?+y.dataset.y:0);
   }
-  else if(a==='snd'){S.sound=!S.sound;b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
+  else if(a==='snd'){S.sound=!S.sound;S.sound||hush();b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
   else if(a==='parties') showParties();
   else if(a==='years') showYears();
   else if(a==='yr'){
