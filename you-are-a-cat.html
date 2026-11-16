@@ -1593,7 +1593,7 @@ function owl(){
 const PLACES=['park','play','cafe','pool','rest','school','sweets','catarata'];
 const PLACE={park:'park',play:'playground',cafe:'cat café',pool:'swimming pool',rest:'restaurant',school:'cat school',sweets:'sweet shop',catarata:'bus to Catarata'};
 // where the cat comes back out on the square from each place; from the park it walks in from the right
-const DOORX={cafe:51,rest:149,school:251,pool:349,play:350,sweets:56,catarata:280};
+const DOORX={cafe:51,rest:149,school:251,pool:349,play:350,sweets:56,catarata:236};
 // each day the square shows you two places to go: places you have never been come first
 function dayPicks(){
   const fresh=PLACES.filter(p=>!S.seen.includes(p)),turn=PLACES.map((_,i)=>PLACES[(i+(S.day-1)*2)%PLACES.length]);
@@ -1691,11 +1691,11 @@ function pigeons(){
    a giant ice cream, a bus stop with a line of cats, flying cats, and the little helpers Pandy and Carlo. */
 // on the square: a bus stop with cats waiting in a line, like in the drawing
 function busStop(){
-  const q=[[250,'#f3a3c6'],[280,'#ffd34d'],[310,'#d3d4dc'],[340,'#f9a03f'],[372,'#ffffff']];
-  return `<rect x="262" y="356" width="36" height="116" fill="transparent"/><rect x="236" y="474" width="164" height="46" fill="transparent"/>
-  <path d="M280,470 V376" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M280,470 V376" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="280" cy="372" r="16" fill="#2c8fd6" ${K}/><text x="280" y="377" text-anchor="middle" class="sign" style="font-size:11px;fill:#fff">BUS</text>
-  ${S.bus?catBus():q.map(([x,c],i)=>`<g class="${i===S.day%5?'bob':''}"><g transform="translate(${x},514) scale(.2)">${catSVG(i===2?'happy':'normal',false,false,{head:c,body:c,ear:'#f3a3c6'})}</g></g>`).join('')}`;
+  const q=[[272,'#f3a3c6'],[300,'#ffd34d'],[328,'#d3d4dc'],[356,'#f9a03f'],[384,'#ffffff']];
+  return `<rect x="226" y="460" width="174" height="60" fill="transparent"/>
+  <path d="M244,518 V482" stroke="${INK}" stroke-width="6" stroke-linecap="round"/><path d="M244,518 V482" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="244" cy="476" r="14" fill="#2c8fd6" ${K}/><text x="244" y="480" text-anchor="middle" class="sign" style="font-size:10px;fill:#fff">BUS</text>
+  ${S.bus?catBus():q.map(([x,c],i)=>`<g class="${i===S.day%5?'bob':''}"><g transform="translate(${x},516) scale(.2)">${catSVG(i===2?'happy':'normal',false,false,{head:c,body:c,ear:'#f3a3c6'})}</g></g>`).join('')}`;
 }
 // the bus is a cat too: ears on the roof and whiskers on the front
 function catBus(){
@@ -3711,7 +3711,7 @@ const SC={
       {id:'fountain',label:'Fountain',svg:fountain(),walk:276,tap:tapFountain},
       {id:'pigeons',label:'Pigeons',svg:pigeons(),walk:166,tap:chasePigeons},
       {id:'sweets',label:'Sweet shop',svg:sweetFront(),walk:56,tap:()=>go('sweets','left')},
-      {id:'catarata',label:'Bus stop: bus to Catarata',svg:busStop(),walk:256,tap:takeBus},
+      {id:'catarata',label:'Bus stop: bus to Catarata',svg:busStop(),walk:236,tap:takeBus},
       ...(night()?[]:[{id:'holiday',label:'Holiday plane',svg:holidayPlane(),tap:offerTrip}]),
       {id:'go-city',label:'Back to the shops',svg:arrow('left','SHOP'),tap:()=>leave(-60,()=>go('city','right'))},
       {id:'park',label:'Go to the park',svg:arrow('right','PARK'),tap:()=>leave(460,()=>go('park','left'))}
