@@ -28,6 +28,8 @@ There is a treasure hunt once a day too. A treasure map on a signpost by the fou
 
 There is a sweet shop on the square too: a little sweet cart with a big lollipop on top. Inside, Mrs Mouse sells a lollipop, chocolate, jelly beans, candy floss, a pink doughnut and a gummy bear, one heart each. Two sweets are fine (Mrs Mouse says be careful), but the third gives the cat a tummy ache: it looks poorly, can't have any more sweets that day, and needs its medicine from the cabinet in the bathroom. The bedtime routine reminds you to take it, and if the cat goes to sleep without it, the tummy ache is still there in the morning and the medicine comes before breakfast.
 
+There is a bus stop on the square too, with cats waiting in a line. The cat bus (it has ears) goes to Catarata, a town Carolina drew. The Catarata building is two big cats standing side by side: the cat climbs up inside and comes round and round the spiral slide. The rainbow slide goes down into a rainbow ball pit, there is an ice cream stand with a giant ice cream on top, and two little helper cats, Pandy and Carlo, to say hello to. Her drawing of the whole town hangs on a board there. Past Catarata is Wood Land, with her treehouse: climb the ladder, knock on the door, and meet Spirit, a tiny glowing friend who looks after the woods. Her Wood Land drawing is nailed to a tree.
+
 At bedtime, after the bath, the cat brushes its teeth: tap the toothbrush in the yellow mug for the top teeth, again for the bottom teeth, then spit and rinse for a sparkly grin. Tapping the bed without brushing gives one gentle reminder; tap the bed again to go to sleep anyway. A sweet after brushing means brushing again.
 
 The fridge is full of food now: open it and pick three things to eat, from milk, cheese, strawberry yogurt, sausages, wobbly jelly, a chicken leg, strawberries, a can of tuna and cake. The vegetable drawer has carrots and broccoli. Bleh!
@@ -92,7 +94,7 @@ Saves stay on the phone, as before. The app lives at a different web address fro
 - One file: inline SVG drawings, CSS animations and plain JavaScript, no build step and no libraries.
 - Sounds are synthesized with the Web Audio API (there's a mute toggle).
 - Fonts are Gochi Hand and Patrick Hand from Google Fonts; offline it falls back to Comic Sans or Chalkboard.
-- Carolina's paintings are photos, cropped flat and saved as small JPEGs inside a hidden `<svg>` at the top of the page (`#art-vase`, `#art-cupcake`, `#art-dots`, `#art-starry`; the flower and bugs cut-out `#art-bugs` is a WebP with a see-through background, shown pinned with no frame). Scenes show them with `<use>`, so the photos are in the page only once. To add another, add an `<image>` there and an entry in `ART`.
+- Carolina's paintings are photos, cropped flat and saved as small JPEGs inside a hidden `<svg>` at the top of the page (`#art-vase`, `#art-cupcake`, `#art-dots`, `#art-starry`; the flower and bugs cut-out `#art-bugs` is a WebP with a see-through background, shown pinned with no frame; her drawings of Catarata and Wood Land, `#art-town` and `#art-wood`, are WebPs too). Scenes show them with `<use>`, so the photos are in the page only once. To add another, add an `<image>` there and an entry in `ART`.
 - Each scene has a `goal()` that returns the hotspot to highlight and the hint to show, so the glowing target and the hint always agree.
 
 The file holds the page body only (no `<!doctype>` wrapper), because the artifact host adds the document skeleton when it publishes.
