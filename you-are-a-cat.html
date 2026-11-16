@@ -1821,75 +1821,143 @@ function pigeons(){
   return `<rect x="112" y="474" width="112" height="46" fill="transparent"/><g class="pgs" style="transform-box:fill-box">${pigeon(146,510)}${pigeon(192,505,.85)}</g>`;
 }
 
-/* ---------- the treasure hunt: a map on the square, picture clues around town, and a treasure chest to dig up ---------- */
-// the map is clue 1, then two rolled-up clues hide in places in town, and the treasure is buried in a third place
-const HUNTN=2;
+/* ---------- the treasure hunt: a map on the square, clues around town, and a treasure chest to dig up ---------- */
+// The map is clue 1, then rolled-up clues hide in places in town, and the treasure is buried in the last place.
+// The hunt grows with the cat's school year (Reception to Year 3):
+//   Reception: a picture of the place, its name and an easy riddle, read aloud; the hint shows the way
+//   Year 1:    the name and the riddle to read, no picture (PEEK shows it); Miss Owl's padlock on the chest
+//   Year 2:    a riddle only, the place is not named; a padlock on every clue and on the chest
+//   Year 3:    a harder riddle only, one more clue to find, and a padlock on every clue and on the chest
+// The padlock questions are Miss Owl's own questions for that school year.
+const HUNTLV=[{pic:true,word:true,quiz:0,clues:2},{pic:false,word:true,quiz:1,clues:2},{pic:false,word:false,quiz:2,clues:2},{pic:false,word:false,quiz:2,clues:3,hard:true}];
+const huntLv=()=>HUNTLV[yr()];
+const hk=()=>S.hunt&&S.hunt.k||2;
 // where a clue hides in each place (on the floor, near the edge), and which way the cat walks up to it
-const HIDE={park:[96,476],play:[58,488],cafe:[226,488],pool:[306,490],rest:[50,488],school:[54,486],sweets:[46,490]};
-const RIDDLE={park:'where the ducks swim',play:'where you go down the slide',cafe:'where cats drink warm milk',pool:'where cats go splash',
-  rest:'where the penguin brings your dinner',school:'where Miss Owl teaches',sweets:'where Mrs Mouse sells sweets'};
-const WORD={park:'PARK',play:'PLAYGROUND',cafe:'CAFÉ',pool:'POOL',rest:'RESTAURANT',school:'SCHOOL',sweets:'SWEET SHOP'};
+const HIDE={park:[96,476],play:[58,488],cafe:[226,488],pool:[306,490],rest:[50,488],school:[54,486],sweets:[46,490],catarata:[300,494],woods:[226,494]};
+const HUNTSPOTS=()=>[...PLACES.filter(q=>HIDE[q]),'woods'];
+const WHERE={park:'the park',play:'the playground',cafe:'the cat café',pool:'the swimming pool',rest:'the restaurant',school:'cat school',sweets:'the sweet shop',catarata:'Catarata',woods:'Wood Land'};
+const WORD={park:'PARK',play:'PLAYGROUND',cafe:'CAFÉ',pool:'POOL',rest:'RESTAURANT',school:'SCHOOL',sweets:'SWEET SHOP',catarata:'CATARATA',woods:'WOOD LAND'};
+// riddles for each place: easy (Reception and Year 1), then Year 2, then Year 3
+const RIDDLE={
+  park:['where the ducks swim','I have a pond with two ducks and a big green tree.','Fish jump out of my water, and ducks paddle round and round.'],
+  play:['where you go down the slide','I have a slide, a swing and a seesaw.','Climb up the ladder, whizz down, then fly back and forth.'],
+  cafe:['where cats drink warm milk','A barista cat makes warm milk here, with a heart on top.','Cats nap on my shelves and in my basket while you sip something warm.'],
+  pool:['where cats go splash','Jump off my diving board. Splash!','A duck with a whistle watches from a tall chair while you swim.'],
+  rest:['where the penguin brings your dinner','A penguin waiter brings your dinner here.','Fish soup, spaghetti or ice cream? A waiter in a bow tie brings it to your table.'],
+  school:['where Miss Owl teaches','Miss Owl teaches here. Hoo hoo!','Sums, shapes and spelling: a wise bird gives out gold stars here.'],
+  sweets:['where Mrs Mouse sells sweets','Mrs Mouse sells lollipops and chocolate here.','Too many of my treats give you a tummy ache!'],
+  catarata:['where the cat bus goes','Take the cat bus to the town with a spiral slide.','Two giant cats stand side by side, and you slide round and round one of them.'],
+  woods:['where the treehouse is','Go past Catarata to a little house up in a tree.','Climb a ladder to a little house in the tall old trees, where a tiny glowing light lives.']};
+const riddle=p=>RIDDLE[p][huntLv().hard?2:huntLv().word?0:1];
 // after the first pirate hat, the chest holds something new each time
 const LOOT=[['a pirate hat','#3a3346'],['a sparkly red jewel','#e8473f'],['a sparkly blue jewel','#2c8fd6'],['a sparkly green jewel','#3fae5a'],['a sparkly pink jewel','#f38db5']];
 const huntReady=()=>!S.hunt&&S.huntDay!==S.day&&!night()&&S.fish!=='carry';
 const huntAt=()=>S.hunt&&!S.hunt.open?S.hunt.at[S.hunt.n]:'';
 function startHunt(){
   if(S.fish==='carry'){react('happy',false);say('Take your fish home first! Then you can go on a treasure hunt.');return}
-  const p=PLACES.filter(q=>HIDE[q]).sort(()=>Math.random()-.5);
-  S.hunt={at:p.slice(0,HUNTN+1),n:0,dig:0,open:false};
+  const k=huntLv().clues,p=shuffle(HUNTSPOTS());
+  S.hunt={at:p.slice(0,k+1),k,n:0,dig:0,open:false,miss:0};
   faceRight();sfx.whoosh();const m=$('.tmap');m&&restartClass(m,'wiggle',900);
   later(()=>clueCard(),500);
 }
 // a little picture of each place, cut out of the town square (the park gets its own: a tree and a duck pond)
 function placePic(p){
   const box={cafe:['4 118 94 244',cafeFront],rest:['102 128 94 234',restFront],school:['202 96 98 266',schoolFront],pool:['302 148 94 214',poolFront],
-    play:['284 384 132 90',playArch],sweets:['0 330 110 146',sweetFront]}[p];
+    play:['284 384 132 90',playArch],sweets:['0 330 110 146',sweetFront],catarata:['106 86 208 372',catarata],woods:['168 96 196 362',treehouse]}[p];
   const inner=box?box[1]():`<rect x="0" y="0" width="120" height="120" rx="10" fill="#bfe6f5"/><rect y="80" width="120" height="40" fill="#a8d98a"/>
     <rect x="18" y="40" width="12" height="50" fill="#8a5a3c" ${K} stroke-width="2.5"/><circle cx="24" cy="36" r="22" fill="#5cb85c" ${K} stroke-width="2.5"/>
     <ellipse cx="78" cy="96" rx="36" ry="12" fill="#7cc6f0" ${K} stroke-width="2.5"/>${duckArt(80,96,'#ffd34d',.8)}<text x="60" y="20" text-anchor="middle" class="lbl">PARK</text>`;
   return `<svg class="cluepic" viewBox="${box?box[0]:'0 0 120 120'}" aria-hidden="true">${inner}</svg>`;
 }
-function clueCard(){
-  const h=S.hunt,k=h.n+1,p=h.at[h.n],last=h.n===HUNTN;
+function clueCard(peek){
+  const h=S.hunt,k=h.n+1,p=h.at[h.n],last=h.n===hk(),lv=huntLv(),pic=lv.pic||peek,r=riddle(p);
   if(ov.hidden)PREV=null;
-  sfx.twinkle(k+2);
-  const dots=[...Array(HUNTN+1)].map((_,i)=>`<span style="display:inline-block;width:16px;height:16px;border-radius:50%;margin:0 3px;border:2px solid var(--ink);background:${i<k?'#ffd34d':'#fff'}"></span>`).join('');
-  const story=last?`Clue ${k}! The treasure is buried at the ${PLACE[p]}. Look for the big X!`:`Clue ${k}! Go to the place ${RIDDLE[p]}. The next clue is hiding there!`;
+  peek||sfx.twinkle(k+2);
+  const dots=[...Array(hk()+1)].map((_,i)=>`<span style="display:inline-block;width:16px;height:16px;border-radius:50%;margin:0 3px;border:2px solid var(--ink);background:${i<k?'#ffd34d':'#fff'}"></span>`).join('');
+  // easy clues say "go to the place where…"; the harder ones are a riddle: "…Where am I?"
+  const ask=lv.word?(last?`The treasure is buried ${r}.`:`Go to the place ${r}!`):(last?`Where is the treasure buried? ${r} Where am I?`:`${r} Where am I?`);
+  const story=`Clue ${k}! `+(lv.word?(last?`The treasure is buried at ${WHERE[p]}. Look for the big X!`:`Go to the place ${r}. The next clue is hiding there!`)
+    :(last?`Where is the treasure buried? ${r} Where am I?`:`A riddle! ${r} Where am I?`));
+  const chest=`<svg class="cluepic" viewBox="-40 -40 80 80" aria-hidden="true">${chestArt(0,6,false,.6)}${xMark(0,24)}</svg>`;
   openOv('hunt',`<h2>${last?'Find the treasure!':`Clue ${k}`}</h2><div>${dots}</div>
-    <div class="clue">${placePic(p)}${last?`<svg class="cluepic" viewBox="-40 -40 80 80" aria-hidden="true">${chestArt(0,6,false,.6)}${xMark(0,24)}</svg>`:''}</div>
-    <p style="font-size:1.6rem;margin:0;color:var(--hot)">${WORD[p]}</p>
-    <p style="margin:0">${last?`The treasure is buried here.<br>Look for the big red X!`:`Go to the place ${RIDDLE[p]}!`}</p>
-    <button class="big pink" data-a="huntgo" data-focus>OFF WE GO! ▶</button>`,story,'Tap OFF WE GO!');
-  speak(story);
+    ${pic||last?`<div class="clue">${pic?placePic(p):''}${last?chest:''}</div>`:''}
+    ${lv.word||peek?`<p style="font-size:1.6rem;margin:0;color:var(--hot)">${WORD[p]}</p>`:''}
+    <p style="margin:0">${ask}${lv.word&&last?'<br>Look for the big red X!':''}</p>
+    <button class="big pink" data-a="huntgo" data-focus>OFF WE GO! ▶</button>
+    ${pic?'':`<button class="big small" data-a="huntpeek">PEEK AT A PICTURE</button>`}`,story,lv.word?'Tap OFF WE GO!':'Where is it? Then tap OFF WE GO!');
+  peek||speak(story);
 }
 function huntGo(){
-  closeOv();const p=huntAt();
-  say(S.hunt.n===HUNTN?`The treasure is at the ${PLACE[p]}! Go and dig for it.`:`The next clue is at the ${PLACE[p]}. Off you go!`);
+  closeOv();const p=huntAt(),last=S.hunt.n===hk();
+  if(!huntLv().word){say(last?'Where is the treasure buried? Go and find the big X!':'Where does the riddle take you? Off you go!');return}
+  say(last?`The treasure is at ${WHERE[p]}! Go and dig for it.`:`The next clue is at ${WHERE[p]}. Off you go!`);
+}
+// going into the wrong place with a riddle clue counts; after two, the right door glows to help
+function huntEnter(name){
+  const p=huntAt();if(!p||name===p||!HIDE[name]||huntLv().word)return;
+  if(p==='woods'&&name==='catarata')return;
+  S.hunt.miss=(S.hunt.miss||0)+1;
 }
 // which way the hunt goes from wherever the cat is now
 function huntGoal(){
   const p=huntAt();if(!p||S.fish==='carry'||night()||S.trip)return null;
-  if(S.scene===p)return S.hunt.n<HUNTN?{id:'scroll',hint:'A clue is hiding here! Can you find it?'}
-    :S.hunt.dig<3?{id:'xspot',hint:`X marks the spot! Dig, dig, dig (${S.hunt.dig} of 3)`}:{id:'chest',hint:'A treasure chest! Open it'};
-  const w=S.hunt.n===HUNTN?'treasure':'next clue';
-  if(S.scene==='square')return p==='park'?{id:'park',hint:`The ${w} is in the PARK! ↗`}:{id:p,hint:`The ${w} is at the ${WORD[p]}! Tap it`};
-  if(PLACES.includes(S.scene))return {id:'go-square',hint:`The ${w} is at the ${WORD[p]}! Back to the square ↖`};
+  const h=S.hunt,w=h.n===hk()?'treasure':'next clue',help=huntLv().word||h.miss>=2;
+  if(S.scene===p)return h.n<hk()?{id:'scroll',hint:'A clue is hiding here! Can you find it?'}
+    :h.dig<3?{id:'xspot',hint:`X marks the spot! Dig, dig, dig (${h.dig} of 3)`}:{id:'chest',hint:'A treasure chest! Open it'};
+  // Wood Land is past Catarata
+  const via=p==='woods'&&S.scene!=='catarata'?'catarata':p;
+  if(S.scene==='catarata'&&p==='woods')return help?{id:'go-woods',hint:`The ${w} is in WOOD LAND! ↗`}:{id:'',hint:'Where does the riddle take you?'};
+  if(S.scene==='square'){
+    if(!help)return {id:'',hint:`Where does the riddle take you? Tap that place`};
+    return via==='park'?{id:'park',hint:`The ${w} is in the PARK! ↗`}
+      :via==='catarata'?{id:'catarata',hint:`The ${w} is ${p==='woods'?'in WOOD LAND. Take the bus to Catarata':'in CATARATA. Take the bus'}!`}
+      :{id:via,hint:`The ${w} is at the ${WORD[p]}! Tap it`};
+  }
+  if(HIDE[S.scene])return {id:'go-square',hint:h.at[h.n-1]===S.scene?`Now for the ${w}! Back to the square ↖`:help?`The ${w} is at the ${WORD[p]}! Go back ↖`:`No clue here! Go back and think about the riddle ↖`};
   return null;
 }
 const goalNow=()=>huntGoal()||SC[S.scene].goal();
 // the clue, the X and the chest only show up in the one place where they are hiding
 function huntHots(){
   const h=S.hunt;if(!h)return [];
-  const p=h.open?h.at[HUNTN]:huntAt();if(S.scene!==p)return [];
+  const p=h.open?h.at[hk()]:huntAt();if(S.scene!==p)return [];
   const [x,y]=HIDE[p],w=x<200?x+84:x-84;
-  if(h.n<HUNTN)return [{id:'scroll',label:'A rolled-up clue',svg:scrollArt(x,y),walk:w,tap:findClue}];
+  if(h.n<hk())return [{id:'scroll',label:'A rolled-up clue',svg:scrollArt(x,y),walk:w,tap:findClue}];
   if(h.dig<3)return [{id:'xspot',label:'Big red X',svg:digSpot(x,y),walk:w,tap:digX}];
   return [{id:'chest',label:'Treasure chest',svg:`<rect x="${x-44}" y="${y-92}" width="88" height="106" fill="transparent"/><g class="tchest" style="transform-box:fill-box;transform-origin:50% 100%">${chestArt(x,y+8,h.open,1.25)}</g>`,walk:w,tap:openChest}];
 }
 function findClue(){
   S.busy=true;faceTo(HIDE[S.scene][0]);sfx.scrape();
-  const [x,y]=HIDE[S.scene];bubble(x,y-80,'A CLUE!','#d8243c');say('You found a rolled-up clue! Unroll it…','');
-  later(()=>{S.hunt.n++;S.busy=false;render();addPoints(2);floatPts(2);clueCard()},900);
+  const [x,y]=HIDE[S.scene],lock=huntLv().quiz>=2;
+  bubble(x,y-80,lock?'LOCKED!':'A CLUE!','#d8243c');say(lock?'You found a clue, but it has a padlock on it!':'You found a rolled-up clue! Unroll it…','');
+  later(()=>{S.hunt.n++;S.hunt.miss=0;S.busy=false;render();addPoints(2);floatPts(2);lock?huntQuiz('clue',clueCard):clueCard()},900);
+}
+/* Miss Owl's padlock: one of her questions for the cat's school year, on a little blackboard; the right card opens it */
+const withQ=(q,f)=>{const o=S.q,n=S.qn;S.q=q;S.qn=0;try{return f()}finally{S.q=o;S.qn=n}};
+let HQDONE=null;
+function huntQuiz(what,done){
+  const h=S.hunt,l=YEARS[yr()].l;h.q=QT[anyOf(l)].make();HQDONE=done;
+  if(ov.hidden)PREV=null;
+  sfx.hoo();
+  const story=withQ(h.q,()=>`Miss Owl's padlock! ${qStory()}`);
+  openOv('huntq',`<h2>${what==='chest'?'The chest is locked!':'The clue is locked!'}</h2>
+    <p style="margin:0">Answer Miss Owl's question to open it</p>${quizBoard()}<p id="hqSay" style="margin:0;min-height:2.6em">${withQ(h.q,qHint)}</p>`,
+    story,'Tap the right answer');
+  speak(story);
+}
+function quizBoard(){
+  return withQ(S.hunt.q,()=>`<svg class="hquiz" viewBox="16 108 368 188" style="width:100%;height:auto" role="group" aria-label="Miss Owl's question">
+    <rect x="16" y="108" width="368" height="188" rx="6" fill="#a8652f" ${K}/><rect x="24" y="116" width="352" height="172" rx="3" fill="#2f6b4f" stroke="${INK}" stroke-width="2.5"/>
+    ${board()}
+    ${[0,1,2].map(i=>`<g data-hq="${i}" role="button" tabindex="0" aria-label="${esc(''+optName(S.q.opts[i]))}" style="cursor:pointer">${card(i)}</g>`).join('')}</svg>`);
+}
+function huntAnswer(i){
+  const h=S.hunt;if(!h||!h.q||!HQDONE)return;
+  const q=h.q,el=ov.querySelector('.cd'+i),say2=t=>{const s=ov.querySelector('#hqSay');s&&(s.textContent=t);document.getElementById('story').textContent=t};
+  if(i!==q.ans){el&&restartClass(el,'shake',900);sfx.nope();say2(withQ(q,()=>qt().no(q,q.opts[i],qRight())));return}
+  const done=HQDONE;HQDONE=null;h.q=null;
+  el&&restartClass(el,'jump',700);sfx.sticker();say2(withQ(q,()=>qt().yes(q,qRight()))+' Click! The padlock opens.');
+  setTimeout(()=>{addPoints(1);done()},1300);
 }
 function digX(){
   const h=S.hunt,[x,y]=HIDE[S.scene];faceTo(x);h.dig++;
@@ -1898,11 +1966,12 @@ function digX(){
   bubble(x,y-90,'DIG!','#a8652f');render();
   if(h.dig<3){say(h.dig===1?'Dig, dig! Keep digging!':'Dig, dig! Nearly there…');return}
   S.busy=true;say('Clonk! You found something…','');
-  later(()=>{S.busy=false;sfx.chord();const c=$('.tchest');c&&restartClass(c,'stretch',900);say('A treasure chest! Open it!')},700);
+  later(()=>{S.busy=false;sfx.chord();const c=$('.tchest');c&&restartClass(c,'stretch',900);say(huntLv().quiz?'A treasure chest! It has a padlock. Tap it':'A treasure chest! Open it!')},700);
 }
 function openChest(){
   const h=S.hunt;faceTo(HIDE[S.scene][0]);
   if(h.open){const c=$('.tchest');c&&restartClass(c,'wiggle',900);react('happy',false);say('Your treasure! Shiny, shiny gold. Poooourrr!');return}
+  if(huntLv().quiz&&!h.unlocked){huntQuiz('chest',()=>{h.unlocked=true;closeOv();openChest()});return}
   h.open=true;S.huntDay=S.day;const first=!S.souv.includes('pirate'),loot=first?LOOT[0]:LOOT[1+S.hunts%(LOOT.length-1)];
   S.hunts=(S.hunts||0)+1;h.loot=first?0:LOOT.indexOf(loot);
   if(first){S.souv.push('pirate');S.hat='pirate';S.dressed=true}
@@ -4915,6 +4984,7 @@ function go(name,from){
     if(chute)S.ride='chute';
     // places in town remember that you went there today, and that you have ever been
     if(PLACES.includes(name)){S.went.includes(name)||S.went.push(name);S.seen.includes(name)||S.seen.push(name)}
+    S.hunt&&huntEnter(name);
     SC[name].before&&SC[name].before();render();updateHud();
     stage.classList.remove('fade');SC[name].enter();
     if(chute)chuteIn();
@@ -6155,6 +6225,7 @@ function startAgain(){
   say(`A brand new start, ${c.name}! Day 1. You are asleep.`);
 }
 ov.addEventListener('click',e=>{
+  const hq=e.target.closest('[data-hq]');if(hq){ac();huntAnswer(+hq.dataset.hq);return}
   const b=e.target.closest('button[data-a]');if(!b)return;
   ac();const a=b.dataset.a,id=b.dataset.id;
   if(a==='play'){const c=DB.cats.find(c=>c.id===id);c&&startCat(c)}
@@ -6192,6 +6263,7 @@ ov.addEventListener('click',e=>{
   else if(a==='move') offerMove();
   else if(a==='trip') startTrip(b.dataset.t);
   else if(a==='huntgo') huntGo();
+  else if(a==='huntpeek') clueCard(true);
   else if(a==='moveyes') moveHouse();
   else if(a==='moveno'){S.moveAsk=S.day;save();resume()}
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
@@ -6203,7 +6275,8 @@ ov.addEventListener('click',e=>{
   else if(a==='yes'){const f=CONFIRM&&CONFIRM.yes;CONFIRM=null;f&&f()}
   else if(a==='no'){const f=CONFIRM&&CONFIRM.no;CONFIRM=null;f&&f()}
 });
-ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nameIn'){e.preventDefault();ov.querySelector('[data-a="go"]').click()}});
+ov.addEventListener('keydown',e=>{const hq=e.target.closest&&e.target.closest('[data-hq]');if(hq&&(e.key==='Enter'||e.key===' ')){e.preventDefault();huntAnswer(+hq.dataset.hq);return}
+  if(e.key==='Enter'&&e.target.id==='nameIn'){e.preventDefault();ov.querySelector('[data-a="go"]').click()}});
 ov.addEventListener('input',e=>{if(e.target.id==='linkName')LINK.name=e.target.value});
 document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():CUR?resume():0});
 // saving when the page goes away too, in case the last tap did not tell a story
