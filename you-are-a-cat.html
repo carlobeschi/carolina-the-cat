@@ -402,7 +402,7 @@ function save(){
    Nobody can list the cats: only someone who knows the name and the four pictures can find one.
    Type the name and tap the pictures on another device, and from then on that cat saves and loads
    by itself on both. If the cloud can't be reached the game carries on with the saves on the device. */
-const CLOUDCFG={project:'',key:''};
+const CLOUDCFG={project:'carolina-the-cat',key:'AIzaSyBdqgO8itT6MWVVMbeW03tsoaXdwsfM1N4'};
 const PICS=['🐟','⭐','🌙','🎈','🍓','🌸','🐝','🦋','🍦','🚂','🌈','🐞','🍕','🎁','⛄','🍩'];
 const CODELEN=4;
 const CLOUD={on:!!(CLOUDCFG.project&&window.crypto&&crypto.subtle&&window.fetch),dirty:new Set(),t:0,busy:false,again:false,sent:{},gone:[]};
