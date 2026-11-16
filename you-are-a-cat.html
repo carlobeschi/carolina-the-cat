@@ -147,6 +147,13 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .ov input{font-family:var(--display);font-size:1.8rem;text-align:center;text-transform:uppercase;letter-spacing:.06em;border:2.5px solid var(--ink);border-radius:14px;padding:6px 10px;background:#fff;color:var(--hot);width:100%;min-width:0}
 .sugg{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .sugg button{border:2.5px solid var(--ink);border-radius:999px;background:var(--sky-soft);font-size:1.2rem;padding:2px 12px;min-height:44px}
+.code{display:flex;gap:8px;justify-content:center}
+.code span{width:clamp(52px,16vw,70px);height:clamp(52px,16vw,70px);border:2.5px solid var(--ink);border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:clamp(1.9rem,9vw,2.6rem);line-height:1}
+.code span.empty{background:var(--sky-soft);border-style:dashed}
+.pics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pics button{min-height:58px;border:2.5px solid var(--ink);border-radius:16px;background:#fff;font-size:clamp(1.8rem,8vw,2.3rem);line-height:1;box-shadow:0 3px 0 var(--ink)}
+.pics button:active{transform:translateY(2px);box-shadow:0 1px 0 var(--ink)}
+.ov p.cloudNote{font-size:clamp(.8rem,3.4vw,.95rem);opacity:.8;text-align:center;text-transform:none}
 .board{display:flex;flex-direction:column;gap:8px}
 .rank{display:flex;align-items:center;gap:10px;border:2.5px solid var(--ink);border-radius:16px;padding:4px 12px;background:#fff;text-align:left}
 .rank.me{background:#fde6ee}
@@ -386,7 +393,130 @@ function store(){try{localStorage.setItem(SAVE,JSON.stringify(DB))}catch(e){}}
 function save(){
   const c=curCat();if(!c)return;
   const s={};for(const k in S) if(!NOSAVE.includes(k)) s[k]=S[k];
-  c.s=s;c.best=Math.max(c.best||0,S.points);c.at=Date.now();store();
+  c.s=s;c.best=Math.max(c.best||0,S.points);c.at=Date.now();store();cloudSave(c.id);
+}
+
+/* ---------- cats that follow you to any device ----------
+   Each cat has a secret code of four pictures. The cat's name and its code together make a long
+   scrambled id (SHA-256), and the cat's save is kept under that id in a small Firestore database.
+   Nobody can list the cats: only someone who knows the name and the four pictures can find one.
+   Type the name and tap the pictures on another device, and from then on that cat saves and loads
+   by itself on both. If the cloud can't be reached the game carries on with the saves on the device. */
+const CLOUDCFG={project:'',key:''};
+const PICS=['🐟','⭐','🌙','🎈','🍓','🌸','🐝','🦋','🍦','🚂','🌈','🐞','🍕','🎁','⛄','🍩'];
+const CODELEN=4;
+const CLOUD={on:!!(CLOUDCFG.project&&window.crypto&&crypto.subtle&&window.fetch),dirty:new Set(),t:0,busy:false,again:false,sent:{},gone:[]};
+const newCode=()=>Array.from(crypto.getRandomValues(new Uint8Array(CODELEN)),b=>b%PICS.length);
+async function cloudId(name,code){
+  const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`you-are-a-cat|${name}|${code.join('-')}`));
+  return Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,'0')).join('');
+}
+const cloudUrl=id=>`https://firestore.googleapis.com/v1/projects/${CLOUDCFG.project}/databases/(default)/documents/cats/${id}${CLOUDCFG.key?`?key=${encodeURIComponent(CLOUDCFG.key)}`:''}`;
+// a cat from the cloud: null when there is none, {gone} when it said bye-bye, otherwise {at, cat}
+async function cloudGet(id){
+  const r=await fetch(cloudUrl(id),{cache:'no-store'});
+  if(r.status===404)return null;
+  if(!r.ok)throw new Error('cloud '+r.status);
+  const f=(await r.json()).fields||{},at=+(f.at&&f.at.integerValue)||0,j=f.j&&f.j.stringValue||'';
+  if(!j)return {at,gone:true};
+  // a save never has these in it, and leaving them out keeps anything odd from reaching the page
+  if(/[<>]|\\"/.test(j))throw new Error('bad cat');
+  const c=JSON.parse(j);
+  if(!c||typeof c!=='object'||typeof c.name!=='string'||!c.name||(c.s&&typeof c.s!=='object'))throw new Error('bad cat');
+  c.name=c.name.toUpperCase().slice(0,10);
+  return {at,cat:c};
+}
+async function cloudPut(id,j,at){
+  const r=await fetch(cloudUrl(id),{method:'PATCH',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({fields:{j:{stringValue:j},at:{integerValue:String(at)},v:{integerValue:'1'}}})});
+  if(!r.ok)throw new Error('cloud '+r.status);
+}
+// every cat gets its code the first time the cloud is on
+async function cloudReady(c){
+  if(!Array.isArray(c.code)||c.code.length!==CODELEN)c.code=newCode(),c.cid=null;
+  if(!c.cid)c.cid=await cloudId(c.name,c.code);
+  return c.cid;
+}
+function cloudSave(id){
+  if(!CLOUD.on)return;
+  CLOUD.dirty.add(id);clearTimeout(CLOUD.t);CLOUD.t=setTimeout(cloudFlush,4000);
+}
+async function cloudFlush(){
+  clearTimeout(CLOUD.t);if(!CLOUD.on||(!CLOUD.dirty.size&&!CLOUD.gone.length))return;
+  if(CLOUD.busy){CLOUD.again=true;return}
+  CLOUD.busy=true;let fail=false;
+  // cats that said bye-bye go away on every device
+  for(const g of [...CLOUD.gone]){try{await cloudPut(g.cid,'',g.at);CLOUD.gone=CLOUD.gone.filter(x=>x!==g)}catch(e){fail=true}}
+  for(const id of [...CLOUD.dirty]){
+    CLOUD.dirty.delete(id);
+    const c=DB.cats.find(x=>x.id===id);if(!c)continue;
+    try{
+      const cid=await cloudReady(c),at=c.at||0;
+      if(CLOUD.sent[cid]===at)continue;
+      await cloudPut(cid,JSON.stringify(c),at);CLOUD.sent[cid]=at;
+    }catch(e){CLOUD.dirty.add(id);fail=true}
+  }
+  store();CLOUD.busy=false;
+  if(CLOUD.again){CLOUD.again=false;cloudFlush()}
+  else if(fail){clearTimeout(CLOUD.t);CLOUD.t=setTimeout(cloudFlush,30000)}
+}
+// newer saves made on another device come down; cats this device has that are newer go up
+async function cloudPull(){
+  if(!CLOUD.on||CLOUD.busy)return;
+  const hadCur=CUR;let changed=false,curNew=false,curGone=false;
+  await Promise.all(DB.cats.map(async c=>{
+    try{
+      const cid=await cloudReady(c),r=await cloudGet(cid),at=c.at||0;
+      if(!r||r.at<at){cloudSave(c.id);return}
+      if(r.at===at){CLOUD.sent[cid]=at;return}
+      if(r.gone){DB.cats=DB.cats.filter(x=>x!==c);changed=true;if(c.id===CUR)curGone=true;return}
+      const n=Object.assign(r.cat,{id:c.id,code:c.code,cid,at:r.at});
+      const i=DB.cats.indexOf(c);if(i<0)return;
+      DB.cats[i]=n;CLOUD.sent[cid]=r.at;changed=true;if(c.id===CUR)curNew=true;
+    }catch(e){}
+  }));
+  if(!changed){store();return}
+  store();
+  if(CUR!==hadCur)return;
+  if(curGone){CUR=null;reset();document.getElementById('menuBtn').hidden=true;loadState(null);render();updateHud();showTitle()}
+  else if(curNew)startCat(curCat());
+  else if(ovKind==='title')showTitle();
+}
+// the four pictures in big boxes; empty boxes for the ones not tapped yet
+const codeRow=code=>`<div class="code" aria-label="Cat code">${Array.from({length:CODELEN},(_,i)=>code[i]!=null?`<span>${PICS[code[i]]}</span>`:'<span class="empty"></span>').join('')}</div>`;
+async function showCode(){
+  const c=curCat();if(!c)return;
+  try{await cloudReady(c);store()}catch(e){}
+  openOv('code',`<h2>☁ ${esc(c.name)}'s code</h2>
+    ${codeRow(c.code||[])}
+    <p class="cloudNote">To play ${esc(c.name)} on another phone or tablet, tap <b>CAT FROM ANOTHER DEVICE</b>, type <b>${esc(c.name)}</b> and tap these four pictures. Grown-ups: take a photo of this!</p>
+    <button class="big pink" data-a="menu" data-focus>← BACK</button>`,
+    `${c.name}'s secret code! Remember these pictures.`,'Use them to play this cat on another device');
+}
+let LINK={name:'',code:[]};
+function showLink(msg){
+  openOv('link',`<h2>☁ Cat from another device</h2>
+    <input id="linkName" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Cat name" placeholder="NAME" value="${esc(LINK.name)}">
+    ${codeRow(LINK.code)}
+    <div class="pics">${PICS.map((e,i)=>`<button data-a="pic" data-i="${i}" aria-label="Picture ${i+1}">${e}</button>`).join('')}</div>
+    ${msg?`<p class="cloudNote">${msg}</p>`:''}
+    <div class="row"><button class="big small" data-a="picundo">⌫ UNDO</button><button class="big small green" data-a="find"${LINK.code.length<CODELEN?' disabled':''}>FIND MY CAT</button></div>
+    <button class="big small" data-a="title" data-focus>← BACK</button>`,
+    "Type your cat's name, then tap its four secret pictures",'Ask a grown-up for the photo of the code');
+}
+async function findCat(){
+  const name=LINK.name.trim().toUpperCase().replace(/\s+/g,' ').slice(0,10),code=[...LINK.code];
+  if(!name){showLink('Type your cat\'s name first!');return}
+  let r;
+  try{r=await cloudGet(await cloudId(name,code))}catch(e){showLink("Can't reach the cloud. Is the internet on?");return}
+  if(!r||r.gone){LINK.code=[];showLink(`No cat called ${esc(name)} with those pictures. Try again!`);return}
+  const cid=await cloudId(name,code);
+  let c=DB.cats.find(x=>x.cid===cid);
+  const n=Object.assign(r.cat,{name,code,cid,at:r.at,id:c?c.id:(r.cat.id||Date.now().toString(36)+Math.random().toString(36).slice(2,6))});
+  if(DB.cats.some(x=>x.id===n.id&&x!==c))n.id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  if(c&&(c.at||0)>r.at){startCat(c);return}
+  if(c)DB.cats[DB.cats.indexOf(c)]=n;else DB.cats.push(n);
+  CLOUD.sent[cid]=r.at;LINK={name:'',code:[]};store();sfx.sticker();startCat(n);
 }
 try{
   const v=JSON.parse(localStorage.getItem(SAVE)||'null');
@@ -5499,6 +5629,7 @@ function showTitle(){
   openOv('title',`<h2>Who is playing?</h2>
     ${partyRow()}
     <div class="row">${DB.cats.length<MAXCATS?`<button class="big small green" data-a="new">+ NEW CAT</button>`:''}<button class="big small gold" data-a="board">${TROPHY} TOP CATS</button></div>
+    ${CLOUD.on&&DB.cats.length<MAXCATS?`<button class="big small blue" data-a="link">☁ CAT FROM ANOTHER DEVICE</button>`:''}
     <div class="cats">${cats.map(c=>`<div class="card"><button class="big pick${c.id===CUR?' pink':''}" data-a="play" data-id="${esc(c.id)}">${miniCat(c.s)}<span><span class="nm">${esc(c.name)}</span><span class="meta">${metaOf(c)}</span></span></button>
       <button class="x" data-a="del" data-id="${esc(c.id)}" aria-label="Say bye-bye to ${esc(c.name)}">×</button></div>`).join('')}</div>
 `,
@@ -5514,6 +5645,7 @@ function showName(){
     <button class="big pink" data-a="go" data-focus>GO! ▶</button>
     <div class="sugg">${(pick.length?pick:NAMES).slice(0,6).map(n=>`<button data-a="sugg" data-n="${n}">${n}</button>`).join('')}</div>
     ${partyRow()}
+    ${CLOUD.on?`<button class="big small blue" data-a="link">☁ CAT FROM ANOTHER DEVICE</button>`:''}
     ${DB.cats.length?`<button class="big small" data-a="title">← BACK</button>`:''}`,
     'You are a cat! What is your name?','Tap a name, or type one. Then tap GO!');
 }
@@ -5529,6 +5661,7 @@ function showMenu(){
     ${canMove()?`<button class="big blue" data-a="move">${houseIcon} MOVE HOUSE</button>`:''}
     <button class="big orange" data-a="parties">${partyIcon(THEME,30)} PARTY: ${party().name.toUpperCase()}</button>
     <button class="big blue" data-a="years">${bagIcon} SCHOOL: ${YEARS[yr()].name.toUpperCase()}</button>
+    ${CLOUD.on?`<button class="big blue" data-a="code">☁ MY CAT CODE</button>`:''}
     <button class="big" data-a="title">CHANGE CAT</button>`,
     'Paws! The game is waiting for you.','');
 }
@@ -5574,6 +5707,11 @@ ov.addEventListener('click',e=>{
   if(a==='play'){const c=DB.cats.find(c=>c.id===id);c&&startCat(c)}
   else if(a==='new') showName();
   else if(a==='title') showTitle();
+  else if(a==='link'){LINK={name:'',code:[]};showLink()}
+  else if(a==='code') showCode();
+  else if(a==='pic'){const n=document.getElementById('linkName');LINK.name=n?n.value:LINK.name;if(LINK.code.length<CODELEN){LINK.code.push(+b.dataset.i);sfx.twinkle(LINK.code.length+1)}showLink()}
+  else if(a==='picundo'){const n=document.getElementById('linkName');LINK.name=n?n.value:LINK.name;LINK.code.pop();showLink()}
+  else if(a==='find'){const n=document.getElementById('linkName');LINK.name=n?n.value:LINK.name;b.disabled=true;b.textContent='LOOKING…';findCat()}
   else if(a==='board') showBoard();
   else if(a==='menu') showMenu();
   else if(a==='close') resume();
@@ -5605,17 +5743,18 @@ ov.addEventListener('click',e=>{
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
   else if(a==='again') confirmBox('Start again from day 1?','Your hearts, points and stickers start over.',startAgain,showMenu);
   else if(a==='del'){const c=DB.cats.find(c=>c.id===id);c&&confirmBox(`Say bye-bye to ${c.name}?`,'This cat goes away for good.',()=>{
-    DB.cats=DB.cats.filter(x=>x.id!==id);store();
+    DB.cats=DB.cats.filter(x=>x.id!==id);store();if(CLOUD.on&&c.cid){CLOUD.gone.push({cid:c.cid,at:Date.now()});cloudFlush()}
     if(CUR===id){CUR=null;reset();document.getElementById('menuBtn').hidden=true;loadState(null);render();updateHud()}
     showTitle()},showTitle)}
   else if(a==='yes'){const f=CONFIRM&&CONFIRM.yes;CONFIRM=null;f&&f()}
   else if(a==='no'){const f=CONFIRM&&CONFIRM.no;CONFIRM=null;f&&f()}
 });
 ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nameIn'){e.preventDefault();ov.querySelector('[data-a="go"]').click()}});
+ov.addEventListener('input',e=>{if(e.target.id==='linkName')LINK.name=e.target.value});
 document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():CUR?resume():0});
 // saving when the page goes away too, in case the last tap did not tell a story
-addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>document.visibilityState==='hidden'&&save());
+addEventListener('pagehide',()=>{save();cloudFlush()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();cloudFlush()}else cloudPull()});
 
-render();updateHud();showTitle();
+render();updateHud();showTitle();cloudPull();
 </script>

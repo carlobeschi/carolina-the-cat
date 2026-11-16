@@ -62,7 +62,7 @@ Next to the fridge door there is a drawing pad: draw anything on a round white s
 
 In the big house garden there is a pet house. Inside, three homes wait for a pet from the pet rescue: a fish tank for Bubbles the goldfish, a basket for Biscuit the puppy and a hutch for Clover the bunny. One new pet can come each day. Every day the pets are hungry (fish flakes, a dog biscuit, a crunchy carrot), and they play with the cat: Biscuit licks your face and chases his tail, Clover does happy bunny jumps, and Bubbles follows you along the glass and blows bubbles.
 
-Everyone who plays gets their own cat. Give it a name (tap one of the ideas or type your own) and pick its school year, from Reception to Year 3, and the game saves as you play, on that device, so you can come back and continue from the "Who is playing?" screen. Tap your cat's name at the top any time to save, start again from day 1 (it asks first), see the top cats, move the cat up a school year or change cat. You earn points as you play: one for every heart, 3 for each fun thing you do that day (milk, the box hat, the cup, the bath, the moon, all three playground rides, a school lesson and so on) and 5 more for every nap. The Top Cats board ranks all the cats on the device by their best score.
+Everyone who plays gets their own cat. Give it a name (tap one of the ideas or type your own) and pick its school year, from Reception to Year 3, and the game saves as you play, so you can come back and continue from the "Who is playing?" screen. Every cat also has a secret code of four pictures (tap the cat's name, then MY CAT CODE). On another phone or tablet, tap CAT FROM ANOTHER DEVICE, type the cat's name and tap its four pictures, and that cat carries on there; from then on it saves and loads by itself on every device that knows it. Tap your cat's name at the top any time to save, start again from day 1 (it asks first), see the top cats, move the cat up a school year or change cat. You earn points as you play: one for every heart, 3 for each fun thing you do that day (milk, the box hat, the cup, the bath, the moon, all three playground rides, a school lesson and so on) and 5 more for every nap. The Top Cats board ranks all the cats on the device by their best score.
 
 ## Play
 
@@ -97,12 +97,15 @@ The file holds the page body only (no `<!doctype>` wrapper), because the artifac
 
 ## Privacy and safety
 
-The game is made for small children, so it keeps everything on the device:
+The game is made for small children, so it keeps as little as it can and asks for nothing personal:
 
-- There are no accounts, ads, analytics, trackers or in-app purchases, and the game never sends anything anywhere. Cat names, saves and the Top Cats board live in the browser's local storage on that device only; clearing the site's data or saying bye-bye to a cat removes them.
+- There are no accounts, emails, ads, analytics, trackers or in-app purchases. Cat names, saves and the Top Cats board live in the browser's local storage.
+- So a cat can carry on on another device, each cat's save (its name and the game: hearts, stickers, drawings and so on) is also kept in a small Google Firestore database. It is stored under a long scrambled id made from the cat's name and its four-picture code, so only someone who knows both can find it; nobody can list or browse the cats ([firestore.rules](firestore.rules)). Saying bye-bye to a cat empties its save there too. Don't use a real full name as a cat name.
+- The Top Cats board still only ranks the cats on that device.
 - The only thing loaded from outside is the two fonts from Google Fonts (which means Google sees the request for them, like any site that uses Google Fonts). Everything else, including Carolina's paintings, is inside the page.
 - Names typed by players are escaped before they are shown, so a name can't turn into code on the page.
-- The installable version sets a Content Security Policy that only lets the page load its own files and the Google fonts, and the service worker only caches the game's own files and the fonts.
+- Saves that come from the cloud are checked before they are used, and one with anything that looks like page code in it is ignored.
+- The installable version sets a Content Security Policy that only lets the page load its own files and the Google fonts and talk only to the cats database, and the service worker only caches the game's own files and the fonts.
 
 If you find a security problem, see [SECURITY.md](SECURITY.md).
 

@@ -1,0 +1,21 @@
+rules_version = '2';
+// You Are a Cat: each cat is one document, found only by its secret id
+// (a long scramble of the cat's name and its picture code). Nobody can list
+// the cats, and a save can only hold the game's own three fields.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /cats/{id} {
+      allow get, delete: if id.size() == 64;
+      allow list: if false;
+      allow create, update: if id.size() == 64
+        && request.resource.data.keys().hasOnly(['j', 'at', 'v'])
+        && request.resource.data.j is string
+        && request.resource.data.j.size() < 900000
+        && request.resource.data.at is int
+        && request.resource.data.v is int;
+    }
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
