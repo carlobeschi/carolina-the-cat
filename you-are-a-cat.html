@@ -127,6 +127,7 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .menuTop h2{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .menuTop p{white-space:nowrap}
 .menuTop .snd{border:2.5px solid var(--ink);border-radius:999px;background:#fff;font-size:1.1rem;padding:4px 10px;min-height:44px;white-space:nowrap}
+.clue{display:flex;justify-content:center;align-items:center;gap:12px}.cluepic{height:clamp(110px,28vh,200px);width:auto;max-width:62%}
 .ov h2{font-family:var(--display);font-weight:400;font-size:clamp(1.45rem,7vw,1.9rem);line-height:1.05;margin:4px 0 0;color:var(--hot);text-wrap:balance}
 .ov p{margin:0;font-size:clamp(1rem,4.6vw,1.25rem);letter-spacing:.04em;text-transform:uppercase}
 .ov button{font-family:var(--display);color:var(--ink);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -270,7 +271,7 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   paper:[],wall:[],brush:0,tool:'brush',fat:false,clearAsk:false,mos:null,mosN:0,drew:false,mosDone:false,hung:'',
   garden:false,bloom:0,watered:false,gswim:false,lounge:false,tramp:0,hogN:0,hog:false,
   diary:[],wrote:false,dpg:0,writing:false,told:false,tale:null,tpg:0,pets:[],fed:[],petDay:0,petN:0,fishX:70,
-  mine:{},mineN:0,sketch:[],sketched:false,snowcat:0,sled:0,puds:[],rolled:0,hill:false,lastTrip:'',wx:'sun',
+  mine:{},mineN:0,sketch:[],sketched:false,snowcat:0,sled:0,puds:[],rolled:0,hill:false,lastTrip:'',wx:'sun',hunt:null,huntDay:0,hunts:0,
   bus:false,cata:false,slid2:false,balls:0,ice:'',helped:[],woods:false,climbed:false,spirit:false,spiritN:0,seenTown:false,seenWood:false};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
@@ -300,10 +301,12 @@ const SUNHAT={id:'sunhat',slot:'hat',name:'sun hat',c:[0,-142]};
 const TAM={id:'tam',slot:'hat',name:'tartan hat',c:[0,-146]};
 const BERET={id:'beret',slot:'hat',name:'beret',c:[2,-140]};
 const BOATER={id:'boater',slot:'hat',name:'straw hat',c:[0,-140]};
-const items=()=>{const h=party().hat,s=[SUNHAT,TAM,BERET,BOATER].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
+// the pirate hat comes out of the first treasure chest
+const PIRATE={id:'pirate',slot:'hat',name:'pirate hat',c:[0,-146]};
+const items=()=>{const h=party().hat,s=[SUNHAT,TAM,BERET,BOATER,PIRATE].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
 const wearing=it=>it.slot==='hat'?S.hat===it.id:S[it.slot];
 // how high above the floor speech bubbles go for each hat
-const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226,beret:214,boater:218};
+const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226,beret:214,boater:218,pirate:226};
 // every nap moves the season on; day 1 is summer
 const SEASONS=['summer','autumn','winter','spring'];
 const season=()=>SEASONS[(S.day-1)%4];
@@ -424,7 +427,7 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['fountain',()=>S.wish],['cafe',()=>S.latte],['rest',()=>S.ate.length>0],['pool',()=>S.swim],['slide',()=>S.slid],['paint',()=>S.drew],['mosaic',()=>S.mosDone],['trip',()=>S.tripDay===S.day],
   ['sweets',()=>S.sweets>0],['teeth',()=>S.teeth==='done'],['garden',()=>S.watered],['gpool',()=>S.gswim],['tramp',()=>S.tramp>0],
   ['pets',()=>S.pets.length>0&&!hungryPets().length],['sketch',()=>S.sketched],['snowcat',()=>S.snowcat>=SNOWCAT.length],['sledge',()=>S.sled>0],
-  ['puddles',()=>S.puds.length>=PUDX.length],['roll',()=>S.rolled>0],['diary',()=>S.wrote],['story',()=>S.told],
+  ['puddles',()=>S.puds.length>=PUDX.length],['roll',()=>S.rolled>0],['diary',()=>S.wrote],['story',()=>S.told],['hunt',()=>S.huntDay===S.day],
   ['catarata',()=>S.slid2],['balls',()=>S.balls>0],['woods',()=>S.climbed]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
@@ -454,6 +457,8 @@ const WEAR={
   box:()=>`<g transform="rotate(-6 0 -140)"><rect x="-31" y="-172" width="62" height="46" fill="#d9a066" ${K}/>
     <path d="M-31,-126 L-42,-118 M31,-126 L42,-118" ${K}/><rect x="-4" y="-171" width="9" height="44" fill="#f1e05a" opacity=".85"/>
     ${heart(-16,-150,.6,'#e0508a')}</g>`,
+  pirate:()=>`<g transform="rotate(-6 0 -130)"><path d="M-34,-128 Q-31,-150 -18,-146 Q-9,-172 0,-172 Q9,-172 18,-146 Q31,-150 34,-128 Q0,-140 -34,-128Z" fill="#3a3346" ${K}/>
+    <path d="M-30,-132 Q0,-143 30,-132" fill="none" stroke="#ffd34d" stroke-width="3"/>${heart(0,-155,.8,'#fff',true)}</g>`,
   tophat:()=>`<g transform="rotate(-8 0 -128)"><path d="M-16,-129 L-14,-176 H14 L16,-129Z" fill="#3a3346" ${K}/>
     <rect x="-15" y="-143" width="30" height="8" fill="#e0508a" stroke="${INK}" stroke-width="2"/>
     <ellipse cx="0" cy="-128" rx="29" ry="6" fill="#3a3346" ${K}/></g>`,
@@ -1686,6 +1691,138 @@ function pigeons(){
   return `<rect x="112" y="474" width="112" height="46" fill="transparent"/><g class="pgs" style="transform-box:fill-box">${pigeon(146,510)}${pigeon(192,505,.85)}</g>`;
 }
 
+/* ---------- the treasure hunt: a map on the square, picture clues around town, and a treasure chest to dig up ---------- */
+// the map is clue 1, then two rolled-up clues hide in places in town, and the treasure is buried in a third place
+const HUNTN=2;
+// where a clue hides in each place (on the floor, near the edge), and which way the cat walks up to it
+const HIDE={park:[96,476],play:[58,488],cafe:[226,488],pool:[306,490],rest:[50,488],school:[54,486],sweets:[46,490]};
+const RIDDLE={park:'where the ducks swim',play:'where you go down the slide',cafe:'where cats drink warm milk',pool:'where cats go splash',
+  rest:'where the penguin brings your dinner',school:'where Miss Owl teaches',sweets:'where Mrs Mouse sells sweets'};
+const WORD={park:'PARK',play:'PLAYGROUND',cafe:'CAFÉ',pool:'POOL',rest:'RESTAURANT',school:'SCHOOL',sweets:'SWEET SHOP'};
+// after the first pirate hat, the chest holds something new each time
+const LOOT=[['a pirate hat','#3a3346'],['a sparkly red jewel','#e8473f'],['a sparkly blue jewel','#2c8fd6'],['a sparkly green jewel','#3fae5a'],['a sparkly pink jewel','#f38db5']];
+const huntReady=()=>!S.hunt&&S.huntDay!==S.day&&!night()&&S.fish!=='carry';
+const huntAt=()=>S.hunt&&!S.hunt.open?S.hunt.at[S.hunt.n]:'';
+function startHunt(){
+  if(S.fish==='carry'){react('happy',false);say('Take your fish home first! Then you can go on a treasure hunt.');return}
+  const p=PLACES.filter(q=>HIDE[q]).sort(()=>Math.random()-.5);
+  S.hunt={at:p.slice(0,HUNTN+1),n:0,dig:0,open:false};
+  faceRight();sfx.whoosh();const m=$('.tmap');m&&restartClass(m,'wiggle',900);
+  later(()=>clueCard(),500);
+}
+// a little picture of each place, cut out of the town square (the park gets its own: a tree and a duck pond)
+function placePic(p){
+  const box={cafe:['4 118 94 244',cafeFront],rest:['102 128 94 234',restFront],school:['202 96 98 266',schoolFront],pool:['302 148 94 214',poolFront],
+    play:['284 384 132 90',playArch],sweets:['0 330 110 146',sweetFront]}[p];
+  const inner=box?box[1]():`<rect x="0" y="0" width="120" height="120" rx="10" fill="#bfe6f5"/><rect y="80" width="120" height="40" fill="#a8d98a"/>
+    <rect x="18" y="40" width="12" height="50" fill="#8a5a3c" ${K} stroke-width="2.5"/><circle cx="24" cy="36" r="22" fill="#5cb85c" ${K} stroke-width="2.5"/>
+    <ellipse cx="78" cy="96" rx="36" ry="12" fill="#7cc6f0" ${K} stroke-width="2.5"/>${duckArt(80,96,'#ffd34d',.8)}<text x="60" y="20" text-anchor="middle" class="lbl">PARK</text>`;
+  return `<svg class="cluepic" viewBox="${box?box[0]:'0 0 120 120'}" aria-hidden="true">${inner}</svg>`;
+}
+function clueCard(){
+  const h=S.hunt,k=h.n+1,p=h.at[h.n],last=h.n===HUNTN;
+  if(ov.hidden)PREV=null;
+  sfx.twinkle(k+2);
+  const dots=[...Array(HUNTN+1)].map((_,i)=>`<span style="display:inline-block;width:16px;height:16px;border-radius:50%;margin:0 3px;border:2px solid var(--ink);background:${i<k?'#ffd34d':'#fff'}"></span>`).join('');
+  const story=last?`Clue ${k}! The treasure is buried at the ${PLACE[p]}. Look for the big X!`:`Clue ${k}! Go to the place ${RIDDLE[p]}. The next clue is hiding there!`;
+  openOv('hunt',`<h2>${last?'Find the treasure!':`Clue ${k}`}</h2><div>${dots}</div>
+    <div class="clue">${placePic(p)}${last?`<svg class="cluepic" viewBox="-40 -40 80 80" aria-hidden="true">${chestArt(0,6,false,.6)}${xMark(0,24)}</svg>`:''}</div>
+    <p style="font-size:1.6rem;margin:0;color:var(--hot)">${WORD[p]}</p>
+    <p style="margin:0">${last?`The treasure is buried here.<br>Look for the big red X!`:`Go to the place ${RIDDLE[p]}!`}</p>
+    <button class="big pink" data-a="huntgo" data-focus>OFF WE GO! ▶</button>`,story,'Tap OFF WE GO!');
+  speak(story);
+}
+function huntGo(){
+  closeOv();const p=huntAt();
+  say(S.hunt.n===HUNTN?`The treasure is at the ${PLACE[p]}! Go and dig for it.`:`The next clue is at the ${PLACE[p]}. Off you go!`);
+}
+// which way the hunt goes from wherever the cat is now
+function huntGoal(){
+  const p=huntAt();if(!p||S.fish==='carry'||night()||S.trip)return null;
+  if(S.scene===p)return S.hunt.n<HUNTN?{id:'scroll',hint:'A clue is hiding here! Can you find it?'}
+    :S.hunt.dig<3?{id:'xspot',hint:`X marks the spot! Dig, dig, dig (${S.hunt.dig} of 3)`}:{id:'chest',hint:'A treasure chest! Open it'};
+  const w=S.hunt.n===HUNTN?'treasure':'next clue';
+  if(S.scene==='square')return p==='park'?{id:'park',hint:`The ${w} is in the PARK! ↗`}:{id:p,hint:`The ${w} is at the ${WORD[p]}! Tap it`};
+  if(PLACES.includes(S.scene))return {id:'go-square',hint:`The ${w} is at the ${WORD[p]}! Back to the square ↖`};
+  return null;
+}
+const goalNow=()=>huntGoal()||SC[S.scene].goal();
+// the clue, the X and the chest only show up in the one place where they are hiding
+function huntHots(){
+  const h=S.hunt;if(!h)return [];
+  const p=h.open?h.at[HUNTN]:huntAt();if(S.scene!==p)return [];
+  const [x,y]=HIDE[p],w=x<200?x+84:x-84;
+  if(h.n<HUNTN)return [{id:'scroll',label:'A rolled-up clue',svg:scrollArt(x,y),walk:w,tap:findClue}];
+  if(h.dig<3)return [{id:'xspot',label:'Big red X',svg:digSpot(x,y),walk:w,tap:digX}];
+  return [{id:'chest',label:'Treasure chest',svg:`<rect x="${x-44}" y="${y-92}" width="88" height="106" fill="transparent"/><g class="tchest" style="transform-box:fill-box;transform-origin:50% 100%">${chestArt(x,y+8,h.open,1.25)}</g>`,walk:w,tap:openChest}];
+}
+function findClue(){
+  S.busy=true;faceTo(HIDE[S.scene][0]);sfx.scrape();
+  const [x,y]=HIDE[S.scene];bubble(x,y-80,'A CLUE!','#d8243c');say('You found a rolled-up clue! Unroll it…','');
+  later(()=>{S.hunt.n++;S.busy=false;render();addPoints(2);floatPts(2);clueCard()},900);
+}
+function digX(){
+  const h=S.hunt,[x,y]=HIDE[S.scene];faceTo(x);h.dig++;
+  const an=$('#catAnim');an&&restartClass(an,'jump',700);sfx.scrape();
+  burst(x,y-10,(bx,by,j)=>`<circle cx="${bx}" cy="${by}" r="${4+j%3}" fill="#a8652f" stroke="${INK}" stroke-width="1.2"/>`);
+  bubble(x,y-90,'DIG!','#a8652f');render();
+  if(h.dig<3){say(h.dig===1?'Dig, dig! Keep digging!':'Dig, dig! Nearly there…');return}
+  S.busy=true;say('Clonk! You found something…','');
+  later(()=>{S.busy=false;sfx.chord();const c=$('.tchest');c&&restartClass(c,'stretch',900);say('A treasure chest! Open it!')},700);
+}
+function openChest(){
+  const h=S.hunt;faceTo(HIDE[S.scene][0]);
+  if(h.open){const c=$('.tchest');c&&restartClass(c,'wiggle',900);react('happy',false);say('Your treasure! Shiny, shiny gold. Poooourrr!');return}
+  h.open=true;S.huntDay=S.day;const first=!S.souv.includes('pirate'),loot=first?LOOT[0]:LOOT[1+S.hunts%(LOOT.length-1)];
+  S.hunts=(S.hunts||0)+1;h.loot=first?0:LOOT.indexOf(loot);
+  if(first){S.souv.push('pirate');S.hat='pirate';S.dressed=true}
+  S.busy=true;render();sfx.coin();
+  const [x,y]=HIDE[S.scene];
+  burst(x,y-40,(bx,by,j)=>`<circle cx="${bx}" cy="${by}" r="7" fill="#ffd34d" stroke="${INK}" stroke-width="1.6"/><path d="M${bx-2},${by-3} h4" stroke="#fff" stroke-width="2"/>`);
+  bubble(x,y-110,'TREASURE!','#d6ad45');say(`You found the treasure! Gold coins and ${loot[0]}!`,'');
+  later(()=>{S.busy=false;react('happy');earnHeart();earnHeart();
+    say(first?`TREASURE! Gold coins and a pirate hat! You put it on. Ahoy, ${nmT()}! It goes in your dress-up drawer.`
+      :`TREASURE! Gold coins and ${loot[0]}! Clever cat, ${nmT()}!`)},1300);
+}
+function faceTo(x){x<S.x?faceLeft():faceRight()}
+// the map on the square: a signpost with a rolled-out map, until today's treasure is found
+function treasureMap(){
+  return `<rect x="250" y="362" width="62" height="106" fill="transparent"/><g class="tmap" style="transform-box:fill-box;transform-origin:50% 100%">
+  <path d="M280,468 V404" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M280,468 V404" stroke="#a8652f" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M252,368 L308,366 L306,410 L254,412Z" fill="#fbe7b5" ${K} stroke-width="2.5"/>
+  <path d="M260,402 q10,-16 18,-6 t16,-12" fill="none" stroke="#a8652f" stroke-width="2.4" stroke-dasharray="4 3"/>
+  <path d="M291,374 l10,10 M301,374 l-10,10" stroke="#d8243c" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="262" cy="378" r="4" fill="#7cc6f0" stroke="${INK}" stroke-width="1.4"/><path d="M270,386 l3,-6 l3,6Z" fill="#5cb85c" stroke="${INK}" stroke-width="1.2"/></g>`;
+}
+function scrollArt(x,y){
+  const sp=(sx,sy,r)=>`<path class="twk" d="${starPath(sx,sy,r)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.2"/>`;
+  return `<rect x="${x-44}" y="${y-46}" width="88" height="70" fill="transparent"/><g transform="translate(${x},${y}) scale(1.35) rotate(-8)">
+  <rect x="-18" y="-8" width="36" height="16" fill="#fbe7b5" ${K} stroke-width="2.2"/>
+  <ellipse cx="-18" cy="0" rx="5" ry="9" fill="#f3d48f" ${K} stroke-width="2.2"/><ellipse cx="18" cy="0" rx="5" ry="9" fill="#f3d48f" ${K} stroke-width="2.2"/>
+  <path d="M0,-8 V8" stroke="#d8243c" stroke-width="4"/><path d="M0,8 l-5,8 M0,8 l5,8" stroke="#d8243c" stroke-width="3" stroke-linecap="round"/></g>
+  ${sp(x-32,y-28,7)}${sp(x+30,y-32,6)}`;
+}
+const xMark=(x,y)=>`<path d="M${x-16},${y-9} L${x+16},${y+9} M${x+16},${y-9} L${x-16},${y+9}" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="M${x-16},${y-9} L${x+16},${y+9} M${x+16},${y-9} L${x-16},${y+9}" stroke="#d8243c" stroke-width="6" stroke-linecap="round"/>`;
+function digSpot(x,y){
+  const d=S.hunt.dig;
+  return `<rect x="${x-44}" y="${y-40}" width="88" height="64" fill="transparent"/><g transform="translate(${x},${y}) scale(1.25) translate(${-x},${-y})">
+  <ellipse cx="${x}" cy="${y+4}" rx="34" ry="12" fill="#c98f5a" ${K} stroke-width="2.2"/>
+  ${d?`<ellipse cx="${x}" cy="${y+4}" rx="${10+d*7}" ry="${4+d*2}" fill="#5a3a22"/>`:''}
+  ${d<2?xMark(x,y+2):''}
+  ${d?`<path d="M${x+30},${y-2} q10,-14 4,-22 M${x-30},${y-2} q-8,-12 -2,-20" fill="none" stroke="#a8652f" stroke-width="5" stroke-linecap="round"/>`:''}</g>`;
+}
+// a treasure chest drawn standing on x,y; open shows gold coins (and the pirate hat or a jewel on top)
+function chestArt(x,y,open,s=1){
+  const loot=open&&S.hunt?S.hunt.loot:-1;
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  ${open?`<path d="M-30,-30 L-36,-66 Q0,-80 36,-66 L30,-30Z" fill="#7a4a26" ${K} stroke-width="2.5"/><path d="M-33,-50 Q0,-62 33,-50" fill="none" stroke="#ffd34d" stroke-width="4"/>
+    ${[[-18,-32],[-6,-34],[6,-33],[18,-31],[-12,-42],[0,-44],[12,-41],[-5,-52],[7,-51]].map(([cx,cy])=>`<circle cx="${cx}" cy="${cy}" r="7" fill="#ffd34d" stroke="${INK}" stroke-width="1.6"/><path d="M${cx-2},${cy-3} h4" stroke="#fff" stroke-width="1.6"/>`).join('')}
+    ${loot>0?`<path d="M0,-74 l10,10 l-10,12 l-10,-12Z" fill="${LOOT[loot][1]}" stroke="${INK}" stroke-width="2"/><path d="M-3,-67 l3,-3" stroke="#fff" stroke-width="2"/>`:''}`
+    :`<path d="M-30,-30 Q-30,-52 0,-52 Q30,-52 30,-30Z" fill="#c9773c" ${K} stroke-width="2.5"/><path d="M-12,-50 V-30 M12,-50 V-30" stroke="#ffd34d" stroke-width="4"/>`}
+  <rect x="-30" y="-30" width="60" height="30" rx="3" fill="#a8652f" ${K} stroke-width="2.5"/>
+  <path d="M-12,-30 V0 M12,-30 V0" stroke="#ffd34d" stroke-width="4"/>
+  <rect x="-6" y="-26" width="12" height="12" rx="2" fill="#ffd34d" stroke="${INK}" stroke-width="2"/><circle cx="0" cy="-20" r="2" fill="${INK}"/></g>`;
+}
 /* ---------- Catarata: the cat town Carolina drew. A bus from the square goes there ----------
    Carolina's drawing: the Catarata building (two cats) with a spiral slide, a rainbow slide down to a rainbow ball pit,
    a giant ice cream, a bus stop with a line of cats, flying cats, and the little helpers Pandy and Carlo. */
@@ -2682,7 +2819,48 @@ function speak(t){
     });
   }catch(e){}
 }
-function hush(){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}}
+function hush(){try{window.speechSynthesis&&speechSynthesis.cancel()}catch(e){}lullaby(false)}
+/* ---------- night music: a quiet music-box lullaby under the bedtime story ---------- */
+// An original slow waltz (3 beats a bar) over soft chords. Each melody entry is [note, beats]; 0 is a rest.
+const LULL_TUNE=[[64,2],[67,1],[69,2],[67,1],[64,3],[62,3],[60,2],[62,1],[64,2],[67,1],[62,3],[0,3],
+  [64,2],[67,1],[72,2],[71,1],[69,3],[67,3],[65,2],[64,1],[62,2],[64,1],[60,3],[0,3]];
+const LULL_CHORDS=[[48,55,64],[45,52,60],[41,48,57],[43,50,59],[48,55,64],[41,48,57],[43,50,55],[48,52,55]];
+const LULL_BEAT=.9; // seconds per beat, slow and sleepy
+let LULL=null;
+function lullaby(on){
+  if(!on){
+    if(!LULL)return;const L=LULL;LULL=null;clearInterval(L.timer);
+    try{const t=L.a.currentTime;L.out.gain.cancelScheduledValues(t);L.out.gain.setValueAtTime(L.out.gain.value,t);L.out.gain.linearRampToValueAtTime(0,t+.8);
+      setTimeout(()=>{try{L.out.disconnect()}catch(e){}},1000)}catch(e){}
+    return;
+  }
+  if(LULL)return;const a=ac();if(!a)return;
+  const out=a.createGain(),soft=a.createBiquadFilter();soft.type='lowpass';soft.frequency.value=1800;
+  out.gain.setValueAtTime(0,a.currentTime);out.gain.linearRampToValueAtTime(1,a.currentTime+2.5);
+  soft.connect(out).connect(a.destination);
+  const hz=m=>440*Math.pow(2,(m-69)/12);
+  const bell=(m,t,d)=>{ // a music-box note: a soft sine with a faint octave sparkle, fading away
+    [[1,.09],[2,.018]].forEach(([k,v])=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=hz(m)*k;
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+Math.max(1.4,d));
+      o.connect(g).connect(soft);o.start(t);o.stop(t+Math.max(1.4,d)+.05)});
+  };
+  const pad=(ns,t,d)=>ns.forEach(m=>{const o=a.createOscillator(),g=a.createGain();o.type='triangle';o.frequency.value=hz(m);
+    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.02,t+.9);g.gain.setValueAtTime(.02,t+d-.9);g.gain.linearRampToValueAtTime(.0001,t+d);
+    o.connect(g).connect(soft);o.start(t);o.stop(t+d+.05)});
+  const L=LULL={a,out,i:0,beat:0,next:a.currentTime+.3,timer:0};
+  const tick=()=>{
+    if(LULL!==L)return;
+    while(L.next<a.currentTime+1.2){
+      const [m,b]=LULL_TUNE[L.i];
+      if(L.beat%3===0)pad(LULL_CHORDS[(L.beat/3)%LULL_CHORDS.length],L.next,LULL_BEAT*3);
+      if(m)bell(m,L.next,b*LULL_BEAT);
+      // the melody fills each bar exactly, so chords and tune stay together
+      for(let k=1;k<b;k++){L.beat++;if(L.beat%3===0)pad(LULL_CHORDS[(L.beat/3)%LULL_CHORDS.length],L.next+k*LULL_BEAT,LULL_BEAT*3)}
+      L.beat++;L.next+=b*LULL_BEAT;L.i=(L.i+1)%LULL_TUNE.length;
+    }
+  };
+  tick();L.timer=setInterval(tick,300);
+}
 // names are typed in capitals; the voice reads them better as Luna than LUNA
 const nmT=()=>{const n=nm();return n.split(' ').map(w=>w[0]+w.slice(1).toLowerCase()).join(' ')};
 
@@ -2733,6 +2911,7 @@ const IC={
   snowcat:()=>`<circle cy="8" r="12" fill="#fff" ${K} stroke-width="2.5"/><circle cy="-10" r="9" fill="#fff" ${K} stroke-width="2.5"/><path d="M-8,-15 l-1,-9 l6,5 M8,-15 l1,-9 l-6,5" fill="#fff" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/><circle cx="-3" cy="-11" r="1.4" fill="${INK}"/><circle cx="3" cy="-11" r="1.4" fill="${INK}"/><path d="M-9,-1 h18" stroke="#e0508a" stroke-width="4" stroke-linecap="round"/>`,
   sledge:()=>`<g transform="translate(-2,8) scale(.6)">${sledArt()}</g><path d="M-14,-8 q10,-10 26,-14" fill="none" stroke="#7cc6f0" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 5"/>`,
   puddles:()=>`<ellipse cy="10" rx="20" ry="6" fill="#7cb6e6" ${K} stroke-width="2.2"/>${[-12,0,12].map((x,i)=>`<circle cx="${x}" cy="${-4-(i%2)*8}" r="3.5" fill="#7cb6e6" stroke="${INK}" stroke-width="1.5"/>`).join('')}`,
+  hunt:()=>chestArt(0,17,false,.65),
   roll:()=>`<path d="M-20,14 Q0,-20 20,-14 V14Z" fill="#a8d98a" ${K} stroke-width="2.5"/><path d="M-10,-2 a6,6 0 1 1 8,6" fill="none" stroke="#e0508a" stroke-width="2.5" stroke-linecap="round"/>`,
   hero:()=>`<g transform="translate(0,26) scale(.3)">${catSVG('happy',false,false,PINK,wearNow())}</g>`,
   sleepy:()=>`<text x="0" y="8" text-anchor="middle" class="say" style="font-size:28px" fill="#2c8fd6">Zzz</text>`,
@@ -2785,6 +2964,7 @@ const DIARY={
   snowcat:['SNOWCAT','I built a snowcat!',N=>`${N} built a snowcat in the snow. It looked just like ${N}!`],
   sledge:['SLEDGE','I went sledging!',N=>`${N} whizzed down the snowy hill on a red sledge. Wheee!`],
   puddles:['PUDDLES','I jumped in puddles!',N=>`${N} jumped in every puddle, splish splash splosh, and then a rainbow came out.`],
+  hunt:['TREASURE','I found treasure!',N=>`${N} followed the clues all around town, dug where X marks the spot, and found a treasure chest full of gold!`],
   roll:['HILL','I rolled down the hill.',N=>`${N} rolled all the way down the big hill, roly poly, and laughed and laughed.`]
 };
 // everyday things go last in the diary, and the bedtime story leaves them out
@@ -3708,6 +3888,7 @@ const SC={
       {id:'school',label:'Cat school',svg:schoolFront(),walk:251,tap:()=>go('school','left')},
       {id:'pool',label:'Swimming pool',svg:poolFront(),walk:349,tap:()=>go('pool','left')},
       {id:'play',label:'Playground',svg:playArch(),walk:350,tap:()=>go('play','left')},
+      ...(huntReady()?[{id:'map',label:'Treasure map',svg:treasureMap(),walk:240,tap:startHunt}]:[]),
       {id:'fountain',label:'Fountain',svg:fountain(),walk:276,tap:tapFountain},
       {id:'pigeons',label:'Pigeons',svg:pigeons(),walk:166,tap:chasePigeons},
       {id:'sweets',label:'Sweet shop',svg:sweetFront(),walk:56,tap:()=>go('sweets','left')},
@@ -3722,6 +3903,7 @@ const SC={
         :night()?{id:'go-city',hint:'It is night! Go home ↖'}
         :p?{id:p,hint:p==='park'?'Let\'s go to the park! ↗':p==='catarata'?'Hop on the bus to Catarata! Tap the bus stop':`Let's go to the ${PLACE[p]}! Tap it`}
         :tripDay()?{id:'holiday',hint:'A plane says HOLIDAY! Tap it'}
+        :huntReady()?{id:'map',hint:'A treasure map! Tap it for a treasure hunt'}
         :S.hearts>=FISH?{id:'go-city',hint:`You have ${FISH} hearts! Go and buy a fish ↖`}
         :!S.wish?{id:'fountain',hint:'A fountain! Tap it'}
         :{id:'pigeons',hint:`Chase the pigeons for hearts (${S.hearts} of ${FISH})`};
@@ -4356,7 +4538,7 @@ Object.assign(SC,{
         <text x="${last?288:306}" y="492" text-anchor="middle" class="sign" style="fill:#fff;font-size:21px">${last?'GOOD NIGHT ☾':'NEXT ▶'}</text>`,tap:nextTale}
     ]},
     goal:()=>({id:'next',hint:S.tale&&S.tpg===S.tale.length-1?'Tap GOOD NIGHT to go to sleep':'Tap NEXT for the next page'}),
-    enter:()=>talePage()
+    enter:()=>{lullaby(true);talePage()}
   },
   pets:{
     draw:()=>`<rect width="400" height="520" fill="#fdeedd"/>${[[40,60],[140,40],[250,70],[350,44],[90,150],[200,130],[310,160],[40,220],[370,230]].map(([x,y],i)=>`<g transform="translate(${x},${y}) scale(1.4)" opacity=".35">${pawSVG(0,0,i%4,'#e8b47a')}</g>`).join('')}
@@ -4538,7 +4720,7 @@ function palLayer(){
 }
 let HOTS={}, WELCOME='';
 function render(){
-  const sc=SC[S.scene], p=sc.goal().id, hs=sc.hots();
+  const sc=SC[S.scene], p=goalNow().id, hs=[...sc.hots(),...huntHots()];
   HOTS={};hs.forEach(h=>HOTS[h.id]=h);
   if(S.scene==='bed') HOTS.cat={id:'cat',tap:!S.awake?wake:S.yarn==='tangled'?unTangle:pet};
   if(S.pal) HOTS.pal={id:'pal',tap:petPal};
@@ -4550,7 +4732,7 @@ function render(){
     catLayer()+(sc.over?sc.over():'');
   const f=fid&&$(`[data-id="${fid}"]`);f&&f.focus();
 }
-function refreshGoal(){const id=SC[S.scene].goal().id;stage.querySelectorAll('.hot').forEach(el=>el.classList.toggle('pulse',el.dataset.id===id&&el.id!=='cat'))}
+function refreshGoal(){const id=goalNow().id;stage.querySelectorAll('.hot').forEach(el=>el.classList.toggle('pulse',el.dataset.id===id&&el.id!=='cat'))}
 function redraw(){render()}
 
 /* ---------- cat actions ---------- */
@@ -4864,7 +5046,7 @@ function nap(){
     S.square=false;S.picks=null;S.went=[];S.wish=false;S.pigeonN=0;S.latte=false;S.cafeCats=[];S.cafeN=0;S.dish=null;S.ate=[];
     S.swim=false;S.ballN=0;S.eaten=[];S.slid=false;S.sweets=0;S.teeth=0;S.nag=false;S.meds=false;S.drew=false;S.mosDone=false;
     S.garden=false;S.watered=false;S.gswim=false;S.lounge=false;S.tramp=0;S.hogN=0;S.hog=false;
-    S.wrote=false;S.told=false;S.fed=[];S.sketched=false;S.snowcat=0;S.sled=0;S.puds=[];S.rolled=0;
+    S.wrote=false;S.told=false;S.fed=[];S.hunt=null;S.sketched=false;S.snowcat=0;S.sled=0;S.puds=[];S.rolled=0;
     S.bus=false;S.cata=false;S.slid2=false;S.balls=0;S.ice='';S.helped=[];S.woods=false;S.climbed=false;S.spirit=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
@@ -5481,7 +5663,7 @@ function hearts(x,y){
 }
 function say(story,hint){
   document.getElementById('story').textContent=story;
-  document.getElementById('hint').textContent=hint===undefined?SC[S.scene].goal().hint:hint;
+  document.getElementById('hint').textContent=hint===undefined?goalNow().hint:hint;
   refreshGoal();checkFun();save();
 }
 function updateHud(){
@@ -5702,7 +5884,7 @@ stage.addEventListener('pointermove',e=>{
 function penUp(e){
   if(!PEN||e.pointerId!==PEN.id)return;
   PEN=null;
-  const h=document.getElementById('hint'),g=SC[S.scene].goal();h.textContent=g.hint;
+  const h=document.getElementById('hint'),g=goalNow();h.textContent=g.hint;
   // a new sticker shows its STICK IT button after the first line
   if(S.scene==='sketch'&&!$('[data-id="stick"]'))render();
   refreshGoal();save();
@@ -5854,7 +6036,7 @@ ov.addEventListener('click',e=>{
     const y=ov.querySelector('[data-a="yr"][aria-pressed="true"]');
     sfx.sticker();newCat(v||NAMES[0],y?+y.dataset.y:0);
   }
-  else if(a==='snd'){S.sound=!S.sound;S.sound||hush();b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
+  else if(a==='snd'){S.sound=!S.sound;S.sound?(S.scene==='tale'&&lullaby(true)):hush();b.textContent=S.sound?'♪ ON':'♪ OFF';b.setAttribute('aria-pressed',S.sound);try{localStorage.setItem(SAVE+'-sound',S.sound?'1':'0')}catch(e){}}
   else if(a==='parties') showParties();
   else if(a==='years') showYears();
   else if(a==='yr'){
@@ -5865,12 +6047,13 @@ ov.addEventListener('click',e=>{
   else if(a==='party'){
     // a new party redraws the scene behind, so the hint on return matches it
     const t=b.dataset.t;setTheme(t);t==='none'?sfx.twinkle(2):party().sound();
-    if(!S.busy){render();if(PREV)PREV[1]=SC[S.scene].goal().hint}
+    if(!S.busy){render();if(PREV)PREV[1]=goalNow().hint}
     if(ovKind==='parties'){resume();if(t!=='none'&&!S.busy)say(`${party().hi} Look around for party things!`)}
     else{ov.querySelectorAll('[data-a="party"]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.t===t));ov.querySelector('.partyName').textContent=party().name.toUpperCase()}
   }
   else if(a==='move') offerMove();
   else if(a==='trip') startTrip(b.dataset.t);
+  else if(a==='huntgo') huntGo();
   else if(a==='moveyes') moveHouse();
   else if(a==='moveno'){S.moveAsk=S.day;save();resume()}
   else if(a==='save'){save();sfx.coin();b.innerHTML='✓ SAVED!';restartClass(b,'bump',500)}
@@ -5886,7 +6069,7 @@ ov.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='nameIn'){e.
 document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():CUR?resume():0});
 // saving when the page goes away too, in case the last tap did not tell a story
 addEventListener('pagehide',save);
-document.addEventListener('visibilitychange',()=>document.visibilityState==='hidden'&&save());
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();lullaby(false)}else if(S.scene==='tale')lullaby(true)});
 
 render();updateHud();showTitle();
 </script>
