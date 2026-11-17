@@ -44,7 +44,7 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 .lbl{font-family:var(--display);font-size:17px;fill:var(--pen);stroke:#fff;stroke-width:4px;paint-order:stroke;letter-spacing:.04em}
 .say{font-family:var(--display);font-size:27px;letter-spacing:.03em}
 .sign{font-family:var(--display);font-size:26px;fill:var(--pen)}
-#catAnim,#palAnim{transform-box:fill-box;transform-origin:50% 100%}
+#catAnim,#palAnim,#lunaAnim{transform-box:fill-box;transform-origin:50% 100%}
 .walk{animation:walk .32s ease-in-out infinite}
 @keyframes walk{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-5px) rotate(-3deg)}75%{transform:translateY(-5px) rotate(3deg)}}
 .jump{animation:jump .7s ease-out}
@@ -215,11 +215,16 @@ button.chip:focus-visible{outline:3px dashed var(--hot);outline-offset:2px}
 /* the diary: pictures appear one by one as the cat writes; the puppy wags its tail */
 .pen{animation:pop .35s ease-out both;transform-box:fill-box;transform-origin:center}
 .wag{animation:wag .45s ease-in-out infinite}
+/* the zoo camera flashes; things in the dream float and come alive */
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+.flash{animation:flash .6s ease-out both}
+.dfloat{animation:bob 3.4s ease-in-out infinite;transform-box:fill-box}
+.alive{transform-box:fill-box;transform-origin:50% 100%}
 @keyframes wag{50%{transform:rotate(-24deg)}}
 @media (prefers-reduced-motion:reduce){
-  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift,.sway,.wag{animation:none}
+  .walk,.pulse,.breathe,.flap,.zzz text,.jit,.rainfall,.ripple,.snowfall,.leaffall,.bob,.swim,.drift,.sway,.wag,.dfloat{animation:none}
   .pen{animation-duration:.01s}
-  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick,.scrub{animation-duration:.01s}
+  .bump,.jump,.wiggle,.stretch,.shake,.drive,.stkpop,.duck,.press,.dance,.drip,.wetshake,.leapx,.leapy,.leapr,.swingy,.teeter,.flyoff,.kick,.scrub,.flash{animation-duration:.01s}
 }
 </style>
 
@@ -293,7 +298,8 @@ const S={scene:'bed',awake:false,tummy:0,hearts:0,x:200,face:1,mood:'sleep',frid
   diary:[],wrote:false,dpg:0,writing:false,told:false,tale:null,tpg:0,pets:[],fed:[],petDay:0,petN:0,fishX:70,
   mine:{},mineN:0,sketch:[],sketched:false,snowcat:0,sled:0,puds:[],rolled:0,hill:false,lastTrip:'',wx:'sun',hunt:null,huntDay:0,hunts:0,
   bus:false,cata:false,slid2:false,balls:0,ice:'',helped:[],woods:false,climbed:false,spirit:false,spiritN:0,seenTown:false,seenWood:false,
-  wd:null,woodN:0,wooded:false,cl:null,clayN:0,clayed:false,made:[],xt:null,xtDay:0,trees:[]};
+  wd:null,woodN:0,wooded:false,cl:null,clayN:0,clayed:false,made:[],xt:null,xtDay:0,trees:[],
+  luna:false,fedP:false,lunaX:90,lunaFace:1,tidy:[],shared:false,pushed:false,duoed:false,duoFrom:null,dreamt:[],snaps:[],zbook:[],zFrom:null};
 const FISH=5, UMB=2;
 // a birthday comes on day 3 and then every five days
 const bday=()=>S.day%5===3;
@@ -324,10 +330,12 @@ const BERET={id:'beret',slot:'hat',name:'beret',c:[2,-140]};
 const BOATER={id:'boater',slot:'hat',name:'straw hat',c:[0,-140]};
 // the pirate hat comes out of the first treasure chest
 const PIRATE={id:'pirate',slot:'hat',name:'pirate hat',c:[0,-146]};
-const items=()=>{const h=party().hat,s=[SUNHAT,TAM,BERET,BOATER,PIRATE].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
+// the safari hat is the prize for filling the zoo sticker book
+const SAFARI={id:'safari',slot:'hat',name:'safari hat',c:[0,-146]};
+const items=()=>{const h=party().hat,s=[SUNHAT,TAM,BERET,BOATER,PIRATE,SAFARI].filter(it=>S.souv.includes(it.id));return [ITEMS[0],ITEMS[1],...(h?[h]:[]),...s,ITEMS[2],ITEMS[3]]};
 const wearing=it=>it.slot==='hat'?S.hat===it.id:S[it.slot];
 // how high above the floor speech bubbles go for each hat
-const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226,beret:214,boater:218,pirate:226};
+const HATH={box:226,tophat:230,crown:216,party:242,witch:240,santa:236,ears:250,jester:240,lucky:224,sunhat:222,tam:226,beret:214,boater:218,pirate:226,safari:226};
 // every nap moves the season on; day 1 is summer
 const SEASONS=['summer','autumn','winter','spring'];
 const season=()=>SEASONS[(S.day-1)%4];
@@ -355,7 +363,7 @@ function later(fn,ms){T.push(setTimeout(fn,ms))}
 function clearLater(){T.forEach(clearTimeout);T=[];clearTimeout(moodT)}
 const homeward=()=>S.tummy>=3&&S.fish==='eaten';
 const night=homeward;
-const outside=()=>['city','park','play','square','moving','garden','gpool','hill','catarata','woods'].includes(S.scene);
+const outside=()=>['city','park','play','square','moving','garden','gpool','hill','catarata','woods','zoogate','zoo','penguins'].includes(S.scene);
 // after three days and 500 points a cat can move to the big house with two floors
 const MOVE_DAY=3, MOVE_PTS=500;
 const canMove=()=>!S.big&&S.day>=MOVE_DAY&&S.points>=MOVE_PTS;
@@ -550,9 +558,13 @@ function loadState(s){
   if(!SC[S.scene]||!S.awake) S.scene='bed';
   if(S.scene==='look') S.scene=S.look&&SC[S.look.from]?S.look.from:'bed';
   // a bedtime story stops when the game is closed; the cat is back in bed
-  if(S.scene==='tale') S.scene='bed';
+  if(S.scene==='tale'||S.scene==='dream') S.scene='bed';
+  // a game for two, or a peek at the zoo sticker book, goes back to where the cat was
+  if(S.scene==='duo') S.scene=S.duoFrom&&SC[S.duoFrom.from]?S.duoFrom.from:'bed';
+  if(S.scene==='zoobook') S.scene=S.zFrom&&SC[S.zFrom.from]?S.zFrom.from:'zoogate';
+  if(S.ride==='push') S.ride=null;
   if(!S.mine||Array.isArray(S.mine)) S.mine={};
-  S.mood=S.awake?'normal':'sleep';S.x=200;S.face=1;S.palX=136;S.palFace=1;
+  S.mood=S.awake?'normal':'sleep';S.x=200;S.face=1;S.palX=136;S.palFace=1;S.lunaX=S.pal?86:140;S.lunaFace=1;
   if(S.cup==='fall') S.cup='broken';
   if(S.box==='in'){S.box='gone';S.hat='box'}
   if(S.bath==='shake'||(S.bath==='in'&&S.pops.length>=BUBS.length)) S.bath='done';
@@ -573,7 +585,9 @@ const FUN=[['milk',()=>S.tummy>=3],['fish',()=>S.fish==='eaten'],['dress',()=>S.
   ['pets',()=>S.pets.length>0&&!hungryPets().length],['sketch',()=>S.sketched],['snowcat',()=>S.snowcat>=SNOWCAT.length],['sledge',()=>S.sled>0],
   ['puddles',()=>S.puds.length>=PUDX.length],['roll',()=>S.rolled>0],['diary',()=>S.wrote],['story',()=>S.told],['hunt',()=>S.huntDay===S.day],
   ['catarata',()=>S.slid2],['balls',()=>S.balls>0],['woods',()=>S.climbed],
-  ['wood',()=>S.wooded],['clay',()=>S.clayed],['xtal',()=>S.xtDay===S.day]];
+  ['wood',()=>S.wooded],['clay',()=>S.clayed],['xtal',()=>S.xtDay===S.day],
+  ['tidy',()=>S.tidy.length>=4],['share',()=>S.shared],['push',()=>S.pushed],['duo',()=>S.duoed],['dream',()=>S.dreamt.length>=3],
+  ['penguins',()=>S.fedP],['zoo',()=>S.snaps.length>=3]];
 const FUNPTS=3, NAPPTS=5;
 function checkFun(){
   if(!CUR)return;
@@ -641,6 +655,8 @@ const WEAR={
   boater:()=>`<g transform="rotate(-6 0 -130)"><path d="M-19,-131 V-150 Q0,-154 19,-150 V-131Z" fill="#f1d27a" ${K}/>
     <rect x="-19" y="-141" width="38" height="8" fill="#d8243c" stroke="${INK}" stroke-width="2"/><path d="M19,-137 l9,8" stroke="#d8243c" stroke-width="3" stroke-linecap="round"/>
     <ellipse cx="0" cy="-130" rx="36" ry="7" fill="#f1d27a" ${K}/><path d="M-30,-130 h60" stroke="#d6ad45" stroke-width="1.5" stroke-dasharray="3 3"/></g>`,
+  safari:()=>`<g transform="rotate(-6 0 -130)"><path d="M-22,-131 Q-23,-168 0,-168 Q23,-168 22,-131Z" fill="#e3c98f" ${K}/><path d="M-12,-160 Q0,-166 12,-160" fill="none" stroke="#c9a978" stroke-width="2"/>
+    <rect x="-22" y="-142" width="44" height="8" fill="#8a5a2b" stroke="${INK}" stroke-width="2"/><ellipse cx="0" cy="-130" rx="38" ry="7" fill="#e3c98f" ${K}/><circle cx="0" cy="-168" r="3.5" fill="#8a5a2b" stroke="${INK}" stroke-width="1.5"/></g>`,
   bow:()=>`<path d="M18,-127 L4,-138 L5,-116Z M18,-127 L32,-138 L31,-116Z" fill="#e0508a" ${K} stroke-width="2.2"/><circle cx="18" cy="-127" r="4.5" fill="#f38db5" stroke="${INK}" stroke-width="2"/>`,
   glasses:()=>`<path transform="translate(-11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
     <path transform="translate(11,-103) scale(.95)" d="${HEART}" fill="#f38db5" fill-opacity=".55" stroke="${INK}" stroke-width="2.4"/>
@@ -1514,21 +1530,23 @@ function slide(){
   ${S.ride==='slide'?`<g id="rider" transform="translate(43,452)"><g transform="scale(.6)">${rider()}</g></g>`:''}`;
 }
 function swing(){
-  const on=S.ride==='swing',legs='M192,452 L214,200 L236,452 M264,452 L286,200 L308,452';
+  const on=S.ride==='swing'||S.ride==='push',legs='M192,452 L214,200 L236,452 M264,452 L286,200 L308,452';
   return `<rect x="192" y="186" width="116" height="270" fill="transparent"/>
   <path d="${legs}" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="${legs}" fill="none" stroke="#e0508a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M206,200 H294" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="M206,200 H294" stroke="#ffd34d" stroke-width="6" stroke-linecap="round"/>
   <g class="${on?'swingy':''}" style="transform-box:view-box;transform-origin:250px 200px">
     <path d="M232,202 V392 M268,202 V392" stroke="${INK}" stroke-width="2.5"/>
-    ${on?`<g transform="translate(250,392) scale(.6)">${rider()}</g>`:''}
+    ${S.ride==='push'?`<g transform="translate(250,392) scale(.5)">${lunaSVG('happy')}</g>`:on?`<g transform="translate(250,392) scale(.6)">${rider()}</g>`:''}
     <rect x="224" y="390" width="52" height="10" rx="4" fill="#7fc36b" ${K} stroke-width="2.5"/>
   </g>
-  <text x="250" y="184" text-anchor="middle" class="lbl">SWING</text>`;
+  <text x="250" y="184" text-anchor="middle" class="lbl">SWING</text>
+  ${S.ride==='push'?`<g transform="translate(186,${FLOOR})">${catSVG('push',false,false,PINK,wearNow())}</g>`:''}`;
 }
 function seesaw(){
   const on=S.ride==='seesaw';
   // your friend rides the other end; with no friend yet, a duck from the pond hops on
   const other=S.pal?`<g transform="translate(386,420) scale(-.45,.45)">${catSVG('happy',false,false,GREY,{hat:S.party?'party2':''})}</g>`
+    :S.luna?`<g transform="translate(386,420) scale(-.4,.4)">${lunaSVG('happy')}</g>`
     :`<g transform="translate(386,410) scale(-1,1)">${duckArt(0,0,'#ffd34d',1.3)}</g>`;
   return `<rect x="296" y="366" width="104" height="90" fill="transparent"/>
   <path d="M336,452 L352,424 L368,452Z" fill="#8a6bd1" ${K}/>
@@ -2715,7 +2733,7 @@ function hangBtn(){
 /* ---------- scenes ---------- */
 /* ---------- holidays: the cat lives in London. A plane over the square says HOLIDAY!
    Brazil: Heathrow airport, a plane, then the beach in Rio. Scotland: Euston station, the sleeper train, then Edinburgh ---------- */
-const TRIPS={brazil:{name:'Brazil',start:'airport'},scotland:{name:'Scotland',start:'station'},paris:{name:'Paris',start:'pancras'},italy:{name:'Italy',start:'airport'}};
+const TRIPS={brazil:{name:'Brazil',start:'airport'},scotland:{name:'Scotland',start:'station'},paris:{name:'Paris',start:'pancras'},italy:{name:'Italy',start:'airport'},zoo:{name:'London Zoo',start:'zoogate'}};
 const italy=()=>S.trip==='italy';
 // a holiday is offered on the square once each trip is new, and then every third day
 const tripDay=()=>!S.trip&&S.tripDay!==S.day&&S.day>=2&&(S.trips.length<Object.keys(TRIPS).length||S.day%3===0);
@@ -2747,12 +2765,13 @@ function offerTrip(){
     <button class="big green" data-a="trip" data-t="scotland">${tripIcon('scotland')} <span>SCOTLAND<span class="meta">BY SLEEPER TRAIN</span></span></button>
     <button class="big pink" data-a="trip" data-t="paris">${tripIcon('paris')} <span>PARIS<span class="meta">BY EUROSTAR</span></span></button>
     <button class="big gold" data-a="trip" data-t="italy">${tripIcon('italy')} <span>ITALY<span class="meta">BY PLANE ✈</span></span></button>
+    <button class="big green" data-a="trip" data-t="zoo">${tripIcon('zoo')} <span>LONDON ZOO<span class="meta">BY RED BUS</span></span></button>
     <button class="big small" data-a="close">NOT NOW</button>`,
     `Holiday time, ${nm()}! Where shall we go?`,'Tap a place to go');
 }
 function startTrip(t){
   closeOv();S.trip=t;S.tp={};clearBubbles();sfx.chord();
-  say(TRIPS[t].start==='airport'?'You pack your suitcase… and off to the airport!':'You pack your suitcase… and off to the train station!','');
+  say(t==='zoo'?'A day out! You hop on a big red bus… off to the zoo!':TRIPS[t].start==='airport'?'You pack your suitcase… and off to the airport!':'You pack your suitcase… and off to the train station!','');
   go(TRIPS[t].start,'left');
 }
 function cancelTrip(){S.trip='';S.tp={};go('square',200)}
@@ -3116,7 +3135,7 @@ const flagFR=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x
   <rect x="-20" y="-14" width="40" height="28" rx="2" fill="none" stroke="${INK}" stroke-width="2"/></g>`;
 const flagIT=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="14" height="28" fill="#1f8a4c"/><rect x="-6" y="-14" width="13" height="28" fill="#fff"/><rect x="7" y="-14" width="13" height="28" fill="#d8243c"/>
   <rect x="-20" y="-14" width="40" height="28" rx="2" fill="none" stroke="${INK}" stroke-width="2"/></g>`;
-const tripFlag=(t,x,y,s)=>({brazil:flagBR,scotland:flagSC,paris:flagFR,italy:flagIT}[t]||flagBR)(x,y,s);
+const tripFlag=(t,x,y,s)=>({brazil:flagBR,scotland:flagSC,paris:flagFR,italy:flagIT,zoo:(a,b,c)=>flagZOO(a,b,c)}[t]||flagBR)(x,y,s);
 const sledArt=(c='#d8243c')=>`<path d="M-34,0 H30 Q40,0 40,-10" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M-34,0 H30 Q40,0 40,-10" fill="none" stroke="#cfd3dc" stroke-width="2.5" stroke-linecap="round"/>
   <path d="M-22,0 V-8 M18,0 V-8" stroke="${INK}" stroke-width="3"/><rect x="-32" y="-18" width="62" height="11" rx="4" fill="${c}" ${K} stroke-width="2.5"/>`;
 const CRESCENT='M0,-19 A19,19 0 1 0 0,19 A11,19 0 1 1 0,-19Z';
@@ -3162,6 +3181,13 @@ const IC={
   roll:()=>`<path d="M-20,14 Q0,-20 20,-14 V14Z" fill="#a8d98a" ${K} stroke-width="2.5"/><path d="M-10,-2 a6,6 0 1 1 8,6" fill="none" stroke="#e0508a" stroke-width="2.5" stroke-linecap="round"/>`,
   hero:()=>`<g transform="translate(0,26) scale(.3)">${catSVG('happy',false,false,PINK,wearNow())}</g>`,
   sleepy:()=>`<text x="0" y="8" text-anchor="middle" class="say" style="font-size:28px" fill="#2c8fd6">Zzz</text>`,
+  tidy:()=>`<g transform="translate(-7,2) scale(.55)">${TOYART.teddy()}</g><g transform="translate(11,2) scale(.55)">${TOYART.ball()}</g><rect x="-20" y="0" width="40" height="18" rx="3" fill="#f9b36b" ${K} stroke-width="2.5"/>`,
+  share:()=>`<circle cx="-8" cy="0" r="13" fill="#e0b07a" ${K} stroke-width="2.5"/><path d="M14,-12 a13,13 0 0 0 0,26 l-5,-7 l4,-5 l-5,-6 l4,-5Z" fill="#e0b07a" ${K} stroke-width="2.5"/><circle cx="-12" cy="-4" r="2" fill="#8a5232"/><circle cx="-4" cy="5" r="2" fill="#8a5232"/><circle cx="12" cy="2" r="2" fill="#8a5232"/>`,
+  push:()=>`<path d="M-16,-20 H16 M-10,-20 V8 M10,-20 V8" fill="none" stroke="${INK}" stroke-width="3"/><g transform="translate(0,12) scale(.17)">${catSVG('happy',false,false,LUNA,{bow:true})}</g>`,
+  duo:()=>`<g transform="translate(-10,20) scale(.2)">${catSVG('happy',false,false,PINK)}</g><g transform="translate(12,20) scale(.16)">${catSVG('happy',false,false,LUNA,{bow:true})}</g>`,
+  dream:()=>`<path d="${cloud(0,6,20,11,8)}" fill="#efe4f7" ${K} stroke-width="2.5"/><path transform="translate(8,-12) scale(.5)" d="${CRESCENT}" fill="#ffd34d" stroke="${INK}" stroke-width="3"/><path d="${starPath(-12,-14,5)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.4"/>`,
+  penguins:()=>`<g transform="translate(0,22) scale(.5)">${penguinArt()}</g>`,
+  zoo:()=>`<rect x="-20" y="-12" width="40" height="28" rx="5" fill="#3a3346" ${K} stroke-width="2.5"/><rect x="-10" y="-18" width="14" height="7" rx="2" fill="#3a3346" stroke="${INK}" stroke-width="2"/><circle cx="2" cy="2" r="9" fill="#bfe3fa" stroke="#fff" stroke-width="3"/><circle cx="2" cy="2" r="9" fill="none" stroke="${INK}" stroke-width="1.5"/><circle cx="14" cy="-6" r="2.5" fill="#ffd34d"/>`,
   pencil:()=>`<g transform="rotate(-35)"><rect x="-18" y="-4" width="30" height="8" fill="#ffd34d" stroke="${INK}" stroke-width="2"/><path d="M12,-4 L20,0 L12,4Z" fill="#f6dc9a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/></g>`
 };
 const icon=(k,pg={},x=0,y=0,s=1)=>`<g transform="translate(${x},${y}) scale(${s})">${(IC[k]||IC.stars)(pg)}</g>`;
@@ -3169,7 +3195,8 @@ const icon=(k,pg={},x=0,y=0,s=1)=>`<g transform="translate(${x},${y}) scale(${s}
 const TRIPSAY={brazil:['flew all the way to Brazil','flew in a big plane all the way to Brazil, and built the biggest sandcastle on the beach'],
   scotland:['went to Scotland on the sleeper train','rode the sleeper train all night to Scotland, and danced to the bagpipes'],
   paris:['went to Paris on the Eurostar','zoomed under the sea on the Eurostar to Paris, and waved at the Eiffel Tower'],
-  italy:['flew to Italy','flew over the mountains to Italy, and rode a gondola in Venice']};
+  italy:['flew to Italy','flew over the mountains to Italy, and rode a gondola in Venice'],
+  zoo:['went to London Zoo on a red bus','rode a big red bus to London Zoo, and saw a giraffe, a lion and an elephant']};
 const DIARY={
   milk:['MILK','I drank my milk.',N=>`${N} drank a big bowl of milk, slurp slurp, and felt strong and brave.`],
   fish:['FISH','I ate a yummy fish.',N=>`${N} bought a fish at the fish shop, and it was the yummiest fish in the whole of London.`],
@@ -3215,7 +3242,14 @@ const DIARY={
   roll:['HILL','I rolled down the hill.',N=>`${N} rolled all the way down the big hill, roly poly, and laughed and laughed.`],
   wood:['WOODWORK','I made something out of wood.',N=>`${N} sawed and hammered, bang bang bang, and made a ${WOODS.find(w=>w.k===(S.made.find(m=>m.t==='wood')||{k:'bird'}).k).name} out of wood.`],
   clay:['CLAY','I made a clay pot.',N=>`${N} squished the clay and spun the potter's wheel round and round, and made a beautiful pot.`],
-  xtal:['CRYSTALS','I did a science experiment.',N=>`${N} did a real science experiment and grew a crystal tree, just like Carolina did.`]
+  xtal:['CRYSTALS','I did a science experiment.',N=>`${N} did a real science experiment and grew a crystal tree, just like Carolina did.`],
+  tidy:['TIDY UP','Luna and I tidied the toys.',N=>`${N} and little Luna tidied up all the toys, and put every one back in the toy box.`],
+  share:['SHARING','I shared a biscuit with Luna.',N=>`${N} snapped a biscuit in half and shared it with Luna. Sharing is caring!`],
+  push:['SWING','I pushed Luna on the swing.',N=>`${N} pushed little Luna on the swing, higher and higher, and Luna said wheee!`],
+  duo:['2 PLAYERS','I played a game with Luna.',N=>`${N} and Luna played a catching game together, and caught lots of fish and stars.`],
+  dream:['DREAM','I had a magic dream.',N=>`${N} had a magic dream where all of Carolina's pictures came alive.`],
+  penguins:['PENGUINS','I fed the penguins.',N=>`${N} fed the hungry penguins at the zoo, one fish each. Gulp!`],
+  zoo:['PHOTOS','I took photos at the zoo.',N=>`${N} took photos of the zoo animals with a real camera. Snap snap!`]
 };
 // everyday things go last in the diary, and the bedtime story leaves them out
 const ROUTINE=['milk','fish','bath','teeth','stars','moon','art'];
@@ -3223,7 +3257,11 @@ const ROUTINE=['milk','fish','bath','teeth','stars','moon','art'];
 /* ---------- the diary on the bedroom windowsill ---------- */
 const DIARYMAX=60;
 function pageNow(){
-  return {d:S.day,s:season(),w:S.wx||'sun',k:S.done.filter(k=>DIARY[k]),p:S.today,t:S.tripDay===S.day?S.lastTrip||'':''};
+  const pg={d:S.day,s:season(),w:S.wx||'sun',k:S.done.filter(k=>DIARY[k]),p:S.today,t:S.tripDay===S.day?S.lastTrip||'':''};
+  // photos from the zoo camera are stuck into the page
+  const sn=S.snaps.filter(k=>ZA[k]);
+  if(sn.length)pg.ph=sn.length<=3?sn:[sn[0],sn[Math.floor(sn.length/2)],sn[sn.length-1]];
+  return pg;
 }
 // when the cat naps, today's page goes into the diary for good
 function keepPage(){
@@ -3236,7 +3274,8 @@ const pageKeys=pg=>{const k=pg.k.filter(x=>DIARY[x]);return [...k.filter(x=>!ROU
 function pageText(pg){
   const k=pageKeys(pg);
   if(!k.length)return pg.d===S.day?`Day ${pg.d}. Today has only just started! What will I do?`:`Day ${pg.d}. A sleepy, cosy day.`;
-  return `Day ${pg.d}. `+k.slice(0,8).map(x=>x==='trip'?`I ${(TRIPSAY[pg.t]||TRIPSAY.brazil)[0]}!`:DIARY[x][1]).join(' ');
+  const ph=(pg.ph||[]).filter(a=>ZA[a]).map(a=>aAn(ZA[a].name)),pl=ph.length>1?ph.slice(0,-1).join(', ')+' and '+ph[ph.length-1]:ph[0];
+  return `Day ${pg.d}. `+k.slice(0,8).map(x=>x==='trip'?`I ${(TRIPSAY[pg.t]||TRIPSAY.brazil)[0]}!`:DIARY[x][1]).join(' ')+(pl?` I took photos of ${pl}.`:'');
 }
 function diaryBook(){
   return `<rect x="104" y="214" width="70" height="40" fill="transparent"/>
@@ -3249,17 +3288,23 @@ const wxIcon=w=>w==='rain'?`<path d="${cloud(0,-4,18,8,7)}" fill="#e3e8ee" strok
 const SEAWORD={summer:'SUMMER',autumn:'AUTUMN',winter:'WINTER',spring:'SPRING'};
 const BOXX=[88,200,312], BOXY=[248,362];
 function diaryPage(){
-  const all=pages(),pg=all[Math.max(0,Math.min(all.length-1,S.dpg))],k=pageKeys(pg).slice(0,6),pen=S.writing;
+  const all=pages(),pg=all[Math.max(0,Math.min(all.length-1,S.dpg))],ph=(pg.ph||[]).filter(a=>ZA[a]),k=pageKeys(pg).slice(0,6-ph.length),pen=S.writing;
   const lines=[...Array(9)].map((_,i)=>`M28,${150+i*34} H372`).join(' ');
   const boxes=k.map((key,i)=>{const x=BOXX[i%3],y=BOXY[Math.floor(i/3)];
     return `<g${pen?` class="pen" style="animation-delay:${(.5+i*.55).toFixed(2)}s"`:''}><rect x="${x-50}" y="${y-52}" width="100" height="104" rx="10" fill="#fffaf6" stroke="${INK}" stroke-width="2" stroke-dasharray="6 4"/>
-      ${icon(key,pg,x,y-12,1.25)}<text x="${x}" y="${y+40}" text-anchor="middle" class="sign" style="font-size:${DIARY[key][0].length>8?14:17}px">${DIARY[key][0]}</text></g>`}).join('');
+      ${icon(key,pg,x,y-12,1.25)}<text x="${x}" y="${y+40}" text-anchor="middle" class="sign" style="font-size:${DIARY[key][0].length>8?14:17}px">${DIARY[key][0]}</text></g>`}).join('')
+    // zoo photos: little snapshots taped in after the pictures
+    +ph.map((a,j)=>{const i=k.length+j,x=BOXX[i%3],y=BOXY[Math.floor(i/3)],r=[-5,4,-3][j];
+      return `<g${pen?` class="pen" style="animation-delay:${(.5+i*.55).toFixed(2)}s"`:''}><g transform="rotate(${r} ${x} ${y})"><rect x="${x-46}" y="${y-50}" width="92" height="102" fill="#fff" ${K} stroke-width="2"/>
+        <rect x="${x-38}" y="${y-42}" width="76" height="66" fill="${a==='turtle'||a==='octopus'||a==='clownfish'?'#2c8fd6':'#bfe3fa'}" stroke="${INK}" stroke-width="1.5"/>${zFit(a,x,y-9,58)}
+        <text x="${x}" y="${y+44}" text-anchor="middle" class="sign" style="font-size:${ZA[a].name.length>8?13:16}px">${ZA[a].name.toUpperCase()}</text>
+        <rect x="${x-14}" y="${y-56}" width="28" height="10" fill="#f3e3b0" opacity=".85"/></g></g>`}).join('');
   return `<rect x="20" y="112" width="360" height="342" rx="10" fill="#fff" ${K}/><path d="${lines}" stroke="#bfe3fa" stroke-width="2"/><path d="M58,112 V454" stroke="#f38db5" stroke-width="2"/>
     ${[140,200,260,320,380,440].map(y=>`<circle cx="20" cy="${y}" r="7" fill="#fffaf6" ${K} stroke-width="2.5"/>`).join('')}
     <text x="72" y="166" class="sign" style="font-size:28px;fill:var(--hot)">DAY ${pg.d}</text>
     <text x="184" y="164" class="sign" style="font-size:18px">${SEAWORD[pg.s]||''}</text>
     <g transform="translate(332,152)">${wxIcon(pg.w)}</g>
-    ${k.length?boxes:`<g transform="translate(200,290)">${icon(pg.d===S.day?'pencil':'sleepy',pg,0,0,2)}</g><text x="200" y="350" text-anchor="middle" class="sign" style="font-size:20px">${pg.d===S.day?'NOTHING YET… GO AND PLAY!':'A SLEEPY DAY'}</text>`}
+    ${k.length||ph.length?boxes:`<g transform="translate(200,290)">${icon(pg.d===S.day?'pencil':'sleepy',pg,0,0,2)}</g><text x="200" y="350" text-anchor="middle" class="sign" style="font-size:20px">${pg.d===S.day?'NOTHING YET… GO AND PLAY!':'A SLEEPY DAY'}</text>`}
     ${pg.p?`<text x="360" y="442" text-anchor="end" class="sign" style="font-size:18px;fill:#d6ad45">★ ${pg.p}</text>`:''}`;
 }
 const pgBtn=(x,dir,on)=>`<circle cx="${x}" cy="488" r="23" fill="${on?'#fffaf6':'#e9e3dc'}" ${K}/><path d="${dir<0?`M${x+6},476 L${x-7},488 L${x+6},500`:`M${x-6},476 L${x+7},488 L${x-6},500`}" fill="none" stroke="${on?'#2c8fd6':'#b9b2aa'}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`;
@@ -3280,7 +3325,7 @@ function makeTale(){
   const OPEN=['One morning,','After that,','And then,'];
   pick.forEach((k,i)=>{const s=DIARY[k][2](N,S.lastTrip);out.push({k,t:`${OPEN[i]} ${s}`})});
   out.push({k:'moon',t:(S.wink?`When the stars came out, ${N} climbed up to the roof, and meowed at the moon, and the moon winked back. `:`When the stars came out, `)
-    +`${S.wink?'Then ':''}${N} snuggled into a soft cloud bed${S.pal?' with a best friend':''}, and closed both eyes. The end. Good night, ${N}!`});
+    +`${S.wink?'Then ':''}${N} snuggled into a soft cloud bed${S.pal&&S.luna?' with a best friend and little Luna':S.luna?' with little Luna':S.pal?' with a best friend':''}, and closed both eyes. The end. Good night, ${N}!`});
   return out;
 }
 function startTale(){S.tale=makeTale();S.tpg=0;sfx.chord();go('tale',200)}
@@ -3292,7 +3337,8 @@ function nextTale(){
 }
 function endTale(){
   hush();S.told=true;S.tale=null;checkFun();
-  S.scene='bed';S.x=200;S.face=1;S.mood='normal';stage.classList.remove('fade');nap();
+  // after the story the cat floats into a dream, and wakes in the morning
+  go('dream',200);
 }
 function bookArt(){
   const p=S.tale[S.tpg],last=S.tpg===S.tale.length-1,kk=p.k==='hero'?'hero':p.k;
@@ -3743,6 +3789,7 @@ const SC={
       if(S.awake&&night()) h.push({id:'ladder',label:'Ladder to the roof',svg:bedLadder(),walk:261,tap:()=>go('roof',70)});
       h.push({id:'bed',label:'Cloud bed',svg:`<path d="${cloud(190,414,116,32,11)}" fill="#fff" ${K}/><ellipse cx="96" cy="398" rx="30" ry="13" fill="#f3a3c6" ${K}/>`,
         tap:()=>!S.awake?wake():S.tummy<3?hungry():bedtime()});
+      if(S.awake&&!S.luna) h.push({id:'luna',label:'A tiny kitten asleep on your bed',svg:lunaBed(),walk:250,tap:meetLuna});
       // in the big house the dresser moves over to make room for the slide
       h.push({id:'drawer',label:'Dress-up drawer',svg:S.big?`<g transform="translate(-300,0)">${dresser()}</g>`:dresser(),walk:S.big?60:300,tap:()=>S.awake?go('dress',270):wake()});
       h.push({id:'vase',label:ART.vase.label,svg:framed('vase',298,136,72),walk:300,tap:()=>S.awake?lookAt('vase'):wake()});
@@ -3763,6 +3810,7 @@ const SC={
       :S.yarn==='tangled'?{id:'yarn',hint:'You are tangled! Tap the yarn to wiggle free'}
       :S.ache&&(S.tummy<3||homeward())&&!S.nag?{id:'go-bath',hint:'Your tummy hurts! Medicine is in the bathroom ↖'}
       :S.tour&&!homeward()?{id:'slide',hint:'A slide in your bedroom! Tap it ↘'}
+      :!S.luna?{id:'luna',hint:'Who is asleep on your bed? Tap her!'}
       :!homeward()&&!S.dressed?{id:'drawer',hint:'Get dressed! Tap the drawer'}
       :!homeward()&&typeof S.yarn==='number'?{id:'yarn',hint:'A ball of yarn! Bat it with your paw'}
       :S.tummy<3?{id:down,hint:S.big?'Slide down to the kitchen! ↘':'Now go to the kitchen ↗'}
@@ -3807,6 +3855,7 @@ const SC={
       {id:'blender',label:'Blender',svg:blender(),walk:190,tap:()=>{
         const b=$('.bl');b&&restartClass(b,'shake',900);sfx.bzz();bubble(225,212,'BZZZZ!','#2c8fd6');
         later(()=>react('scared'),450);say('Bzzzz! The blender is so loud! Miaawow!')}},
+      ...(S.luna?[{id:'jar',label:'Biscuit jar',svg:biscuitJar(),walk:200,tap:shareSnack}]:[]),
       {id:'cupcake',label:ART.cupcake.label,svg:framed('cupcake',320,228,58),walk:330,tap:()=>lookAt('cupcake')},
       ...(S.bird&&!night()?[{id:'bird',label:'Little bird at the window',svg:birdHot(),walk:250,tap:birdSing}]:[]),
       ...(typeof S.cup==='number'?[{id:'cup',label:'Cup on the edge of the counter',svg:cupHot(),walk:240,tap:pushCup}]:[]),
@@ -3827,6 +3876,7 @@ const SC={
       :S.tummy<3&&S.ache?{id:'go-bed',hint:S.big?'Medicine first! Go upstairs to the bathroom ↖':'Medicine first! Go to the bathroom ↖'}
       :S.tummy<3?{id:'fridge',hint:'Tap the fridge for some food'}
       :S.newStk.length?{id:'fridge',hint:'New sticker! Tap the fridge'}
+      :S.luna&&!S.shared&&!homeward()?{id:'jar',hint:'Luna is hungry too! Share a biscuit with her'}
       :!homeward()&&!S.mineN&&fridgeShut()?{id:'fridge',hint:'Draw your own sticker! Tap the fridge'}
       :!homeward()&&S.bird==='here'?{id:'bird',hint:'A bird at the window! Tap it'}
       :!homeward()&&typeof S.cup==='number'?{id:'cup',hint:'A cup on the edge… push it!'}
@@ -3855,6 +3905,8 @@ const SC={
       ...(S.box==='door'||S.box==='in'?[{id:'box',label:'Delivery box',svg:deliveryBox(),walk:300,tap:hopInBox}]:[]),
       {id:'piano',label:'Little piano',svg:toyPiano(),walk:70,tap:()=>go('piano','left')},
       {id:'go-kitchen',label:'Go to the kitchen',svg:arrow('left','KITCHEN'),tap:()=>leave(-60,()=>go('kitchen','right'))},
+      ...(S.luna?[{id:'toybox',label:'Toy box',svg:toyBox(),walk:100,tap:()=>{react('happy',false);say(S.tidy.length>=TOYS.length?'All the toys are tidy in the toy box. Well done!':'The toy box. Tap a toy to tidy it away!')}},
+        ...TOYS.map((t,i)=>S.tidy.includes(i)?null:{id:'toy'+i,label:"Luna's "+t.name,svg:toyHot(i),walk:t.x-34,tap:()=>tidyToy(i)}).filter(Boolean)]:[]),
       {id:'dot',label:'Red dot',svg:redDot(),walk:()=>S.dot.x,tap:pounce}
     ],
     goal:()=>S.fish==='carry'?{id:'go-kitchen',hint:'Take your fish to the kitchen ↖'}
@@ -3862,6 +3914,7 @@ const SC={
       :homeward()?{id:'go-kitchen',hint:'It is night! Go to the kitchen ↖'}
       :bday()&&!S.party?{id:'cake',hint:'A birthday cake! Tap it and meow'}
       :party().big&&S.fest!==THEME?{id:'fest',hint:party().big.hint}
+      :S.luna&&S.tidy.length<TOYS.length?{id:'toy'+TOYS.findIndex((t,i)=>!S.tidy.includes(i)),hint:'Luna\'s toys are all over the floor! Tidy them into the toy box'}
       :S.box==='door'?{id:'box',hint:'A box! Tap it'}
       :S.bird==='sang'?{id:'piano',hint:'Play the bird\'s song on the piano'}
       :!S.piano?{id:'piano',hint:'A little piano! Tap it'}
@@ -4086,11 +4139,12 @@ const SC={
       ${deco(150,506,.6)}`},
     hots:()=>[
       {id:'slide',label:'Slide',svg:slide(),walk:44,tap:()=>ride('slide')},
-      {id:'swing',label:'Swing',svg:swing(),walk:250,tap:()=>ride('swing')},
+      {id:'swing',label:'Swing',svg:swing(),walk:()=>S.luna&&!S.pushed&&!night()?186:250,tap:()=>S.luna&&!S.pushed&&!night()?pushLuna():ride('swing')},
       {id:'seesaw',label:'Seesaw',svg:seesaw(),walk:330,tap:()=>ride('seesaw')},
       toSquare()
     ],
-    goal:()=>placeGoal(()=>!S.rides.includes('slide')?{id:'slide',hint:'A slide! Tap it'}
+    goal:()=>placeGoal(()=>S.luna&&!S.pushed&&!night()?{id:'swing',hint:'Luna wants a go on the swing! Give her a push'}
+      :!S.rides.includes('slide')?{id:'slide',hint:'A slide! Tap it'}
       :!S.rides.includes('swing')?{id:'swing',hint:'A swing! Tap it'}
       :!S.rides.includes('seesaw')?{id:'seesaw',hint:'A seesaw! Tap it'}:null,
       ()=>({id:'slide',hint:`Play again for hearts (${S.hearts} of ${FISH})`})),
@@ -4788,7 +4842,7 @@ Object.assign(SC,{
       <rect y="400" width="400" height="120" fill="#efe4f7"/><path d="M0,400 H400" ${K}/>
       <path d="${cloud(200,428,150,28,12)}" fill="#fff" ${K}/><ellipse cx="96" cy="410" rx="30" ry="13" fill="#f38db5" ${K}/>
       <g transform="translate(150,420) rotate(-84) scale(.62)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('happy',false,false,PINK,{bow:S.bow,glasses:S.glasses})}</g></g>
-      ${S.pal?`<g transform="translate(300,418) rotate(-84) scale(.5)">${catSVG('sleep',false,false,GREY)}</g>`:''}`,
+      ${S.pal?`<g transform="translate(300,418) rotate(-84) scale(.5)">${catSVG('sleep',false,false,GREY)}</g>`:''}${S.luna?lunaAsleep(S.pal?360:306,424,.34):''}`,
     hots:()=>{const last=S.tale&&S.tpg===S.tale.length-1;return [
       {id:'book',label:'Story book: tap to hear the page again',svg:S.tale?bookArt():'',tap:talePage},
       {id:'next',label:last?'Good night':'Next page',svg:`<rect x="${last?190:226}" y="458" width="${last?196:160}" height="52" rx="16" fill="${last?'#8a6bd1':'#2c8fd6'}" ${K}/>
@@ -4957,13 +5011,525 @@ Object.assign(SC,{
   }
 });
 
+/* ---------- Luna, Carolina's little sister: a tiny lilac kitten with a bow who follows the cat and does things with it ---------- */
+const LUNA={head:'#fffaf6',body:'#c9b6f0',ear:'#f38db5'};
+const lunaSVG=(m='normal')=>catSVG(m,false,false,LUNA,{bow:true,hat:S.party?'party2':''});
+const lunaAsleep=(x,y,s=.4)=>`<g transform="translate(${x},${y}) rotate(-84) scale(${s})"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,LUNA,{bow:true})}</g></g>`;
+// a kitten's meep: higher and shorter than the cat's meow
+function mewSound(){
+  const a=ac();if(!a)return;const t=a.currentTime,d=.36;
+  const o=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain();
+  o.type='sawtooth';f.type='bandpass';f.frequency.value=1900;f.Q.value=2.5;
+  o.frequency.setValueAtTime(820,t);o.frequency.linearRampToValueAtTime(1350,t+d*.4);o.frequency.linearRampToValueAtTime(950,t+d);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.22,t+.04);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(f).connect(g).connect(a.destination);o.start(t);o.stop(t+d+.05);
+}
+function lunaHop(txt){
+  const an=$('#lunaAnim');an&&restartClass(an,'jump',700);mewSound();
+  txt&&bubble(S.lunaX,FLOOR-140,txt,'#8a6bd1');
+}
+// before the cat has met her, Luna is fast asleep at the end of the cloud bed
+function lunaBed(){
+  return `<rect x="232" y="372" width="96" height="64" fill="transparent"/>${lunaAsleep(304,426)}
+  <g class="zzz" pointer-events="none"><text x="262" y="374" style="font-size:20px">z</text><text x="280" y="358" style="font-size:16px">z</text></g>`;
+}
+function meetLuna(){
+  S.luna=true;S.lunaX=286;S.lunaFace=-1;save();render();
+  lunaHop('MEEP!');
+  later(()=>{react('happy');follow()},700);
+  say('Who is this? It is Luna, your little sister! She is a tiny kitten, and she wants to come everywhere with you.');
+}
+const LUNASAY=['You and Luna rub noses. Meep! Poooourrr!','Luna gives you a big kitten hug!','Luna copies everything you do. She thinks you are the best!','Luna does a tiny kitten pounce. Meep!'];
+function tapLuna(){
+  if(S.scene==='kitchen'&&S.luna&&!S.shared){walkTo(200,shareSnack);return}
+  if(S.scene==='play'&&!S.pushed&&!night()){walkTo(186,pushLuna);return}
+  if(S.scene==='living'&&S.tidy.length<TOYS.length){lunaHop('TIDY!');say('Luna points at her toys. They are all over the floor! Let\'s tidy them up together.');return}
+  lunaHop('MEEP!');react('happy');say(anyOf(LUNASAY));
+}
+
+/* Luna's toys are all over the living-room floor every morning: tidy them into the toy box together */
+const TOYS=[{k:'blocks',x:144,name:'blocks'},{k:'ball',x:204,name:'ball'},{k:'teddy',x:262,name:'teddy'},{k:'mouse',x:332,name:'toy mouse'}];
+const TOYART={
+  blocks:()=>`<rect x="-24" y="-22" width="22" height="22" rx="3" fill="#e8473f" ${K} stroke-width="2.5"/><rect x="2" y="-22" width="22" height="22" rx="3" fill="#2c8fd6" ${K} stroke-width="2.5"/>
+    <rect x="-11" y="-44" width="22" height="22" rx="3" fill="#ffd34d" ${K} stroke-width="2.5"/>
+    <text x="-13" y="-5" text-anchor="middle" class="sign" style="font-size:16px;fill:#fff">A</text><text x="13" y="-5" text-anchor="middle" class="sign" style="font-size:16px;fill:#fff">B</text><text x="0" y="-27" text-anchor="middle" class="sign" style="font-size:16px">C</text>`,
+  ball:()=>`<circle cy="-17" r="17" fill="#fff" ${K} stroke-width="2.5"/><path d="M-17,-17 Q0,-8 17,-17 M-12,-29 Q0,-20 12,-29" fill="none" stroke="#e0508a" stroke-width="4"/><path d="M-13,-6 Q0,1 13,-6" fill="none" stroke="#2c8fd6" stroke-width="4"/><circle cy="-17" r="17" fill="none" ${K} stroke-width="2.5"/>`,
+  teddy:()=>`<circle cx="-12" cy="-42" r="7" fill="#c98a4b" ${K} stroke-width="2.2"/><circle cx="12" cy="-42" r="7" fill="#c98a4b" ${K} stroke-width="2.2"/>
+    <ellipse cy="-12" rx="16" ry="13" fill="#c98a4b" ${K} stroke-width="2.4"/><circle cy="-32" r="14" fill="#c98a4b" ${K} stroke-width="2.4"/><ellipse cy="-27" rx="6" ry="4.5" fill="#f3d9b5" stroke="${INK}" stroke-width="1.5"/>
+    <circle cx="-5" cy="-35" r="1.8" fill="${INK}"/><circle cx="5" cy="-35" r="1.8" fill="${INK}"/><circle cy="-28" r="1.8" fill="${INK}"/>${heart(0,-12,.5,'#e0508a')}`,
+  mouse:()=>`<path d="M16,-8 q14,-2 14,-14" fill="none" stroke="${INK}" stroke-width="2.5" stroke-linecap="round"/><path d="M-22,-4 Q-20,-24 0,-24 Q18,-24 18,-4Z" fill="#cfd3dc" ${K} stroke-width="2.5"/>
+    <circle cx="-10" cy="-24" r="6" fill="#f6b3cb" stroke="${INK}" stroke-width="2"/><circle cx="-20" cy="-12" r="1.8" fill="${INK}"/><circle cx="-24" cy="-6" r="2.2" fill="#e0508a"/>
+    <path d="M4,-24 v-6 M0,-30 h8" stroke="#d6ad45" stroke-width="3" stroke-linecap="round"/>`
+};
+function toyHot(i){const t=TOYS[i];return `<rect x="${t.x-30}" y="458" width="60" height="58" fill="transparent"/><g class="toy${i}"><g transform="translate(${t.x},508) rotate(${[-8,0,10,-4][i]})">${TOYART[t.k]()}</g></g>`}
+function toyBox(){
+  const n=S.tidy.length;
+  return `<rect x="8" y="452" width="86" height="66" fill="transparent"/>
+  ${S.tidy.map((i,j)=>`<g transform="translate(${30+j*14},${476-(j%2)*6}) scale(.6)">${TOYART[TOYS[i].k]()}</g>`).join('')}
+  <rect x="14" y="470" width="74" height="44" rx="5" fill="#f9b36b" ${K}/><path d="M14,484 H88" stroke="${INK}" stroke-width="2"/>
+  <text x="51" y="507" text-anchor="middle" class="sign" style="font-size:16px">TOYS</text>${n>=TOYS.length?heart(80,466,.6,'#e0508a',true):''}`;
+}
+function tidyToy(i){
+  const t=TOYS[i],el=$('.toy'+i),luna=S.tidy.length%2===1;
+  S.busy=true;sfx.pop();
+  if(luna)lunaHop('ME!');
+  if(el){el.style.transition='transform .6s ease-in,opacity .6s ease-in';el.style.transform=`translate(${50-t.x}px,-34px)`;el.style.opacity='.2'}
+  later(()=>{
+    S.tidy.push(i);S.busy=false;render();follow();sfx.plop();
+    if(S.tidy.length>=TOYS.length){react('happy');later(()=>lunaHop('HUG!'),300);say('All tidy! Luna gives you a big hug. Thank you for helping!')}
+    else say(luna?`Luna carries the ${t.name} to the toy box. Well done, Luna!`:`You put the ${t.name} in the toy box. Tidy tidy!`);
+  },620);
+}
+
+/* sharing a biscuit with Luna in the kitchen */
+function biscuitJar(){
+  const b=(x,y)=>`<circle cx="${x}" cy="${y}" r="8" fill="#e0b07a" stroke="${INK}" stroke-width="1.8"/><circle cx="${x-2}" cy="${y-2}" r="1.3" fill="#8a5232"/><circle cx="${x+3}" cy="${y+2}" r="1.3" fill="#8a5232"/>`;
+  return `<rect x="144" y="250" width="60" height="74" fill="transparent"/><text x="174" y="262" text-anchor="middle" class="lbl" style="font-size:14px">BISCUITS</text>
+  <rect x="152" y="284" width="44" height="38" rx="10" fill="#eaf7ff" ${K} stroke-width="2.5"/>
+  ${S.shared?'':b(166,308)}${b(182,310)}${b(174,298)}
+  <rect x="156" y="274" width="36" height="12" rx="4" fill="#e0508a" ${K} stroke-width="2.5"/><circle cx="174" cy="270" r="5" fill="#e0508a" stroke="${INK}" stroke-width="2"/>`;
+}
+function shareSnack(){
+  if(S.shared){react('happy',false);say('The rest of the biscuits are for later. Yum!');return}
+  S.busy=true;faceTo(S.lunaX);sfx.crunch(true);bubble(174,226,'SNAP!','#a8652f');
+  say('You take a biscuit from the jar and snap it in half…','');
+  later(()=>{S.shared=true;S.busy=false;render();follow();lunaHop('YUM!');react('happy');
+    say('One half for you and one half for Luna. Crunch crunch! Sharing is caring.')},900);
+}
+
+/* pushing Luna on the playground swing */
+function pushLuna(){
+  S.busy=true;S.ride='push';S.x=186;S.face=1;clearTimeout(moodT);S.mood='normal';clearBubbles();render();
+  say('Luna hops on the swing. You give her a push… up she goes!','');
+  [0,1,2].forEach(j=>later(()=>{sfx.whee();j===1&&bubble(250,300,'WHEEE!','#8a6bd1')},200+j*1200));
+  later(()=>{S.ride=null;S.pushed=true;S.lunaX=250;S.busy=false;render();follow();lunaHop('AGAIN!');react('happy');
+    say('Luna loved it! Now it is your turn. Tap the swing and Luna will push you!')},3700);
+}
+
+/* ---------- two players on one screen: the cat on the left, Luna on the right. Tap your side to run, and catch what falls ---------- */
+const DUOT=40, DUOTOP=110;
+let DUO=null;
+const canDuo=()=>S.luna&&S.awake&&!SC[S.scene].noCat&&!S.ride&&!S.busy;
+function startDuo(){closeOv();S.duoFrom={from:S.scene,x:Math.round(S.x)};DUO=null;go('duo',200)}
+const DUOART={
+  fish:()=>`<g transform="scale(1.7)">${fishArt}</g>`,
+  heart:()=>heart(0,0,1.5,'#e0508a',true),
+  star:()=>`<path d="${starPath(0,0,16)}" fill="#ffd34d" ${K} stroke-width="2.5"/>`
+};
+function duoPlay(){
+  const t=performance.now();
+  DUO={t0:t,last:t,sc:[0,0],cx:[100,300],tx:[100,300],it:[],next:[300,700],end:false};
+  render();duoLoop();sfx.chord();
+  say('Go! Catch the fish, hearts and stars! Player 1 taps the left side, player 2 taps the right side.','Tap your side to run there');
+}
+function duoLoop(){
+  const D=DUO,g=GEN;
+  (function step(t){
+    if(g!==GEN||S.scene!=='duo'||DUO!==D||D.end)return;
+    const dt=Math.min(.05,(t-D.last)/1000),gone=(t-D.t0)/1000;D.last=t;
+    // new things fall on each side, a little faster as time goes on
+    [0,1].forEach(s=>{
+      D.next[s]-=dt*1000;
+      if(D.next[s]<=0){D.next[s]=900+Math.random()*700;
+        D.it.push({s,x:(s?226:26)+Math.random()*148,y:DUOTOP,v:85+Math.random()*35+gone*1.2,k:anyOf(['fish','heart','star'])})}
+      const d=D.tx[s]-D.cx[s],c=$('#duoC'+s),a=$('#duoA'+s);
+      if(Math.abs(d)>1){D.cx[s]+=Math.sign(d)*Math.min(Math.abs(d),260*dt);a&&a.classList.add('walk');
+        const f=$('#duoF'+s);f&&f.setAttribute('transform',`scale(${d<0?-1:1},1)`)}
+      else a&&a.classList.remove('walk');
+      c&&c.setAttribute('transform',`translate(${D.cx[s].toFixed(1)},${FLOOR}) scale(${s?.5:.62})`);
+    });
+    D.it.forEach(o=>{
+      o.y+=o.v*dt;
+      const top=FLOOR-(o.s?100:126);
+      if(!o.done&&o.y>=top-10&&o.y<=top+40&&Math.abs(o.x-D.cx[o.s])<40){
+        o.done=true;D.sc[o.s]++;o.s?mewSound():sfx.coin();
+        const n=$('#duoS'+o.s);n&&(n.textContent=`★ ${D.sc[o.s]}`);
+        const a=$('#duoA'+o.s);a&&restartClass(a,'stretch',600);
+      }
+    });
+    D.it=D.it.filter(o=>!o.done&&o.y<FLOOR+20);
+    const box=$('#duoIt');box&&(box.innerHTML=D.it.map(o=>`<g transform="translate(${o.x.toFixed(1)},${o.y.toFixed(1)})">${DUOART[o.k]()}</g>`).join(''));
+    const bar=$('#duoBar');bar&&bar.setAttribute('width',Math.max(0,360*(1-gone/DUOT)).toFixed(1));
+    if(gone>=DUOT){duoEnd();return}
+    requestAnimationFrame(step);
+  })(performance.now());
+}
+function duoEnd(){
+  const [a,b]=DUO.sc;DUO.end=true;DUO.it=[];
+  const first=!S.duoed;S.duoed=true;render();sfx.chord();
+  hearts(200,300);earnHeart();
+  say(`Time is up! ${nm()} caught ${a} and Luna caught ${b}. Together that is ${a+b}! What a team!`+(first?'':' Play again?'),'Tap PLAY AGAIN, or go back ↖');
+}
+function duoLayer(){
+  const D=DUO||{cx:[100,300],sc:[0,0]};
+  return `<g pointer-events="none"><g id="duoIt"></g>
+  <g id="duoC0" transform="translate(${D.cx[0]},${FLOOR}) scale(.62)"><g id="duoF0"><g id="duoA0" class="alive">${catSVG('happy',false,false,PINK,wearNow())}</g></g></g>
+  <g id="duoC1" transform="translate(${D.cx[1]},${FLOOR}) scale(.5)"><g id="duoF1"><g id="duoA1" class="alive">${lunaSVG('happy')}</g></g></g>
+  <text id="duoS0" x="150" y="64" text-anchor="middle" class="sign" style="font-size:30px;fill:#e0508a">★ ${D.sc[0]}</text>
+  <text id="duoS1" x="300" y="64" text-anchor="middle" class="sign" style="font-size:30px;fill:#8a6bd1">★ ${D.sc[1]}</text>
+  ${DUO&&!DUO.end?`<rect x="20" y="88" width="360" height="12" rx="6" fill="#fff" stroke="${INK}" stroke-width="2"/><rect id="duoBar" x="20" y="88" width="360" height="12" rx="6" fill="#ffd34d" stroke="${INK}" stroke-width="2"/>`:''}</g>`;
+}
+function duoCard(){
+  if(DUO&&DUO.end){const [a,b]=DUO.sc;
+    return `<rect x="50" y="130" width="300" height="190" rx="18" fill="#fffaf6" ${K}/>
+    <text x="200" y="174" text-anchor="middle" class="sign" style="font-size:32px;fill:#e0508a">TIME UP!</text>
+    <text x="130" y="222" text-anchor="middle" class="sign" style="font-size:22px">${esc(nm().slice(0,8))} ★ ${a}</text><text x="276" y="222" text-anchor="middle" class="sign" style="font-size:22px;fill:#8a6bd1">LUNA ★ ${b}</text>
+    <text x="200" y="266" text-anchor="middle" class="sign" style="font-size:26px">TOGETHER ★ ${a+b}</text>
+    ${heart(110,300,1,'#e0508a',true)}${heart(290,300,1,'#8a6bd1',true)}`}
+  return `<rect x="30" y="122" width="340" height="212" rx="18" fill="#fffaf6" ${K}/>
+    <text x="200" y="162" text-anchor="middle" class="sign" style="font-size:30px;fill:#e0508a">2 PLAYERS!</text>
+    <text x="115" y="204" text-anchor="middle" class="sign" style="font-size:20px">PLAYER 1</text><text x="285" y="204" text-anchor="middle" class="sign" style="font-size:20px;fill:#8a6bd1">PLAYER 2</text>
+    <text x="115" y="230" text-anchor="middle" class="sign" style="font-size:18px">${esc(nm().slice(0,9))}</text><text x="285" y="230" text-anchor="middle" class="sign" style="font-size:18px;fill:#8a6bd1">LUNA</text>
+    <text x="115" y="262" text-anchor="middle" class="sign" style="font-size:16px">TAP THIS SIDE ◀</text><text x="285" y="262" text-anchor="middle" class="sign" style="font-size:16px;fill:#8a6bd1">▶ TAP THIS SIDE</text>
+    <text x="200" y="306" text-anchor="middle" class="sign" style="font-size:17px">CATCH THE FISH, HEARTS AND STARS!</text>`;
+}
+stage.addEventListener('pointerdown',e=>{
+  if(S.scene!=='duo'||!DUO||DUO.end)return;
+  if(e.target.closest&&e.target.closest('.hot'))return;
+  const m=stage.getScreenCTM();if(!m)return;
+  const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(m.inverse());
+  if(p.y<DUOTOP)return;
+  e.preventDefault();ac();
+  const s=p.x<200?0:1;DUO.tx[s]=s?Math.max(226,Math.min(374,p.x)):Math.max(26,Math.min(174,p.x));
+});
+
+/* ---------- the dream: after the bedtime story the cat floats into a dream where Carolina's pictures come alive ---------- */
+const DREAMS=[
+  {k:'garland1',x:80,y:14,w:240,cls:'wiggle',pop:'WHEEE!',fx:()=>sfx.whee(),t:"Luna's paper garland wiggles like a long, happy snake. Wheee!"},
+  {k:'starry',x:20,y:118,w:108,cls:'stretch',pop:'TWINKLE!',fx:d=>{[1,3,5].forEach((n,j)=>later(()=>sfx.twinkle(n),j*200));burst(80,150,(x,y)=>`<path d="${starPath(x,y,9)}" fill="#ffd34d" stroke="${INK}" stroke-width="1.5"/>`)},
+    t:'The stars in the starry night twinkle and swirl round and round. Twinkle twinkle!'},
+  {k:'vase',x:158,y:126,w:80,cls:'dance',pop:'LA LA LAAA!',fx:()=>{[4,5,7,5,4].forEach((n,j)=>later(()=>{sfx.note(n);floatNote(170+j*16,128,KEYC[j])},j*260))},
+    t:'The flowers in the vase open their mouths and sing! La la laaa!'},
+  {k:'cupcake',x:292,y:118,w:86,cls:'jump',pop:'BOING!',fx:()=>{sfx.boing();later(()=>sfx.boing(),420);burst(333,150,(x,y,i)=>`<rect x="${x}" y="${y}" width="5" height="12" rx="2" transform="rotate(${i*50} ${x} ${y})" fill="${KEYC[i]}" stroke="${INK}" stroke-width="1"/>`)},
+    t:'The cupcake bounces up and down. Boing boing! Sprinkles everywhere!'},
+  {k:'bugs',x:16,y:262,w:116,cls:'shake',pop:'BZZZ!',fx:()=>sfx.bzz(),t:'The bee flaps her orange wings and buzzes round the big pink flower. Bzzz! The beetle waves hello.'},
+  {k:'rainbow',x:170,y:258,w:62,cls:'stretch',pop:'SPARKLE!',fx:()=>{sfx.chord();burst(200,290,(x,y,i)=>`<path d="${starPath(x,y,7)}" fill="${KEYC[i]}" stroke="${INK}" stroke-width="1.3"/>`)},
+    t:'The rainbow crystal tree grows and grows, and sparkles in every colour!'},
+  {k:'pumpkins',x:258,y:272,w:124,cls:'jump',pop:'PEEKABOO!',fx:()=>{sfx.pop();later(()=>sfx.pop(),200)},t:'The pumpkins roll their googly eyes and hop up and down. Peekaboo!'}
+];
+function dreamTap(i){
+  const d=DREAMS[i],el=$('.dz'+i);
+  el&&restartClass(el,d.cls,d.cls==='dance'?1900:900);
+  d.fx(d);bubble(d.x+d.w/2,Math.max(48,d.y-6),d.pop,'#8a6bd1');
+  if(!S.dreamt.includes(i))S.dreamt.push(i);
+  say(d.t);
+}
+function endDream(){
+  hush();S.busy=true;stage.classList.add('fade');const g=GEN;
+  setTimeout(()=>{if(g!==GEN)return;S.scene='bed';S.x=200;S.face=1;S.mood='normal';S.busy=false;stage.classList.remove('fade');nap()},300);
+}
+
+/* ---------- a day out at London Zoo: a red bus, a sticker book to fill, penguins to feed and a camera for the diary ---------- */
+// each animal stands on 0,0 (sea animals are drawn round 0,0); w and h are about how big it is, cy is its middle
+const ZA={
+  giraffe:{name:'giraffe',w:120,h:240,cy:-120,say:'The giraffe stretches her long, long neck and munches leaves from the top of the tree. Munch munch!',pop:'MUNCH!',
+    art:()=>{const legs='M-34,-96 V0 M-18,-96 V0 M26,-96 V0 M42,-96 V0';
+      return `<path d="${legs}" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="${legs}" stroke="#f1c45a" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M54,-112 q12,18 6,40" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/><path d="M60,-72 l-4,10 l8,-2Z" fill="#8a5232" stroke="${INK}" stroke-width="1.5"/>
+      <ellipse cx="6" cy="-110" rx="54" ry="27" fill="#f1c45a" ${K}/>
+      <path d="M-44,-118 L-70,-206 L-50,-212 L-20,-124Z" fill="#f1c45a" ${K}/>
+      <path d="M-58,-150 l10,-6 M-62,-178 l10,-4" stroke="#c97a2b" stroke-width="7" stroke-linecap="round"/>
+      ${[[-20,-118,9],[8,-104,10],[32,-118,8],[-4,-124,6],[40,-100,6]].map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="#c97a2b"/>`).join('')}
+      <path d="M-58,-224 l-2,-16 M-48,-224 l2,-16" stroke="${INK}" stroke-width="3.5" stroke-linecap="round"/><circle cx="-60" cy="-241" r="4" fill="#8a5232" stroke="${INK}" stroke-width="1.6"/><circle cx="-46" cy="-241" r="4" fill="#8a5232" stroke="${INK}" stroke-width="1.6"/>
+      <ellipse cx="-66" cy="-214" rx="24" ry="13" transform="rotate(-14 -66 -214)" fill="#f1c45a" ${K}/><ellipse cx="-84" cy="-208" rx="9" ry="7" fill="#f3d9b5" stroke="${INK}" stroke-width="2"/>
+      <circle cx="-66" cy="-219" r="3" fill="${INK}"/><path d="M-42,-222 l10,-6 l-2,10Z" fill="#f1c45a" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>`}},
+  lion:{name:'lion',w:110,h:120,cy:-60,say:'ROAR! Don\'t worry, the lion is only yawning. He is a big sleepy cat, just like you!',pop:'ROAR!',
+    art:()=>`<path d="M30,-14 q34,4 30,-30" fill="none" stroke="${INK}" stroke-width="4" stroke-linecap="round"/><path d="M60,-46 q8,-6 2,-14 q-8,2 -6,12Z" fill="#a8652f" stroke="${INK}" stroke-width="2"/>
+      <ellipse cx="6" cy="-34" rx="34" ry="34" fill="#f1c45a" ${K}/><ellipse cx="-12" cy="-4" rx="13" ry="7" fill="#f1c45a" ${K} stroke-width="2.5"/><ellipse cx="18" cy="-4" rx="13" ry="7" fill="#f1c45a" ${K} stroke-width="2.5"/>
+      <path d="${cloud(0,-82,40,38,12)}" fill="#e8742a" ${K}/>
+      <circle cx="-17" cy="-102" r="7" fill="#f1c45a" stroke="${INK}" stroke-width="2"/><circle cx="17" cy="-102" r="7" fill="#f1c45a" stroke="${INK}" stroke-width="2"/>
+      <circle cx="0" cy="-80" r="25" fill="#f6d36b" ${K}/><circle cx="-9" cy="-86" r="3" fill="${INK}"/><circle cx="9" cy="-86" r="3" fill="${INK}"/>
+      <path d="M-5,-77 h10 l-5,6Z" fill="#8a5232" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/><path d="M0,-71 v4 M-7,-65 q7,6 14,0" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`},
+  elephant:{name:'elephant',w:170,h:140,cy:-70,say:'The elephant lifts her trunk and goes TOOT! Then she sprays water everywhere. Splash!',pop:'TOOT!',
+    art:()=>`<path d="M78,-80 q14,10 10,28" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>
+      ${[-20,4,40,62].map(x=>`<rect x="${x}" y="-46" width="22" height="46" rx="8" fill="#b9bcc8" ${K} stroke-width="2.5"/>`).join('')}
+      <ellipse cx="26" cy="-72" rx="62" ry="44" fill="#b9bcc8" ${K}/>
+      <path d="M-58,-82 Q-84,-70 -82,-36 Q-80,-22 -70,-24" fill="none" stroke="${INK}" stroke-width="16" stroke-linecap="round"/><path d="M-58,-82 Q-84,-70 -82,-36 Q-80,-22 -70,-24" fill="none" stroke="#b9bcc8" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="-40" cy="-96" r="34" fill="#b9bcc8" ${K}/><ellipse cx="-14" cy="-96" rx="22" ry="30" fill="#d3d4dc" ${K}/>
+      <circle cx="-50" cy="-104" r="3.5" fill="${INK}"/><path d="M-60,-78 q-6,8 -2,14" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M-60,-78 q-6,8 -2,14" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>`},
+  monkey:{name:'monkey',w:90,h:110,cy:-55,say:'The monkey swings by her tail and says ooh ooh aah aah! She has a banana.',pop:'OOH OOH!',
+    art:()=>`<path d="M22,-20 q32,0 28,-34 q-2,-14 -14,-10" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><path d="M22,-20 q32,0 28,-34 q-2,-14 -14,-10" fill="none" stroke="#8a5232" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M-16,-44 L-30,-96 M16,-44 L28,-14" stroke="${INK}" stroke-width="10" stroke-linecap="round"/><path d="M-16,-44 L-30,-96 M16,-44 L28,-14" stroke="#8a5232" stroke-width="6" stroke-linecap="round"/>
+      <path d="M26,-14 q8,-16 22,-12 q-10,4 -14,16Z" fill="#ffd34d" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+      <ellipse cx="0" cy="-30" rx="22" ry="28" fill="#8a5232" ${K}/><ellipse cx="0" cy="-26" rx="12" ry="16" fill="#e3b98a"/>
+      <circle cx="-24" cy="-74" r="9" fill="#e3b98a" ${K} stroke-width="2.5"/><circle cx="24" cy="-74" r="9" fill="#e3b98a" ${K} stroke-width="2.5"/>
+      <circle cx="0" cy="-74" r="22" fill="#8a5232" ${K}/><path d="M-14,-70 Q-14,-88 0,-82 Q14,-88 14,-70 Q14,-58 0,-58 Q-14,-58 -14,-70Z" fill="#e3b98a" stroke="${INK}" stroke-width="2"/>
+      <circle cx="-6" cy="-74" r="2.6" fill="${INK}"/><circle cx="6" cy="-74" r="2.6" fill="${INK}"/><path d="M-5,-64 q5,4 10,0" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`},
+  penguin:{name:'penguin',w:60,h:90,cy:-44,say:'A penguin! It waddles, waddles… then slides into the water on its tummy. Splash!',pop:'SQUAWK!',
+    art:()=>penguinArt()},
+  turtle:{name:'sea turtle',w:110,h:60,cy:0,say:'A sea turtle swims slowly past. She is very, very old and very, very wise.',pop:'HELLO!',
+    art:()=>`<ellipse cx="-30" cy="14" rx="16" ry="7" transform="rotate(30 -30 14)" fill="#a8d98a" ${K} stroke-width="2.5"/><ellipse cx="22" cy="16" rx="18" ry="7" transform="rotate(-30 22 16)" fill="#a8d98a" ${K} stroke-width="2.5"/>
+      <ellipse cx="22" cy="-16" rx="18" ry="7" transform="rotate(30 22 -16)" fill="#a8d98a" ${K} stroke-width="2.5"/>
+      <circle cx="44" cy="-4" r="12" fill="#a8d98a" ${K}/><circle cx="48" cy="-7" r="2.6" fill="${INK}"/><path d="M48,1 q4,2 7,-1" fill="none" stroke="${INK}" stroke-width="1.8" stroke-linecap="round"/>
+      <ellipse cx="0" cy="0" rx="36" ry="22" fill="#3fae5a" ${K}/><path d="M-14,-20 L-8,-6 L8,-6 L14,-20 M-8,-6 L-16,8 L-6,20 M8,-6 L16,8 L6,20 M-16,8 H-34 M16,8 H34" fill="none" stroke="#1f6b3c" stroke-width="2.5"/>`},
+  octopus:{name:'octopus',w:90,h:100,cy:-4,say:'An octopus! She has eight wiggly arms. Can you count them?',pop:'WIGGLE!',
+    art:()=>`${[-30,-20,-10,0,10,20,30].map((x,i)=>`<path d="M${x*.6},14 q${x*.5},18 ${x*.9},20 q${x<0?-8:8},4 ${x<0?-2:2},16" fill="none" stroke="${INK}" stroke-width="9" stroke-linecap="round"/><path d="M${x*.6},14 q${x*.5},18 ${x*.9},20 q${x<0?-8:8},4 ${x<0?-2:2},16" fill="none" stroke="#b18ce6" stroke-width="5" stroke-linecap="round"/>`).join('')}
+      <path d="M-30,14 Q-34,-44 0,-46 Q34,-44 30,14Z" fill="#8a6bd1" ${K}/><circle cx="-11" cy="-8" r="8" fill="#fff" stroke="${INK}" stroke-width="2"/><circle cx="11" cy="-8" r="8" fill="#fff" stroke="${INK}" stroke-width="2"/>
+      <circle cx="-10" cy="-7" r="3.5" fill="${INK}"/><circle cx="12" cy="-7" r="3.5" fill="${INK}"/><path d="M-6,6 q6,5 12,0" fill="none" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="-16" cy="-30" r="4" fill="#b18ce6"/><circle cx="8" cy="-36" r="3" fill="#b18ce6"/>`},
+  clownfish:{name:'clownfish',w:70,h:40,cy:0,say:'Little orange clownfish hide in the wavy sea plants. Peekaboo!',pop:'PEEKABOO!',
+    art:()=>`<path d="M22,0 l16,-13 v26Z" fill="#f5891f" ${K} stroke-width="2.5"/><ellipse cx="0" cy="0" rx="26" ry="16" fill="#f5891f" ${K}/>
+      <path d="M-12,-15 q-5,15 0,30 M8,-15 q5,15 0,30" fill="none" stroke="${INK}" stroke-width="8"/><path d="M-12,-15 q-5,15 0,30 M8,-15 q5,15 0,30" fill="none" stroke="#fff" stroke-width="5"/>
+      <circle cx="-18" cy="-3" r="3" fill="${INK}"/><path d="M-26,4 q3,2 6,0" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>`}
+};
+const ZOOK=Object.keys(ZA);
+const aAn=w=>(/^[aeiou]/i.test(w)?'an ':'a ')+w;
+function penguinArt(){
+  return `<ellipse cx="-9" cy="0" rx="9" ry="4" fill="#f9a03f" stroke="${INK}" stroke-width="2"/><ellipse cx="9" cy="0" rx="9" ry="4" fill="#f9a03f" stroke="${INK}" stroke-width="2"/>
+  <path d="M-20,-52 q-12,16 -6,32 M20,-52 q12,16 6,32" fill="none" stroke="${INK}" stroke-width="8" stroke-linecap="round"/>
+  <ellipse cx="0" cy="-44" rx="24" ry="44" fill="#3a3346" ${K}/><ellipse cx="0" cy="-34" rx="15" ry="31" fill="#fff" stroke="${INK}" stroke-width="2"/>
+  <circle cx="-7" cy="-70" r="4.5" fill="#fff" stroke="${INK}" stroke-width="1.5"/><circle cx="7" cy="-70" r="4.5" fill="#fff" stroke="${INK}" stroke-width="1.5"/>
+  <circle cx="-6" cy="-69" r="1.9" fill="${INK}"/><circle cx="6" cy="-69" r="1.9" fill="${INK}"/><path d="M-5,-62 H5 L0,-55Z" fill="#f9a03f" stroke="${INK}" stroke-width="1.5" stroke-linejoin="round"/>`;
+}
+// an animal made to fit in a box of size b, centred on x,y
+const zFit=(k,x,y,b)=>{const a=ZA[k],s=Math.min(b/a.w,b/a.h);return `<g transform="translate(${x},${(y-a.cy*s).toFixed(1)}) scale(${s.toFixed(3)})">${a.art()}</g>`};
+// an animal hotspot in a zoo scene: its own art, and a tag once it is in the sticker book
+function zooHot(k,x,y,s=1,extra=''){
+  const a=ZA[k];
+  return `<rect x="${x-a.w*s/2-6}" y="${y+(a.cy-a.h/2)*s-6}" width="${a.w*s+12}" height="${a.h*s+12}" fill="transparent"/>${extra}
+  <g transform="translate(${x},${y}) scale(${s})"><g class="alive za-${k}">${a.art()}</g></g>
+  ${S.snaps.includes(k)?`<g transform="translate(${x+a.w*s/2-4},${y+(a.cy-a.h/2)*s+8})"><circle r="12" fill="#ffd34d" stroke="${INK}" stroke-width="2"/><path d="M-5,0 l4,4 l7,-8" fill="none" stroke="${INK}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g>`:''}`;
+}
+function shutter(){seq('square',[[1900,1900,.025,.07],[700,700,.05,.06]])}
+function zooPop(k){
+  const id='p'+(++uid);
+  stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none" transform="translate(200,170)"><g class="stkpop">
+    <rect x="-62" y="-70" width="124" height="134" rx="10" fill="#fff" ${K} transform="rotate(-4)"/><rect x="-50" y="-58" width="100" height="90" fill="#bfe3fa" stroke="${INK}" stroke-width="2" transform="rotate(-4)"/>
+    <g transform="rotate(-4)">${zFit(k,0,-13,82)}</g>
+    <text y="96" text-anchor="middle" class="say" fill="#e0508a" stroke="#fff" stroke-width="5" paint-order="stroke">NEW STICKER!</text></g></g>`);
+  setTimeout(()=>{const e=document.getElementById(id);e&&e.remove()},2400);
+}
+// tap an animal: the camera flashes, the animal does its thing, and the photo goes in the diary and the sticker book
+function snap(k,bx,by){
+  const a=ZA[k],fresh=!S.zbook.includes(k),el=$('.za-'+k);
+  shutter();
+  stage.insertAdjacentHTML('beforeend',`<rect class="flash" width="400" height="520" fill="#fff" pointer-events="none"/>`);
+  setTimeout(()=>{const f=$('.flash');f&&f.remove()},700);
+  el&&restartClass(el,k==='giraffe'||k==='elephant'?'stretch':k==='lion'?'shake':'wiggle',900);
+  later(()=>bubble(bx,by,a.pop,'#2c8fd6'),250);
+  if(k==='lion')later(()=>{sfx.rumble();react('scared')},300);
+  if(k==='elephant')later(()=>{sfx.toot();splash(Math.max(40,bx-90),FLOOR-60)},300);
+  if(k==='monkey')later(()=>sfx.chatter(),300);
+  if(k==='penguin')later(()=>sfx.splash(),300);
+  S.snaps.includes(k)||S.snaps.push(k);
+  if(fresh){S.zbook.push(k);later(()=>{zooPop(k);sfx.sticker()},700)}
+  const done=fresh&&S.zbook.length>=ZOOK.length;
+  say(`Snap! ${a.say}`+(fresh?' A new sticker for your zoo book!':' Another photo for your diary.'));
+  if(done&&!S.souv.includes('safari'))later(()=>{S.souv.push('safari');sfx.chord();hearts(200,260);
+    say('You found every animal in the zoo! The zookeeper gives you a safari hat. It is in your dress-up drawer!')},2600);
+}
+const bookBtn=()=>({id:'book',label:'Zoo sticker book',svg:`<rect x="160" y="12" width="80" height="80" fill="transparent"/>
+  <rect x="176" y="22" width="48" height="40" rx="4" fill="#3fae5a" ${K}/><path d="M200,22 V62" stroke="${INK}" stroke-width="2"/>${zFit('lion',188,42,20)}${zFit('penguin',212,42,20)}
+  <text x="200" y="84" text-anchor="middle" class="lbl">BOOK ${S.zbook.length}/${ZOOK.length}</text>`,
+  tap:()=>{S.zFrom={from:S.scene,x:Math.round(S.x)};go('zoobook','left')}});
+function zooHome(side){leave(side==='right'?460:-60,()=>endTrip(`You ride the big red bus home through London. What a day at the zoo, ${nm()}!`))}
+// a red London bus; x,y is the middle of its bottom
+function redBus(x,y,s=1,sign='ZOO'){
+  return `<g transform="translate(${x},${y}) scale(${s})">
+  <rect x="-64" y="-124" width="128" height="112" rx="12" fill="#d8243c" ${K}/><path d="M-64,-70 H64" stroke="${INK}" stroke-width="2.5"/>
+  ${[-46,-16,14,44].map(wx=>`<rect x="${wx-12}" y="-114" width="24" height="26" rx="4" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/><rect x="${wx-12}" y="-62" width="24" height="24" rx="4" fill="#bfe3fa" stroke="${INK}" stroke-width="2"/>`).join('')}
+  <rect x="-60" y="-140" width="70" height="16" rx="3" fill="#3a3346" stroke="${INK}" stroke-width="2"/><text x="-25" y="-127" text-anchor="middle" style="font-family:var(--display);font-size:13px;fill:#ffd34d">${sign}</text>
+  <circle cx="-38" cy="-10" r="13" fill="#3a3346" ${K}/><circle cx="38" cy="-10" r="13" fill="#3a3346" ${K}/><circle cx="-38" cy="-10" r="4" fill="#cfd3dc"/><circle cx="38" cy="-10" r="4" fill="#cfd3dc"/></g>`;
+}
+const flagZOO=(x,y,s=1)=>`<g transform="translate(${x},${y}) scale(${s})"><rect x="-20" y="-14" width="40" height="28" rx="2" fill="#3fae5a" stroke="${INK}" stroke-width="2"/>${zFit('giraffe',-7,0,24)}${zFit('penguin',9,2,20)}</g>`;
+function kiosk(){
+  return `<rect x="132" y="262" width="100" height="192" fill="transparent"/>
+  <rect x="138" y="296" width="88" height="156" fill="#fff3c4" ${K}/><path d="M132,296 L182,266 L232,296Z" fill="#3fae5a" ${K}/>
+  <rect x="148" y="318" width="68" height="56" rx="4" fill="#bfe3fa" stroke="${INK}" stroke-width="2.5"/>
+  <g transform="translate(182,374) scale(.38)">${catSVG('happy',false,false,CREAM,{hat:'safari'})}</g>
+  <rect x="140" y="374" width="84" height="10" fill="#d6ad45" stroke="${INK}" stroke-width="2"/>
+  <text x="182" y="414" text-anchor="middle" class="sign" style="font-size:17px">TICKETS</text>${S.tp.ticket?`<path d="M168,426 l8,8 l14,-16" fill="none" stroke="#3fae5a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`:''}`;
+}
+function buyZooTicket(){
+  faceRight();
+  if(S.tp.ticket){bubble(182,250,'HAVE FUN!','#3fae5a');say('The zookeeper waves. Have fun at the zoo!');return}
+  S.tp.ticket=true;sfx.coin();render();follow();bubble(182,250,S.luna?'TWO, PLEASE!':'ONE, PLEASE!','#3fae5a');
+  later(()=>{sfx.sticker();react('happy',false)},500);
+  say(`${S.luna?'Two tickets, please: one for me and one for Luna! ':''}The zookeeper gives you a ticket, a sticker book and a camera. Find all the animals and take their photos!`);
+}
+function zooGate(){
+  return `<rect x="236" y="190" width="164" height="264" fill="transparent"/>
+  <path d="M244,452 V250 M392,452 V250" stroke="${INK}" stroke-width="16"/><path d="M244,452 V250 M392,452 V250" stroke="#8a5a2b" stroke-width="10"/>
+  <path d="M238,252 Q318,170 398,252" fill="none" stroke="${INK}" stroke-width="22" stroke-linecap="round"/><path d="M238,252 Q318,170 398,252" fill="none" stroke="#3fae5a" stroke-width="15" stroke-linecap="round"/>
+  <rect x="262" y="214" width="112" height="32" rx="8" fill="#fff" ${K} stroke-width="2.5"/><text x="318" y="237" text-anchor="middle" class="sign" style="font-size:18px">LONDON ZOO</text>
+  ${zFit('giraffe',258,178,46)}${zFit('monkey',380,184,34)}
+  <path d="M252,452 V300 M266,452 V300 M280,452 V300 M356,452 V300 M370,452 V300 M384,452 V300" stroke="${INK}" stroke-width="2.5" opacity=".7"/>
+  <text x="318" y="330" text-anchor="middle" class="lbl">${S.tp.ticket?'IN YOU GO! →':'TICKET FIRST'}</text>`;
+}
+function tree(x,y,s=1,c='#7fc36b'){
+  return `<g transform="translate(${x},${y}) scale(${s})"><path d="M0,0 V-120" stroke="${INK}" stroke-width="18" stroke-linecap="round"/><path d="M0,0 V-120" stroke="#8a5a2b" stroke-width="12" stroke-linecap="round"/>
+  <path d="${cloud(0,-150,56,44,10)}" fill="${c}" ${K}/></g>`;
+}
+function fishBucket(){
+  const n=3-(S.tp.fed||0);
+  return `<rect x="322" y="360" width="78" height="94" fill="transparent"/><text x="361" y="372" text-anchor="middle" class="lbl">FISH</text>
+  ${[...Array(Math.max(0,n))].map((_,i)=>`<g transform="translate(${344+i*16},${404-(i%2)*6}) rotate(${-60+i*40}) scale(1.2)">${fishArt}</g>`).join('')}
+  <path d="M334,404 H390 L383,452 H341Z" fill="#2c8fd6" ${K}/><path d="M334,404 Q362,382 390,404" fill="none" stroke="${INK}" stroke-width="2.5"/>`;
+}
+const PENGX=[70,150,230];
+function feedPenguin(){
+  const i=S.tp.fed||0;
+  if(i>=3){bubble(330,330,'ALL GONE!','#2c8fd6');say('The bucket is empty. The penguins are full!');return}
+  S.busy=true;faceLeft();sfx.whoosh();
+  const id='e'+(++uid);stage.insertAdjacentHTML('beforeend',`<g id="${id}" pointer-events="none"><g transform="scale(1.6)">${fishArt}</g></g>`);
+  const el=document.getElementById(id),x0=360,y0=400,x1=PENGX[i],y1=FLOOR-84,t0=performance.now(),g=GEN;
+  (function step(t){
+    if(g!==GEN){el.remove();return}
+    const p=Math.min(1,(t-t0)/700);
+    el.setAttribute('transform',`translate(${(x0+(x1-x0)*p).toFixed(1)},${(y0+(y1-y0)*p-120*Math.sin(Math.PI*p)).toFixed(1)}) rotate(${(-720*p).toFixed(0)})`);
+    if(p<1){requestAnimationFrame(step);return}
+    el.remove();S.tp.fed=i+1;S.busy=false;if(S.tp.fed>=3)S.fedP=true;render();follow();sfx.slurp();
+    const pg=$('.pg'+i);pg&&restartClass(pg,'jump',700);bubble(x1,FLOOR-170,'GULP!','#2c8fd6');
+    say(S.tp.fed>=3?'Gulp! Every penguin has had a fish. Now take a photo of a penguin!':['Gulp! The first penguin catches the fish. Yum!','Gulp! The second penguin catches it too. Flap flap!'][i]);
+  })(t0);
+}
+function zooAnimals(ks){return ks.find(k=>!S.snaps.includes(k))}
+
+Object.assign(SC,{
+  dream:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#3b2a6b"/><rect y="230" width="400" height="290" fill="#5a3f95" opacity=".6"/>
+      ${[[30,110],[146,104],[256,108],[384,140],[150,240],[250,246],[388,240],[20,380],[380,370]].map(([x,y],i)=>`<path class="twink" style="animation-delay:${-i*.4}s" d="${starPath(x,y,5)}" fill="#fff3b0"/>`).join('')}
+      <path transform="translate(372,44) scale(.8)" d="${CRESCENT}" fill="#fff3b0" stroke="${INK}" stroke-width="2.5"/>
+      <path d="${cloud(200,452,180,40,13)}" fill="#efe4f7" ${K}/>
+      <g class="dfloat"><g transform="translate(250,436) rotate(-84) scale(.58)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,PINK,{bow:S.bow,glasses:S.glasses})}</g></g>
+      ${S.pal?`<g transform="translate(330,446) rotate(-84) scale(.46)">${catSVG('sleep',false,false,GREY)}</g>`:''}
+      ${S.luna?lunaAsleep(126,448,.36):''}</g>
+      <g class="zzz" pointer-events="none"><text x="130" y="392">Z</text><text x="150" y="372">z</text><text x="168" y="356">z</text></g>`,
+    hots:()=>[
+      ...DREAMS.map((d,i)=>({id:'d'+i,label:ART[d.k].label,svg:`<g class="dfloat" style="animation-delay:${(-i*.7).toFixed(1)}s"><g class="alive dz${i}">${showArt(d.k,d.x,d.y,d.w)}</g></g>`,tap:()=>dreamTap(i)})),
+      {id:'sleep',label:'Sleep tight',svg:bigBtn(196,462,190,'SLEEP TIGHT ☾','#8a6bd1'),tap:endDream}
+    ],
+    goal:()=>{const n=DREAMS.findIndex((d,i)=>!S.dreamt.includes(i));
+      return n>=0?{id:'d'+n,hint:S.dreamt.length?'Tap another picture to wake it up!':'Tap Carolina\'s pictures to wake them up!'}:{id:'sleep',hint:'Tap SLEEP TIGHT to sleep till morning'}},
+    before:()=>{S.dreamt=[]},
+    enter:()=>{lullaby(true);say(`${nm()} floats up, up, up into a dream… Everything Carolina drew is here, and it is all coming alive!`)}
+  },
+  duo:{
+    noCat:true,
+    draw:()=>`<rect width="200" height="520" fill="#fde6ee"/><rect x="200" width="200" height="520" fill="#efe4f7"/>
+      <rect width="400" height="${DUOTOP-4}" fill="#fffaf6"/><path d="M0,${DUOTOP-4} H400" ${K}/>
+      <path d="M200,${DUOTOP} V450" stroke="${INK}" stroke-width="3" stroke-dasharray="10 9"/>
+      <rect y="450" width="400" height="70" fill="#cdeee2"/><path d="M0,450 H400" ${K}/>
+      <g transform="translate(110,52) scale(.24)">${catSVG('happy',false,false,PINK,wearNow())}</g><g transform="translate(258,52) scale(.24)">${catSVG('happy',false,false,LUNA,{bow:true})}</g>
+      ${DUO&&!DUO.end?'':duoCard()}`,
+    over:()=>duoLayer(),
+    hots:()=>[
+      {id:'go-back',label:'Go back',svg:arrow('left','BACK'),tap:()=>{DUO=null;const f=S.duoFrom||{from:'bed',x:200};go(f.from,f.x)}},
+      ...(DUO&&!DUO.end?[]:[{id:'start',label:DUO?'Play again':'Start',svg:bigBtn(110,348,180,DUO?'PLAY AGAIN ▶':'START ▶','#3fae5a'),tap:duoPlay}])
+    ],
+    goal:()=>DUO&&!DUO.end?{id:'',hint:'Tap your side to run there'}:{id:'start',hint:DUO?'Tap PLAY AGAIN, or go back ↖':'Tap START when you are both ready!'},
+    before:()=>{DUO=null},
+    enter:()=>say(`Two players! ${nm()} is on the left and Luna is on the right. Each player taps their own side to run and catch things.`)
+  },
+  zoogate:{
+    draw:()=>`<rect width="400" height="520" fill="${paneSky()}"/><path d="${cloud(150,160,34,12,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,330 Q120,300 220,320 T400,310 V450 H0Z" fill="#a8d98a" ${K}/>
+      ${tree(40,330,.7,'#4f9c45')}
+      <rect y="450" width="400" height="70" fill="#d9cdb8"/><path d="M0,450 H400" ${K}/><path d="M0,484 H400" stroke="#c4b8a2" stroke-width="3" stroke-dasharray="20 14"/>
+      ${redBus(70,452,.85,'274 ZOO')}${deco(120,452,.5)}`,
+    hots:()=>[
+      {id:'kiosk',label:'Ticket kiosk',svg:kiosk(),walk:150,tap:buyZooTicket},
+      {id:'gate',label:'Zoo gate',svg:zooGate(),walk:300,tap:()=>S.tp.ticket?leave(460,()=>go('zoo','left')):(sfx.nope(),say('You need a ticket first! The ticket kiosk is right there.'))},
+      ...(S.tp.ticket?[bookBtn()]:[]),
+      S.tp.ticket?{id:'go-home',label:'Bus home',svg:arrow('left','BUS HOME'),tap:()=>zooHome('left')}:tripHome()
+    ],
+    goal:()=>!S.tp.ticket?{id:'kiosk',hint:'Buy a ticket at the kiosk'}
+      :zooAnimals(ZOOK)?{id:'gate',hint:'In you go! The animals are through the gate ↗'}
+      :{id:'go-home',hint:'What a day! Take the bus home ↖'},
+    over:()=>SC.city.over(),
+    landLeft:120,
+    enter:()=>{sfx.ding();say(S.tp.ticket?'Back at the zoo gate. The red bus is waiting to take you home.':'The big red bus stops right outside London Zoo! Ding ding!')}
+  },
+  zoo:{
+    draw:()=>`<rect width="400" height="520" fill="${paneSky()}"/>${S.rain||snowy()?'':`<circle cx="120" cy="160" r="20" fill="#ffd34d" ${K}/>`}
+      <path d="M0,300 Q140,270 260,296 T400,286 V450 H0Z" fill="#e9d38a" ${K}/>
+      ${tree(370,330,.75,'#4f9c45')}
+      <path d="M50,452 q10,-50 50,-50 q40,0 50,50Z" fill="#c9bfb0" ${K}/>
+      <rect y="450" width="400" height="70" fill="#d9cdb8"/><path d="M0,450 H400" ${K}/>
+      <path d="M0,440 H400" stroke="#8a5a2b" stroke-width="5"/>${[20,80,140,200,260,320,380].map(x=>`<path d="M${x},452 V424" stroke="#8a5a2b" stroke-width="6" stroke-linecap="round"/>`).join('')}`,
+    hots:()=>[
+      {id:'giraffe',label:'Giraffe',svg:zooHot('giraffe',314,436,.82),walk:290,tap:()=>snap('giraffe',300,160)},
+      {id:'elephant',label:'Elephant',svg:zooHot('elephant',196,436,.8),walk:200,tap:()=>snap('elephant',190,280)},
+      {id:'lion',label:'Lion',svg:zooHot('lion',96,404,.82),walk:110,tap:()=>snap('lion',96,250)},
+      {id:'monkey',label:'Monkey',svg:zooHot('monkey',372,226,.62),walk:330,tap:()=>snap('monkey',330,150)},
+      bookBtn(),
+      {id:'go-gate',label:'Back to the gate',svg:arrow('left','GATE'),tap:()=>leave(-60,()=>go('zoogate','right'))},
+      {id:'go-pen',label:'Go to the penguins',svg:arrow('right','PENGUINS'),tap:()=>leave(460,()=>go('penguins','left'))}
+    ],
+    goal:()=>{const k=zooAnimals(['giraffe','elephant','lion','monkey']);
+      return k?{id:k,hint:`${aAn(ZA[k].name)}! Tap it to take a photo`}:{id:'go-pen',hint:'Now let\'s see the penguins ↗'}},
+    over:()=>SC.city.over(),
+    landLeft:60,
+    enter:()=>say('The animals! A giraffe, an elephant, a lion and a monkey. Get your camera ready!')
+  },
+  penguins:{
+    draw:()=>`<rect width="400" height="520" fill="${paneSky()}"/><path d="${cloud(320,180,30,11,8)}" fill="#fff" stroke="${INK}" stroke-width="2.5"/>
+      <path d="M0,250 Q60,200 120,236 Q170,190 230,232 Q290,200 400,240 V450 H0Z" fill="#eef4fa" ${K}/>
+      <rect x="0" y="372" width="290" height="80" fill="#5fd3e6" ${K}/><path d="M10,396 q20,-8 40,0 t40,0 M120,420 q20,-8 40,0 t40,0 M200,394 q20,-8 40,0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+      <rect x="0" y="352" width="290" height="22" rx="6" fill="#cfd3dc" ${K}/>
+      <rect y="450" width="400" height="70" fill="#d9cdb8"/><path d="M0,450 H400" ${K}/>
+      <text x="200" y="146" text-anchor="middle" class="sign" style="font-size:22px">PENGUIN BEACH</text>`,
+    hots:()=>[
+      ...PENGX.map((x,i)=>({id:'pg'+i,label:'Penguin',svg:`<rect x="${x-30}" y="262" width="60" height="96" fill="transparent"/><g transform="translate(${x},354)${i===1?' scale(-1,1)':''}"><g class="alive pg${i}${i===1?' za-penguin':''}">${penguinArt()}</g></g>
+        ${i<(S.tp.fed||0)?heart(x,250,.7,'#e0508a',true):''}`,walk:x+20,tap:()=>(S.tp.fed||0)<3?(bubble(x,250,'HUNGRY!','#2c8fd6'),say('The penguin is hungry! Throw it a fish from the bucket.')):snap('penguin',x,250)})),
+      {id:'bucket',label:'Bucket of fish',svg:fishBucket(),walk:292,tap:feedPenguin},
+      bookBtn(),
+      {id:'go-zoo',label:'Back to the animals',svg:arrow('left','ANIMALS'),tap:()=>leave(-60,()=>go('zoo','right'))},
+      {id:'go-aqua',label:'Go to the aquarium',svg:arrow('right','AQUARIUM'),tap:()=>leave(460,()=>go('aquarium','left'))}
+    ],
+    goal:()=>(S.tp.fed||0)<3?{id:'bucket',hint:'Feed the penguins! Tap the fish bucket'}
+      :!S.snaps.includes('penguin')?{id:'pg1',hint:'Take a photo of a penguin!'}
+      :{id:'go-aqua',hint:'Now the aquarium! ↗'},
+    over:()=>SC.city.over(),
+    landLeft:286,
+    enter:()=>say((S.tp.fed||0)<3?'Penguin Beach! Three hungry penguins are waiting for their dinner. Squawk!':'Penguin Beach! The penguins are happy and full.')
+  },
+  aquarium:{
+    draw:()=>`<rect width="400" height="520" fill="#1d2f5e"/>
+      <rect x="14" y="110" width="372" height="320" rx="14" fill="#2c8fd6" ${K}/><rect x="14" y="380" width="372" height="50" fill="#f1d27a"/>
+      ${[[40,380],[66,380],[210,380],[236,380],[350,380]].map(([x,y],i)=>`<path d="M${x},${y} q-12,-30 4,-60 q-14,-20 2,-44" fill="none" stroke="#3fae5a" stroke-width="7" stroke-linecap="round" class="sway" style="transform-box:fill-box;transform-origin:50% 100%;animation-delay:${-i*.5}s"/>`).join('')}
+      ${[[60,300],[180,200],[300,160],[340,280],[120,160]].map(([x,y],i)=>`<circle cx="${x}" cy="${y}" r="${4+i%3*2}" fill="none" stroke="#fff" stroke-width="2" opacity=".8"/>`).join('')}
+      <rect x="14" y="110" width="372" height="320" rx="14" fill="none" ${K} stroke-width="5"/>
+      <rect y="450" width="400" height="70" fill="#3a3346"/><path d="M0,450 H400" ${K}/>`,
+    hots:()=>[
+      {id:'turtle',label:'Sea turtle',svg:`<g class="swim">${zooHot('turtle',200,200,1)}</g>`,walk:200,tap:()=>snap('turtle',200,140)},
+      {id:'octopus',label:'Octopus',svg:zooHot('octopus',310,330,.9),walk:300,tap:()=>snap('octopus',300,250)},
+      {id:'clownfish',label:'Clownfish',svg:zooHot('clownfish',110,320,1,`<g transform="translate(150,346) scale(.6)">${ZA.clownfish.art()}</g>`),walk:110,tap:()=>snap('clownfish',110,250)},
+      bookBtn(),
+      {id:'go-pen',label:'Back to the penguins',svg:arrow('left','PENGUINS'),tap:()=>leave(-60,()=>go('penguins','right'))},
+      {id:'go-home',label:'Take the bus home',svg:arrow('right','BUS HOME'),tap:()=>zooHome('right')}
+    ],
+    goal:()=>{const k=zooAnimals(['turtle','octopus','clownfish']);
+      return k?{id:k,hint:`${aAn(ZA[k].name)}! Tap it to take a photo`}:{id:'go-home',hint:`What a day! Look at your sticker book, or take the bus home ↗`}},
+    landLeft:80,
+    enter:()=>say('The aquarium! It is like being under the sea. Look at all the sea animals!')
+  },
+  zoobook:{
+    noCat:true,
+    draw:()=>`<rect width="400" height="520" fill="#3fae5a"/><rect x="18" y="104" width="364" height="400" rx="12" fill="#fffaf6" ${K}/>
+      <text x="200" y="66" text-anchor="middle" class="sign" style="font-size:26px;fill:#fff;stroke:${INK};stroke-width:1px">MY ZOO STICKER BOOK</text>
+      <text x="200" y="94" text-anchor="middle" class="sign" style="font-size:20px;fill:#fff3c4">${S.zbook.length} / ${ZOOK.length}</text>`,
+    hots:()=>[
+      ...ZOOK.map((k,i)=>{const x=110+(i%2)*180,y=156+Math.floor(i/2)*92,got=S.zbook.includes(k);
+        return {id:'zs'+i,label:got?ZA[k].name:'Not found yet',svg:`<rect x="${x-80}" y="${y-42}" width="160" height="84" rx="10" fill="${got?'#fff':'#e9e3dc'}" stroke="${INK}" stroke-width="2" stroke-dasharray="${got?'0':'6 4'}"/>
+          ${got?`<g class="alive zb${i}">${zFit(k,x-30,y-2,64)}</g><text x="${x+34}" y="${y+8}" text-anchor="middle" class="sign" style="font-size:${ZA[k].name.length>8?14:17}px">${ZA[k].name.toUpperCase()}</text>`
+            :`<text x="${x}" y="${y+12}" text-anchor="middle" class="sign" style="font-size:34px;fill:#b9b2aa">?</text>`}`,
+          tap:()=>{if(!got){sfx.nope();say('Not found yet! Look for it at the zoo.');return}const el=$('.zb'+i);el&&restartClass(el,'jump',700);sfx.twinkle(1+i%5);say(`A sticker of ${aAn(ZA[k].name)}! ${ZA[k].say}`)}}}),
+      {id:'go-back',label:'Back',svg:arrow('left','BACK'),tap:()=>{const f=S.zFrom||{from:'zoogate',x:200};go(f.from,f.x)}}
+    ],
+    goal:()=>({id:'go-back',hint:S.zbook.length>=ZOOK.length?'You found them all! Go back ↖':'Find all the animals! Go back ↖'}),
+    enter:()=>say(S.zbook.length>=ZOOK.length?'Your zoo sticker book is full! Every single animal!':`Your zoo sticker book. You have found ${S.zbook.length} of ${ZOOK.length} animals.`)
+  }
+});
+
 /* ---------- render ---------- */
 function catLayer(){
   if(SC[S.scene].noCat||S.box==='in'||(S.scene==='bath'&&S.bath==='in')||S.ride) return '';
   if(S.scene==='bed'&&!S.awake){
     return `${S.pal?`<g pointer-events="none" transform="translate(306,432) rotate(-84) scale(.62)"><g class="breathe" style="transform-box:fill-box;transform-origin:50% 100%">${catSVG('sleep',false,false,GREY)}</g></g>`:''}
       <g class="hot${SC.bed.goal().id==='cat'?' pulse':''}" data-id="cat" role="button" tabindex="0" aria-label="Sleeping cat">
-      <g transform="translate(272,396) rotate(-84)"><g id="catAnim" class="breathe">${catSVG('sleep')}</g></g></g>
+      <g transform="translate(272,396) rotate(-84)"><g id="catAnim" class="breathe">${catSVG('sleep')}</g></g></g>${S.luna?`<g pointer-events="none">${lunaAsleep(128,432,.36)}</g>`:''}
       <g class="zzz" pointer-events="none"><text x="120" y="318">Z</text><text x="146" y="296">z</text><text x="166" y="278">z</text></g>`;
   }
   const pet=S.scene==='bed'?'class="hot" data-id="cat" role="button" tabindex="0" aria-label="Pet the cat"':'pointer-events="none"';
@@ -4976,18 +5542,30 @@ function palLayer(){
   if(!S.pal||SC[S.scene].noCat||(S.scene==='bed'&&!S.awake)||S.ride==='seesaw') return '';
   return `<g class="hot" data-id="pal" role="button" tabindex="0" aria-label="Your grey cat friend"><g id="pal" transform="translate(${S.palX.toFixed(1)},${FLOOR}) scale(.82)"><g id="palFlip" transform="scale(${S.palFace},1)"><g id="palAnim">${catSVG('normal',false,false,GREY,{hat:S.party?'party2':''})}</g></g></g></g>`;
 }
+// Luna, the little sister: a tiny kitten who follows the cat everywhere once she is awake
+// she is drawn on top of everything so she never hides behind the furniture, but her tap spot sits under the other hotspots so she never blocks them
+const lunaHere=()=>S.luna&&!SC[S.scene].noCat&&!(S.scene==='bed'&&!S.awake)&&S.ride!=='push'&&!(S.ride==='seesaw'&&!S.pal);
+function lunaLayer(){
+  if(!lunaHere()) return '';
+  return `<g class="hot" data-id="lunaK" role="button" tabindex="0" aria-label="Luna, your little sister"><g id="lunaHit" transform="translate(${S.lunaX.toFixed(1)},${FLOOR}) scale(.5)"><rect x="-50" y="-200" width="100" height="204" fill="transparent"/></g></g>`;
+}
+function lunaTop(){
+  if(!lunaHere()) return '';
+  return `<g pointer-events="none"><g id="luna" transform="translate(${S.lunaX.toFixed(1)},${FLOOR}) scale(.5)"><g id="lunaFlip" transform="scale(${S.lunaFace},1)"><g id="lunaAnim">${lunaSVG('normal')}</g></g></g></g>`;
+}
 let HOTS={}, WELCOME='';
 function render(){
   const sc=SC[S.scene], p=goalNow().id, hs=[...sc.hots(),...huntHots()];
   HOTS={};hs.forEach(h=>HOTS[h.id]=h);
   if(S.scene==='bed') HOTS.cat={id:'cat',tap:!S.awake?wake:S.yarn==='tangled'?unTangle:pet};
   if(S.pal) HOTS.pal={id:'pal',tap:petPal};
+  if(S.luna&&!SC[S.scene].noCat) HOTS.lunaK={id:'lunaK',tap:tapLuna};
   const ae=document.activeElement, fid=stage.contains(ae)&&ae.dataset?ae.dataset.id:null;
   const prints=outside()&&snowy()?`<g id="prints" pointer-events="none">${S.prints.map(p=>pawSVG(p.x,p.y,p.f,'#b9cde0')).join('')}</g>`:'';
   stage.classList.toggle('drawing',S.scene==='paint'||S.scene==='sketch');
-  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+prints+palLayer()+
+  stage.innerHTML=DEFS+`<g filter="url(#wob)">${sc.draw()}</g>`+prints+palLayer()+lunaLayer()+
     hs.map(h=>`<g class="hot${p===h.id?' pulse':''}" data-id="${h.id}" role="button" tabindex="0" aria-label="${h.label}">${h.svg}</g>`).join('')+
-    catLayer()+(sc.over?sc.over():'');
+    lunaTop()+catLayer()+(sc.over?sc.over():'');
   const f=fid&&$(`[data-id="${fid}"]`);f&&f.focus();
 }
 function refreshGoal(){const id=goalNow().id;stage.querySelectorAll('.hot').forEach(el=>el.classList.toggle('pulse',el.dataset.id===id&&el.id!=='cat'))}
@@ -5015,21 +5593,28 @@ function walkTo(tx,cb){
   })(t0);
 }
 function leave(tx,cb){walkTo(tx,cb)}
-let palRaf=0;
-function follow(){
-  if(palRaf||!S.pal)return;
+// the grey friend and Luna the kitten trot along behind the cat, each at its own distance
+const TRAIL={
+  pal:{on:()=>S.pal,id:'pal',x:'palX',f:'palFace',sc:.82,gap:()=>62},
+  luna:{on:()=>S.luna&&S.ride!=='push',id:'luna',x:'lunaX',f:'lunaFace',sc:.5,gap:()=>S.pal?112:58}
+};
+const RAF={};
+function follow(){Object.keys(TRAIL).forEach(trail)}
+function trail(k){
+  const t=TRAIL[k];
+  if(RAF[k]||!t.on())return;
   const tick=()=>{
-    const el=$('#pal'),fl=$('#palFlip'),an=$('#palAnim');
-    if(!el){palRaf=0;return}
-    const tx=Math.max(30,Math.min(370,S.x-62*S.face)),d=tx-S.palX;
+    const el=$('#'+t.id),fl=$('#'+t.id+'Flip'),an=$('#'+t.id+'Anim');
+    if(!el){RAF[k]=0;return}
+    const tx=Math.max(30,Math.min(370,S.x-t.gap()*S.face)),d=tx-S[t.x];
     if(Math.abs(d)<1.5){
-      palRaf=0;an.classList.remove('walk');S.palFace=S.x>=S.palX?1:-1;fl.setAttribute('transform',`scale(${S.palFace},1)`);return;
+      RAF[k]=0;an.classList.remove('walk');S[t.f]=S.x>=S[t.x]?1:-1;fl.setAttribute('transform',`scale(${S[t.f]},1)`);return;
     }
-    S.palX+=Math.sign(d)*Math.min(Math.abs(d)*.12+.4,4.2);S.palFace=Math.sign(d);
-    el.setAttribute('transform',`translate(${S.palX.toFixed(1)},${FLOOR}) scale(.82)`);fl.setAttribute('transform',`scale(${S.palFace},1)`);an.classList.add('walk');
-    palRaf=requestAnimationFrame(tick);
+    S[t.x]+=Math.sign(d)*Math.min(Math.abs(d)*.12+.4,4.2);S[t.f]=Math.sign(d);
+    el.setAttribute('transform',`translate(${S[t.x].toFixed(1)},${FLOOR}) scale(${t.sc})`);const hit=$('#'+t.id+'Hit');hit&&hit.setAttribute('transform',el.getAttribute('transform'));fl.setAttribute('transform',`scale(${S[t.f]},1)`);an.classList.add('walk');
+    RAF[k]=requestAnimationFrame(tick);
   };
-  palRaf=requestAnimationFrame(tick);
+  RAF[k]=requestAnimationFrame(tick);
 }
 // from: 'left' or 'right' walks in from that edge; a number puts the cat right there (top or bottom of a ladder)
 function go(name,from){
@@ -5039,7 +5624,7 @@ function go(name,from){
     // 'chute': the cat comes down the big house slide into the hall
     const at=typeof from==='number',chute=from==='chute';
     S.scene=name;S.x=at?from:chute?200:from==='left'?-50:450;S.face=1;S.mood='normal';
-    S.palX=at?Math.max(30,from-62):chute?120:from==='left'?-120:520;S.prints=[];S.lastKey=-1;
+    S.palX=at?Math.max(30,from-62):chute?120:from==='left'?-120:520;S.lunaX=at?Math.max(30,from-(S.pal?112:58)):chute?90:from==='left'?-170:570;S.prints=[];S.lastKey=-1;
     if(chute)S.ride='chute';
     // places in town remember that you went there today, and that you have ever been
     if(PLACES.includes(name)){S.went.includes(name)||S.went.push(name);S.seen.includes(name)||S.seen.push(name)}
@@ -5102,7 +5687,7 @@ function petPal(){
   react('happy');say('You cuddle your friend. Poooourrr!');
 }
 function wake(){
-  S.awake=true;S.busy=true;S.x=200;S.face=1;S.mood='normal';S.palX=136;S.palFace=1;render();updateHud();
+  S.awake=true;S.busy=true;S.x=200;S.face=1;S.mood='normal';S.palX=136;S.palFace=1;S.lunaX=S.pal?86:140;S.lunaFace=1;render();updateHud();
   const an=$('#catAnim');an&&restartClass(an,'stretch',900);
   setTimeout(()=>S.busy=false,900);
   sfx.rumble();later(()=>bubble(S.x,FLOOR-190,'RUMBLE!','#a8652f'),250);
@@ -5308,6 +5893,7 @@ function nap(){
     S.wrote=false;S.told=false;S.fed=[];S.hunt=null;S.sketched=false;S.snowcat=0;S.sled=0;S.puds=[];S.rolled=0;
     S.bus=false;S.cata=false;S.slid2=false;S.balls=0;S.ice='';S.helped=[];S.woods=false;S.climbed=false;S.spirit=false;
     S.wooded=false;S.clayed=false;
+    S.tidy=[];S.shared=false;S.pushed=false;S.duoed=false;S.dreamt=[];S.snaps=[];S.fedP=false;
     // a new day and a new season: the second day is always rainy so everyone gets to see it, then rain comes now and then (it snows in winter instead)
     S.day++;S.rain=!snowy()&&(S.day===2||Math.random()<.4);
     // the diary remembers the morning's weather, because eating the fish stops the rain
@@ -5315,7 +5901,7 @@ function nap(){
     // the bird only comes when it is not raining
     S.bird=S.rain?false:'here';
     render();updateHud();sfx.purr();
-    say((S.pal?'You and your friend curl up on your cloud. Zzz…':snowy()?'You curl up on your cloud. Zzz… Shh, it is snowing.':S.rain?'You curl up on your cloud. Zzz… Listen, rain!':`You curl up on your cloud. Zzz… Good night, ${nm()}!`)+` ${got} points today!`,'Tap the cat to wake up again');
+    say((S.pal&&S.luna?'You, your friend and Luna curl up on your cloud. Zzz…':S.luna?'You and Luna curl up on your cloud. Zzz…':S.pal?'You and your friend curl up on your cloud. Zzz…':snowy()?'You curl up on your cloud. Zzz… Shh, it is snowing.':S.rain?'You curl up on your cloud. Zzz… Listen, rain!':`You curl up on your cloud. Zzz… Good night, ${nm()}!`)+` ${got} points today!`,'Tap the cat to wake up again');
     bubble(200,250,`+${got} ★`,'#d6ad45');
   });
 }
@@ -5342,8 +5928,8 @@ function ride(k){
   S.busy=true;S.ride=k;S.face=1;clearTimeout(moodT);S.mood='normal';clearBubbles();render();
   const ms={slide:2700,swing:3700,seesaw:3400}[k],end={slide:206,swing:250,seesaw:296}[k];
   const txt={slide:['Up the ladder… one, two, three…','Wheee! Down the slide! Poooourrr!'],
-    swing:['You hop on the swing. Up… and down… so high!','Swing swing! You fly like a bird! Poooourrr!'],
-    seesaw:[S.pal?'You and your friend ride the seesaw. Up and down!':'A duck hops on the other end. Up and down!','Up, down, up, down! What fun! Poooourrr!']}[k];
+    swing:[S.luna?'Luna pushes you on the swing. Up… and down… so high!':'You hop on the swing. Up… and down… so high!','Swing swing! You fly like a bird! Poooourrr!'],
+    seesaw:[S.pal?'You and your friend ride the seesaw. Up and down!':S.luna?'You and Luna ride the seesaw. Up and down!':'A duck hops on the other end. Up and down!','Up, down, up, down! What fun! Poooourrr!']}[k];
   say(txt[0],'');
   if(k==='slide'){
     // up the ladder, along the top, then down the slide getting faster and faster
@@ -6582,6 +7168,7 @@ function showMenu(){
     <button class="big blue" data-a="save" id="saveBtn">✓ SAVE</button>
     <button class="big green" data-a="again">↺ START AGAIN</button>
     <button class="big gold" data-a="board">${TROPHY} TOP CATS</button>
+    ${canDuo()?`<button class="big pink" data-a="duo"><span>2 PLAYERS<span class="meta">YOU AND LUNA</span></span></button>`:''}
     ${canMove()?`<button class="big blue" data-a="move">${houseIcon} MOVE HOUSE</button>`:''}
     <button class="big orange" data-a="parties">${partyIcon(THEME,30)} PARTY: ${party().name.toUpperCase()}</button>
     <button class="big blue" data-a="years">${bagIcon} SCHOOL: ${YEARS[yr()].name.toUpperCase()}</button>
@@ -6663,6 +7250,7 @@ ov.addEventListener('click',e=>{
   }
   else if(a==='move') offerMove();
   else if(a==='trip') startTrip(b.dataset.t);
+  else if(a==='duo') startDuo();
   else if(a==='huntgo') huntGo();
   else if(a==='huntpeek') clueCard(true);
   else if(a==='moveyes') moveHouse();
@@ -6682,7 +7270,7 @@ ov.addEventListener('input',e=>{if(e.target.id==='linkName')LINK.name=e.target.v
 document.getElementById('menuBtn').addEventListener('click',()=>{ac();ov.hidden?showMenu():CUR?resume():0});
 // saving when the page goes away too, in case the last tap did not tell a story
 addEventListener('pagehide',()=>{save();cloudFlush()});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();cloudFlush();lullaby(false)}else{cloudPull();if(S.scene==='tale')lullaby(true)}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){save();cloudFlush();lullaby(false)}else{cloudPull();if(S.scene==='tale'||S.scene==='dream')lullaby(true)}});
 
 render();updateHud();showTitle();cloudPull();
 </script>
